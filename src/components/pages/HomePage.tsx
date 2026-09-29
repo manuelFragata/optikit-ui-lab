@@ -90,7 +90,7 @@ function ProjectsBody({
               <Typography variant="subtitle2" noWrap>
                 {project.name}
               </Typography>
-              <Typography variant="mono" color="text.meta" noWrap component="div">
+              <Typography variant="meta" color="text.meta" noWrap component="div">
                 v{project.version} · {project.edited}
               </Typography>
             </Box>
@@ -195,7 +195,7 @@ function TutorialsBody() {
             <Typography variant="subtitle2" noWrap>
               {t.title}
             </Typography>
-            <Typography variant="mono" color="text.meta">
+            <Typography variant="meta" color="text.meta">
               {t.format} · {t.length}
             </Typography>
           </Box>
@@ -224,7 +224,7 @@ function ForumCard() {
       {demoForumThreads.slice(0, 3).map((thread) => (
         <ButtonBase key={thread.id} sx={{ display: 'block', textAlign: 'left', px: 2.5, py: 1, '&:hover': { bgcolor: 'action.hover' } }}>
           <Typography variant="subtitle2">{thread.title}</Typography>
-          <Typography variant="mono" color="text.meta" component="div">
+          <Typography variant="meta" color="text.meta" component="div">
             {thread.category} · {thread.replies} replies · {thread.lastActivity}
           </Typography>
         </ButtonBase>
@@ -244,7 +244,7 @@ function ReleaseNotesCard() {
         <Typography variant="subtitle2">v{latest.version}</Typography>
         <TagChip label="Current" tone="success" dot />
         <Box sx={{ flex: 1 }} />
-        <Typography variant="mono" color="text.meta">
+        <Typography variant="meta" color="text.meta">
           {latest.date}
         </Typography>
       </Stack>
@@ -268,7 +268,7 @@ function ShowcaseCard() {
       </Box>
       <Box>
         <Typography variant="subtitle2">{demoShowcase.title}</Typography>
-        <Typography variant="mono" color="text.meta">
+        <Typography variant="meta" color="text.meta">
           @{demoShowcase.author}
         </Typography>
       </Box>

@@ -76,7 +76,7 @@ export function PropertiesPanel({ symbol, onChange }: PropertiesPanelProps) {
               <Typography variant="body2" noWrap>
                 {symbol.linked.name}
               </Typography>
-              <Typography variant="mono" color="text.meta" noWrap component="div">
+              <Typography variant="meta" color="text.meta" noWrap component="div">
                 {symbol.linked.source}
                 {symbol.linked.version && ` · v${symbol.linked.version}`}
               </Typography>

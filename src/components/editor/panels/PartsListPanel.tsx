@@ -27,13 +27,13 @@ export function PartsListPanel({ symbols, selectedId, onSelect }: PartsListPanel
         {symbols.map((s) => (
           <ListItemButton key={s.id} selected={s.id === selectedId} onClick={() => onSelect(s.id)} sx={{ display: 'block', px: 2, py: 0.75 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-              <Typography variant="mono" color="text.meta">
+              <Typography variant="meta" color="text.meta">
                 {s.id}
               </Typography>
               <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
                 {s.label}
               </Typography>
-              <Typography variant="mono" color="text.meta">
+              <Typography variant="meta" color="text.meta">
                 ×1
               </Typography>
             </Stack>

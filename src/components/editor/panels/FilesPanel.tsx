@@ -50,7 +50,7 @@ export function FilesPanel({ files }: FilesPanelProps) {
                     <Typography variant="body2" noWrap>
                       {f.name}
                     </Typography>
-                    <Typography variant="mono" color="text.meta" component="div">
+                    <Typography variant="meta" color="text.meta" component="div">
                       {f.size} · {f.updated}
                     </Typography>
                   </Box>

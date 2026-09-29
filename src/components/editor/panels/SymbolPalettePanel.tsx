@@ -72,7 +72,7 @@ export function SymbolPalettePanel({ groups, activeEntryId, onPick, defaultOpen 
               <Typography variant="subtitle2" sx={{ flex: 1, textAlign: 'left' }}>
                 {group.label}
               </Typography>
-              <Typography variant="mono" color="text.meta">
+              <Typography variant="meta" color="text.meta">
                 {group.count}
               </Typography>
             </ButtonBase>

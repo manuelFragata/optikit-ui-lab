@@ -127,7 +127,7 @@ export function StackedCards({
           <Typography variant="subtitle1" component="h3" sx={{ flex: 1 }}>
             {active.label}
           </Typography>
-          <Typography variant="mono" color="text.meta">
+          <Typography variant="meta" color="text.meta">
             {index + 1}/{count}
           </Typography>
         </Stack>

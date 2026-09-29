@@ -126,7 +126,7 @@ export function ExampleShowcase({ examples, autoAdvanceMs = 9000, onOpen, onLock
             );
           })}
         </Stack>
-        <Typography variant="mono" color="text.meta" sx={{ display: { xs: 'none', sm: 'block' } }}>
+        <Typography variant="meta" color="text.meta" sx={{ display: { xs: 'none', sm: 'block' } }}>
           {index + 1}/{count}
         </Typography>
         <IconButton aria-label="Previous example" onClick={() => go(index - 1)} sx={{ border: 1, borderColor: 'divider' }}>
@@ -172,7 +172,7 @@ export function ExampleShowcase({ examples, autoAdvanceMs = 9000, onOpen, onLock
             <Typography variant="h1" component="h3">
               {example.title}
             </Typography>
-            <Typography variant="mono" color="text.meta">
+            <Typography variant="meta" color="text.meta">
               {example.cubes} cubes · {schematic.symbols.length} parts
             </Typography>
           </Box>
@@ -186,7 +186,7 @@ export function ExampleShowcase({ examples, autoAdvanceMs = 9000, onOpen, onLock
               <Stack spacing={1}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <Typography variant="subtitle1">{selected.label}</Typography>
-                  <Typography variant="mono" color="text.meta">
+                  <Typography variant="meta" color="text.meta">
                     {selected.id} · {selected.type}
                   </Typography>
                 </Stack>

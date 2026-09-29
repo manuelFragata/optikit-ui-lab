@@ -92,7 +92,7 @@ export function AccountMenu({ user, size = 4.5, showSignUp = true, onLogIn, onSi
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle2">{user.name}</Typography>
-          <Typography variant="mono" color="text.meta">
+          <Typography variant="meta" color="text.meta">
             {user.email}
           </Typography>
         </Box>

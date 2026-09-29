@@ -46,7 +46,7 @@ export function DesignCard({
               {collection && count !== undefined ? `Collection · ${count} designs` : kind}
             </Typography>
             {version && (
-              <Typography variant="mono" color="text.secondary">
+              <Typography variant="meta" color="text.secondary">
                 v{version}
               </Typography>
             )}
@@ -72,7 +72,7 @@ export function DesignCard({
             </Stack>
           )}
           {maintainer && (
-            <Typography variant="mono" color="text.secondary">
+            <Typography variant="meta" color="text.secondary">
               @{maintainer}
             </Typography>
           )}

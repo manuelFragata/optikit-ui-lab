@@ -417,6 +417,9 @@ export const typeScale = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
   },
+  // Secondary lines under a title ("9 cubes · 6 parts", "v0.4.2 · 2 h ago"): the UI font with
+  // tabular figures, so counts and versions line up without a monospace look.
+  meta: { fontSize: '0.75rem', lineHeight: 1.5, fontWeight: fontWeight.regular, fontVariantNumeric: 'tabular-nums' },
   // fontFamily comes from the selected mono font (see createAppTheme).
   mono: { fontSize: '0.75rem', lineHeight: 1.5, fontWeight: fontWeight.regular }, // Mono 12
 } as const;

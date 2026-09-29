@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { demoGallery } from '../../demo/homeContent';
 import { communityFacts, exampleDesigns, featureHighlights, pricingPlans } from '../../demo/landingContent';
@@ -97,19 +96,15 @@ export function LandingPage({
           sx={{ scrollMarginTop: (t) => t.spacing(t.layout.topbarHeight), pt: { xs: 5, md: 8 }, pb: { xs: 6, md: 10 } }}
         >
           <PageContainer>
-            <Stack spacing={1.5} sx={{ mb: { xs: 3, md: 4 }, maxWidth: (t) => t.spacing(110) }}>
-              <Typography variant="display" component="h1">
-                See what you can do. It&rsquo;s free.
-              </Typography>
-              <Typography variant="subtitle1" component="p" color="text.secondary" sx={{ fontWeight: 'fontWeightRegular' }}>
-                These are working designs. Click a part, change it, follow the light. You don&rsquo;t need an account to try
-                any of this.{' '}
-                <Link component="button" onClick={onNewProject} sx={{ typography: 'inherit', verticalAlign: 'baseline' }}>
-                  Or start from an empty page.
-                </Link>
-              </Typography>
-            </Stack>
+            <Typography variant="display" component="h1" sx={{ mb: { xs: 3, md: 4 } }}>
+              See? You can do it too, give it a try:
+            </Typography>
             <ExampleShowcase examples={exampleDesigns} autoAdvanceMs={autoAdvanceMs} onOpen={onOpenExample} onLocked={onSignUp} />
+            <Box sx={{ mt: 2, textAlign: 'right' }}>
+              <Link component="button" variant="body2" onClick={onNewProject}>
+                Or start from an empty page
+              </Link>
+            </Box>
           </PageContainer>
         </Box>
 

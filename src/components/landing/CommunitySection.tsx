@@ -39,7 +39,7 @@ export function CommunitySection({ items, facts, onOpenDesign, onBrowseGallery, 
               <Typography variant="h1" component="div">
                 {fact.value}
               </Typography>
-              <Typography variant="mono" color="text.meta">
+              <Typography variant="meta" color="text.meta">
                 {fact.label}
               </Typography>
             </Box>

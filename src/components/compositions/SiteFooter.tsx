@@ -126,7 +126,7 @@ export function SiteFooter({
           spacing={2}
           sx={{ mt: { xs: 5, md: 7 }, pt: 2.5, borderTop: 1, borderColor: 'divider', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
         >
-          <Typography variant="mono" color="text.meta">
+          <Typography variant="meta" color="text.meta">
             {note}
           </Typography>
           <Stack component="nav" aria-label="Legal" direction="row" useFlexGap spacing={2.5} sx={{ flexWrap: 'wrap' }}>

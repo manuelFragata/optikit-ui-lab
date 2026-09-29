@@ -37,7 +37,7 @@ export function GalleryTile({ item, onOpen }: GalleryTileProps) {
             Shipped with Optikit
           </Typography>
         ) : (
-          <Typography variant="mono" color="text.meta" noWrap component="div">
+          <Typography variant="meta" color="text.meta" noWrap component="div">
             @{item.author}
           </Typography>
         )}

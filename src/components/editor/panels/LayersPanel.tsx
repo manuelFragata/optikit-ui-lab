@@ -44,7 +44,7 @@ export function LayersPanel({ symbols, groups, selectedId, onSelect }: LayersPan
             <Typography variant="overline" color="text.secondary">
               Layer z = {z}
             </Typography>
-            <Typography variant="mono" color="text.meta">
+            <Typography variant="meta" color="text.meta">
               {symbols.filter((s) => s.z === z).length} symbols
             </Typography>
           </Stack>
@@ -77,7 +77,7 @@ export function LayersPanel({ symbols, groups, selectedId, onSelect }: LayersPan
                 <List disablePadding>
                   {members.map((s) => (
                     <ListItemButton key={s.id} selected={s.id === selectedId} onClick={() => onSelect(s.id)} sx={{ pl: 5, py: 0.25, gap: 1.5, opacity: isHidden ? 0.5 : 1 }}>
-                      <Typography variant="mono" color="text.meta" sx={{ width: (t) => t.spacing(3) }}>
+                      <Typography variant="meta" color="text.meta" sx={{ width: (t) => t.spacing(3) }}>
                         {s.id}
                       </Typography>
                       <Typography variant="body2" noWrap>

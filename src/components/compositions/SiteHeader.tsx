@@ -36,7 +36,7 @@ export interface SiteHeaderProps {
   onLogOut?: () => void;
 }
 
-/** Round utility button used in the top bar (search, GitHub, help). */
+/** Plain icon button used in the top bar (search, GitHub, help). */
 function RoundButton({ label, children, href, onClick }: { label: string; children: ReactNode; href?: string; onClick?: () => void }) {
   const external = href?.startsWith('http');
   return (
@@ -48,15 +48,7 @@ function RoundButton({ label, children, href, onClick }: { label: string; childr
         target={external ? '_blank' : undefined}
         rel={external ? 'noopener noreferrer' : undefined}
         onClick={onClick}
-        sx={{
-          border: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          color: 'text.primary',
-          width: (theme) => theme.spacing(4.5),
-          height: (theme) => theme.spacing(4.5),
-          '&:hover': { bgcolor: 'background.sunken' },
-        }}
+        sx={{ color: 'text.primary' }}
       >
         {children}
       </IconButton>
@@ -131,7 +123,7 @@ export function SiteHeader({
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
             <ColorSchemeToggle variant="switch" />
           </Box>
-          <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
+          <Stack direction="row" spacing={0.25} sx={{ display: { xs: 'none', md: 'flex' } }}>
             <RoundButton label="Search" onClick={onSearch}>
               <SearchIcon fontSize="small" />
             </RoundButton>

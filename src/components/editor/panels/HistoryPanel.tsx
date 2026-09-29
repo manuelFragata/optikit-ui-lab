@@ -61,7 +61,7 @@ export function HistoryPanel({ entries, onRestore }: HistoryPanelProps) {
                   </Typography>
                 </Stack>
                 <Typography variant="body2">{e.message}</Typography>
-                <Typography variant="mono" color="text.meta">
+                <Typography variant="meta" color="text.meta">
                   @{e.author}
                 </Typography>
               </Box>

@@ -68,11 +68,13 @@ declare module '@mui/material/styles' {
     mono: CSSProperties;
     display: CSSProperties;
     headline: CSSProperties;
+    meta: CSSProperties;
   }
   interface TypographyVariantsOptions {
     mono?: CSSProperties;
     display?: CSSProperties;
     headline?: CSSProperties;
+    meta?: CSSProperties;
   }
 }
 
@@ -81,6 +83,7 @@ declare module '@mui/material/Typography' {
     mono: true;
     display: true;
     headline: true;
+    meta: true;
   }
 }
 
