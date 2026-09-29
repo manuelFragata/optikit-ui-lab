@@ -99,6 +99,7 @@ export function LandingPage({
     <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <SiteHeader
         user={null}
+        showHelp={false}
         nav={LANDING_SECTIONS.map((s) => ({ label: s.label, onClick: () => goTo(s.id) }))}
         onHome={onHome}
         onLogIn={onLogIn}

@@ -3,6 +3,11 @@
  * Self-hosted: the openUC2 brand guide names it as the free alternative to Stolzl.
  * Only the weights the app uses are shipped: Thin (taglines), Light, Regular
  * (headings, per the guide), Medium (small UI labels) and Bold (the Optikit wordmark).
+ *
+ * Metric overrides: the font's own metrics (ascent 734, descent 230 per 1000)
+ * centre the x-height in a line box, so capitals sit ~0.1em high and labels
+ * look off-centre in buttons and pills. 80.2% / 16.2% keeps the same total
+ * height and moves the centre halfway between x-height and cap height.
  */
 @font-face {
   font-family: 'Objectivity';
@@ -10,6 +15,9 @@
   font-weight: 100;
   font-style: normal;
   font-display: swap;
+  ascent-override: 80.2%;
+  descent-override: 16.2%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: 'Objectivity';
@@ -17,6 +25,9 @@
   font-weight: 300;
   font-style: normal;
   font-display: swap;
+  ascent-override: 80.2%;
+  descent-override: 16.2%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: 'Objectivity';
@@ -24,6 +35,9 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  ascent-override: 80.2%;
+  descent-override: 16.2%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: 'Objectivity';
@@ -31,6 +45,9 @@
   font-weight: 500;
   font-style: normal;
   font-display: swap;
+  ascent-override: 80.2%;
+  descent-override: 16.2%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: 'Objectivity';
@@ -38,4 +55,7 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+  ascent-override: 80.2%;
+  descent-override: 16.2%;
+  line-gap-override: 0%;
 }

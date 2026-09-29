@@ -27,6 +27,8 @@ export interface SiteHeaderProps {
   nav?: SiteNavItem[];
   githubUrl?: string;
   helpUrl?: string;
+  /** The help button; the signed-out landing page leaves it out. */
+  showHelp?: boolean;
   onHome?: () => void;
   onSearch?: () => void;
   onLogIn?: () => void;
@@ -78,6 +80,7 @@ export function SiteHeader({
   nav,
   githubUrl = 'https://github.com/openUC2',
   helpUrl = '#help',
+  showHelp = true,
   onHome,
   onSearch,
   onLogIn,
@@ -131,9 +134,11 @@ export function SiteHeader({
             <RoundButton label="Optikit on GitHub" href={githubUrl}>
               <GitHubIcon fontSize="small" />
             </RoundButton>
-            <RoundButton label="Help" href={helpUrl}>
-              <QuestionMarkIcon fontSize="small" />
-            </RoundButton>
+            {showHelp && (
+              <RoundButton label="Help" href={helpUrl}>
+                <QuestionMarkIcon fontSize="small" />
+              </RoundButton>
+            )}
           </Stack>
           <Box sx={{ pl: 1 }}>
             <AccountMenu

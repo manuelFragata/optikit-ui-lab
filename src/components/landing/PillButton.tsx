@@ -9,21 +9,31 @@ export interface PillButtonProps extends Omit<ButtonProps, 'variant' | 'endIcon'
   arrow?: boolean;
 }
 
-/** Landing-page call to action: a pill, optionally with a round ↗ arrow. */
+/** Diameter of the round arrow, spacing units. */
+const ARROW = 3.5;
+/** Its inset from the pill's end, spacing units. */
+const ARROW_INSET = 0.75;
+
+/**
+ * Landing-page call to action: a pill, optionally with a round ↗ arrow. The
+ * label is centred on the whole pill: the arrow sits over the end, with the
+ * same room kept free on both sides.
+ */
 export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest }: PillButtonProps) {
   const solid = tone === 'solid';
   const paper = tone === 'paper';
+  const side = arrow ? ARROW + ARROW_INSET + 1.25 : 2.25;
   return (
     <Button
       {...rest}
       variant={solid || paper ? 'contained' : 'outlined'}
       sx={[
         (t) => ({
+          position: 'relative',
           borderRadius: `${t.radius.pill}px`,
-          pl: 2.25,
-          pr: arrow ? 0.75 : 2.25,
+          px: side,
           py: 0.75,
-          gap: 1.25,
+          minHeight: arrow ? t.spacing(ARROW + 2 * ARROW_INSET) : undefined,
           ...(solid
             ? { bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }
             : paper
@@ -39,10 +49,14 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
           component="span"
           aria-hidden
           sx={(t) => ({
+            position: 'absolute',
+            right: t.spacing(ARROW_INSET),
+            top: '50%',
+            transform: 'translateY(-50%)',
             display: 'grid',
             placeItems: 'center',
-            width: t.spacing(3.5),
-            height: t.spacing(3.5),
+            width: t.spacing(ARROW),
+            height: t.spacing(ARROW),
             borderRadius: '50%',
             bgcolor: solid ? 'primary.contrastText' : 'text.primary',
             color: solid ? 'primary.main' : 'background.paper',
