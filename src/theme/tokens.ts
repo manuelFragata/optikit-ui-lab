@@ -236,8 +236,15 @@ export const colorRoles: Record<'light' | 'dark', ColorRoles> = {
 /* ------------------------------------------------------------------ */
 
 export const radius = {
+  /** Controls, chips, fields (Bench). */
   base: 3,
+  /** Landing-page cards. */
+  card: 16,
+  /** Tiles and rows nested inside a card. */
+  tile: 8,
 } as const;
+
+export type RadiusTokens = typeof radius;
 
 /** Hairline width (px) for grid lines and similar 1-device-pixel rules. */
 export const hairline = 1;
@@ -264,7 +271,7 @@ export const layout = {
   /** Height of design-card thumbnails. */
   thumbnailHeight: 20,
   /** Stacked-card content height, so switching cards never shifts the layout. */
-  stackedCardHeight: 46,
+  stackedCardHeight: 34,
   hairline,
 } as const;
 

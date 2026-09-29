@@ -10,6 +10,7 @@ import {
   type ColorRoles,
   type DensityName,
   type LayoutTokens,
+  type RadiusTokens,
 } from './tokens';
 
 /* ------------------------------------------------------------------ */
@@ -20,10 +21,13 @@ declare module '@mui/material/styles' {
   interface Theme {
     layout: LayoutTokens;
     density: DensityName;
+    /** Radii in px; `shape.borderRadius` equals `radius.base`. */
+    radius: RadiusTokens;
   }
   interface ThemeOptions {
     layout?: LayoutTokens;
     density?: DensityName;
+    radius?: RadiusTokens;
   }
   interface Palette {
     header: ColorRoles['header'];
@@ -92,6 +96,7 @@ export function createAppTheme(densityName: DensityName = 'comfortable'): Theme 
       ...typeScale,
     },
     layout,
+    radius,
     density: densityName,
     components: {
       MuiButton: {

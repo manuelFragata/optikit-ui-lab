@@ -27,7 +27,7 @@ export const demoInspiration: DesignCardProps[] = [
     version: '1.4.0',
     description: 'Brightfield microscope on the FRAME chassis.',
     tags: ['brightfield', 'frame'],
-    maintainer: 'beniroquai',
+    maintainer: 'manu',
     cubes: 3,
   },
   {
@@ -36,7 +36,7 @@ export const demoInspiration: DesignCardProps[] = [
     version: '1.2.0',
     description: 'Brightfield core, drops into any FRAME chassis.',
     tags: ['brightfield', 'core-box'],
-    maintainer: 'beniroquai',
+    maintainer: 'manu',
     cubes: 2,
   },
   {
@@ -45,7 +45,7 @@ export const demoInspiration: DesignCardProps[] = [
     count: 11,
     description: 'Everything buildable from one core BOX.',
     tags: ['teaching'],
-    maintainer: 'beniroquai',
+    maintainer: 'manu',
     cubes: 4,
   },
 ];
@@ -85,16 +85,44 @@ export const demoReleaseNotes: ReleaseNote[] = [
   },
 ];
 
-export interface HelpLink {
+export interface GalleryItem {
   id: string;
   title: string;
-  description: string;
+  /** `optikit`: shipped with Optikit. `community`: shared by a user. */
+  source: 'optikit' | 'community';
+  author?: string;
+  cubes: number;
+  kind: 'Instrument' | 'Assembly' | 'Collection';
+}
+
+export const demoGallery: GalleryItem[] = [
+  { id: 'g1', title: 'Basic BF FRAME', source: 'optikit', kind: 'Instrument', cubes: 3 },
+  { id: 'g2', title: 'Fluorescence core', source: 'optikit', kind: 'Assembly', cubes: 2 },
+  { id: 'g3', title: 'Light sheet microscope', source: 'optikit', kind: 'Instrument', cubes: 4 },
+  { id: 'g4', title: "Paul's FRAME", source: 'community', author: 'paulh', kind: 'Instrument', cubes: 3 },
+  { id: 'g5', title: 'Slit scope', source: 'community', author: 'ohkyung', kind: 'Instrument', cubes: 2 },
+  { id: 'g6', title: 'Core BOX devices', source: 'community', author: 'manu', kind: 'Collection', cubes: 4 },
+];
+
+export interface Tutorial {
+  id: string;
+  title: string;
+  format: 'Video' | 'Text';
+  /** e.g. "6 min" or "4 min read". */
+  length: string;
   href: string;
 }
 
-export const demoHelpLinks: HelpLink[] = [
-  { id: 'start', title: 'Getting started', description: 'Build your first instrument in 10 minutes.', href: '#' },
-  { id: 'docs', title: 'Documentation', description: 'Symbols, linked designs, export formats.', href: '#' },
-  { id: 'video', title: 'Video tutorials', description: 'Short walkthroughs of common builds.', href: '#' },
-  { id: 'issue', title: 'Report an issue', description: 'Found a bug? Open an issue on GitHub.', href: 'https://github.com/openUC2' },
+export const demoTutorials: Tutorial[] = [
+  { id: 't1', title: 'Build your first microscope', format: 'Video', length: '6 min', href: '#' },
+  { id: 't2', title: 'Link symbols to real parts', format: 'Text', length: '4 min read', href: '#' },
+  { id: 't3', title: 'Trace rays through a cube', format: 'Video', length: '9 min', href: '#' },
+  { id: 't4', title: 'Export STEP and a parts list', format: 'Text', length: '3 min read', href: '#' },
 ];
+
+export const demoShowcase = {
+  title: 'Two-colour light sheet on a 4×3 plate',
+  author: 'ohkyung',
+  description: 'Two 488/561 nm sheets from opposite sides, detection through a 10× RMS objective. Full parts list and STEP files included.',
+  cubes: 4,
+};

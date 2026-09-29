@@ -67,8 +67,8 @@ src/
   components/
     primitives/        NumberInput, SliderField, TagChip, SelectField, Vec3Field, BrandMark, ColorSchemeToggle
     panels/            SidePanel, DisclosureSection, OverflowMenu, InspectorPanel
-    cards/             CubeThumbnail, DashboardCard, DesignCard, StackedCards
-    compositions/      AppHeader, SiteHeader, CanvasPlaceholder, StatusBar, EditorShell
+    cards/             BenchIllustration, CubeThumbnail, DashboardCard, DesignCard, StackedCards
+    compositions/      AppHeader, SiteHeader, SiteFooter, CanvasPlaceholder, StatusBar, EditorShell
     pages/             HomePage (+ Home and Editor page stories)
   demo/                placeholder content for stories and the demo app
   stories/tokens/      token documentation stories

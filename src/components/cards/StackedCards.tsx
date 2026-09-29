@@ -2,11 +2,13 @@ import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Fade from '@mui/material/Fade';
+import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 export interface StackedCardItem {
   id: string;
@@ -27,10 +29,12 @@ export interface StackedCardsProps {
 }
 
 const MAX_GHOSTS = 2;
+const PEEK = 1.5; // spacing units each ghost card sticks out to the right
 
 /**
- * Cards stacked on top of each other: tabs pick the front card, and the stack
- * advances on its own, pausing while the user hovers or focuses inside it.
+ * A deck of cards: the front card shows one item, the next ones peek out to
+ * the right, and a pager (◀ dots ▶) moves through them. It advances on its
+ * own, pausing while the user hovers or focuses inside it.
  */
 export function StackedCards({
   items,
@@ -43,12 +47,13 @@ export function StackedCards({
   const [innerIndex, setInnerIndex] = useState(defaultIndex);
   const [paused, setPaused] = useState(false);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const index = (indexProp ?? innerIndex) % Math.max(1, items.length);
+  const count = items.length;
+  const index = (indexProp ?? innerIndex) % Math.max(1, count);
   // Reduced motion keeps the timer (the content still rotates) but drops the fade and progress animation.
-  const running = autoAdvanceMs > 0 && !paused && items.length > 1;
+  const running = autoAdvanceMs > 0 && !paused && count > 1;
 
   const select = (next: number) => {
-    const wrapped = (next + items.length) % items.length;
+    const wrapped = (next + count) % count;
     setInnerIndex(wrapped);
     onIndexChange?.(wrapped);
   };
@@ -60,8 +65,9 @@ export function StackedCards({
     // `select` is recreated each render; index and running are what matter.
   }, [running, index, autoAdvanceMs]);
 
-  const ghosts = Math.min(MAX_GHOSTS, items.length - 1);
+  const ghosts = Math.min(MAX_GHOSTS, count - 1);
   const active = items[index];
+  const cardRadius = (theme: { radius: { card: number } }) => `${theme.radius.card}px`;
 
   return (
     <Box
@@ -74,83 +80,126 @@ export function StackedCards({
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
       }}
-      sx={{ position: 'relative', pb: ghosts }}
+      sx={{ position: 'relative', pr: ghosts * PEEK }}
     >
-      {/* Ghost cards peeking out below; clicking one brings the next card forward. */}
+      {/* Ghost cards peeking out to the right; clicking one brings it forward. */}
       {Array.from({ length: ghosts }, (_, i) => {
         const depth = i + 1;
         return (
           <ButtonBase
             key={depth}
-            aria-label={`Show ${items[(index + depth) % items.length].label}`}
+            aria-label={`Show ${items[(index + depth) % count].label}`}
             tabIndex={-1}
             onClick={() => select(index + depth)}
             sx={{
               position: 'absolute',
               top: (theme) => theme.spacing(depth),
-              bottom: (theme) => theme.spacing(ghosts - depth),
-              left: (theme) => theme.spacing(depth * 1.5),
-              right: (theme) => theme.spacing(depth * 1.5),
+              bottom: (theme) => theme.spacing(depth),
+              left: (theme) => theme.spacing(depth * PEEK),
+              right: (theme) => theme.spacing((ghosts - depth) * PEEK),
               zIndex: MAX_GHOSTS - depth,
               border: 1,
               borderColor: 'divider',
-              borderRadius: 1,
+              borderRadius: cardRadius,
               bgcolor: depth === 1 ? 'background.paper' : 'background.sunken',
+              opacity: depth === 1 ? 1 : 0.7,
             }}
           />
         );
       })}
 
-      <Paper variant="outlined" sx={{ position: 'relative', zIndex: MAX_GHOSTS, overflow: 'hidden' }}>
-        <Stack direction="row" sx={{ alignItems: 'center', borderBottom: 1, borderColor: 'divider', px: 1 }}>
-          <Tabs
-            value={index}
-            onChange={(_, next: number) => select(next)}
-            variant="scrollable"
-            scrollButtons={false}
-            sx={{ flex: 1, minHeight: 0 }}
-          >
-            {items.map((item, i) => (
-              <Tab
-                key={item.id}
-                value={i}
-                label={item.label}
-                icon={item.icon}
-                iconPosition="start"
-                id={`stacked-tab-${item.id}`}
-                aria-controls={`stacked-panel-${item.id}`}
-                sx={{ minHeight: (theme) => theme.spacing(theme.layout.panelHeaderHeight), textTransform: 'none' }}
-              />
-            ))}
-          </Tabs>
+      <Paper
+        variant="outlined"
+        role="group"
+        aria-roledescription="slide"
+        aria-label={`${index + 1} of ${count}: ${active.label}`}
+        sx={{
+          position: 'relative',
+          zIndex: MAX_GHOSTS,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: cardRadius,
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', px: 2.5, pt: 2, pb: 1 }}>
+          {active.icon && <Box sx={{ display: 'flex', color: 'primary.main' }}>{active.icon}</Box>}
+          <Typography variant="subtitle1" component="h3" sx={{ flex: 1 }}>
+            {active.label}
+          </Typography>
+          <Typography variant="mono" color="text.meta">
+            {index + 1}/{count}
+          </Typography>
         </Stack>
 
-        {/* Progress bar for the auto-advance timer; restarts whenever the card changes. */}
-        <Box sx={{ height: (theme) => `${theme.layout.hairline * 2}px`, bgcolor: 'transparent' }}>
-          {running && !reducedMotion && (
-            <Box
-              key={index}
-              sx={{
-                height: '100%',
-                bgcolor: 'primary.main',
-                transformOrigin: 'left',
-                animation: `stackedCardsProgress ${autoAdvanceMs}ms linear forwards`,
-                '@keyframes stackedCardsProgress': { from: { transform: 'scaleX(0)' }, to: { transform: 'scaleX(1)' } },
-              }}
-            />
-          )}
-        </Box>
-
         <Fade in key={active.id} timeout={{ enter: reducedMotion ? 0 : 250 }}>
-          <Box
-            role="tabpanel"
-            id={`stacked-panel-${active.id}`}
-            aria-labelledby={`stacked-tab-${active.id}`}
-            sx={{ height: (theme) => theme.spacing(theme.layout.stackedCardHeight), overflow: 'auto' }}
-          >
+          <Box sx={{ height: (theme) => theme.spacing(theme.layout.stackedCardHeight), overflow: 'auto' }}>
             {active.content}
           </Box>
         </Fade>
+
+        {/* Pager: ◀ dots ▶. The active dot is a pill that fills up as the timer runs. */}
+        <Stack sx={{ alignItems: 'center', pb: 1.5, pt: 1 }}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{
+              alignItems: 'center',
+              px: 0.5,
+              borderRadius: 999,
+              border: 1,
+              borderColor: 'divider',
+              bgcolor: 'background.sunken',
+            }}
+          >
+            <IconButton size="small" aria-label="Previous" onClick={() => select(index - 1)}>
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+            {items.map((item, i) => {
+              const current = i === index;
+              return (
+                <ButtonBase
+                  key={item.id}
+                  aria-label={`Show ${item.label}`}
+                  aria-current={current ? 'true' : undefined}
+                  onClick={() => select(i)}
+                  sx={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    width: (theme) => theme.spacing(current ? 3 : 1.25),
+                    height: (theme) => theme.spacing(1.25),
+                    borderRadius: 999,
+                    bgcolor: current ? 'divider' : 'text.meta',
+                    opacity: current ? 1 : 0.5,
+                    transition: (theme) => theme.transitions.create(['width', 'opacity'], { duration: theme.transitions.duration.shorter }),
+                    '&:hover': { opacity: 1 },
+                  }}
+                >
+                  {current && (
+                    <Box
+                      key={`${index}-${running}`}
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        bgcolor: 'primary.main',
+                        transformOrigin: 'left',
+                        ...(running && !reducedMotion
+                          ? {
+                              animation: `stackedCardsProgress ${autoAdvanceMs}ms linear forwards`,
+                              '@keyframes stackedCardsProgress': { from: { transform: 'scaleX(0)' }, to: { transform: 'scaleX(1)' } },
+                            }
+                          : {}),
+                      }}
+                    />
+                  )}
+                </ButtonBase>
+              );
+            })}
+            <IconButton size="small" aria-label="Next" onClick={() => select(index + 1)}>
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Stack>
       </Paper>
     </Box>
   );

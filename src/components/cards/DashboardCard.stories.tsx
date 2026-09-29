@@ -1,10 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
-import AddIcon from '@mui/icons-material/Add';
-import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
+import { BenchIllustration } from './BenchIllustration';
 import { DashboardCard } from './DashboardCard';
 
 const meta = {
@@ -12,9 +10,7 @@ const meta = {
   component: DashboardCard,
   tags: ['autodocs'],
   args: {
-    title: 'Your projects',
-    subtitle: '4 designs, most recent first',
-    icon: <FolderOpenOutlinedIcon />,
+    title: 'Need a hand?',
     children: (
       <Typography variant="body2" color="text.secondary">
         Card body.
@@ -22,13 +18,12 @@ const meta = {
     ),
   },
   argTypes: {
-    icon: { control: false },
     action: { control: false },
     children: { control: false },
   },
   decorators: [
     (Story) => (
-      <Box sx={{ maxWidth: (theme) => theme.spacing(90) }}>
+      <Box sx={{ maxWidth: (theme) => theme.spacing(60) }}>
         <Story />
       </Box>
     ),
@@ -40,24 +35,18 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-export const WithButton: Story = {
+export const WithAction: Story = {
   args: {
+    title: 'Your projects',
     action: (
-      <Button variant="contained" startIcon={<AddIcon />}>
-        New project
-      </Button>
+      <Link href="#" variant="body2">
+        View all
+      </Link>
     ),
   },
 };
 
-export const WithLink: Story = {
-  args: {
-    title: 'Need inspiration?',
-    subtitle: undefined,
-    action: (
-      <Link href="#" variant="body2">
-        Browse all
-      </Link>
-    ),
-  },
+export const Unframed: Story = {
+  name: 'Unframed (custom content)',
+  args: { title: 'Filler illustration', unframed: true, children: <BenchIllustration /> },
 };

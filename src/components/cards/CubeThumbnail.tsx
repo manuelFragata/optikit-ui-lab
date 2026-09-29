@@ -5,8 +5,8 @@ export interface CubeThumbnailProps {
   cubes?: number;
   /** `row`: cubes in a line with a ray through them. `mosaic`: 2-wide grid, no ray (collections). */
   layout?: 'row' | 'mosaic';
-  /** `card`: design-card height. `compact`: list-row height. */
-  size?: 'card' | 'compact';
+  /** `card`: design-card height. `tile`: half height, for gallery tiles. `compact`: list-row height. */
+  size?: 'card' | 'tile' | 'compact';
   /** Accessible description; omit for purely decorative use. */
   label?: string;
 }
@@ -19,6 +19,7 @@ const PITCH_Y = 50;
 /** Line-art thumbnail used on design cards. Never a photograph. */
 export function CubeThumbnail({ cubes = 3, layout = 'row', size = 'card', label }: CubeThumbnailProps) {
   const compact = size === 'compact';
+  const heightFactor = { card: 1, tile: 1 / 2, compact: 1 / 3 }[size];
   const count = Math.max(1, Math.min(6, cubes));
   const cols = layout === 'row' ? count : Math.min(2, count);
   const rows = Math.ceil(count / cols);
@@ -29,13 +30,13 @@ export function CubeThumbnail({ cubes = 3, layout = 'row', size = 'card', label 
   return (
     <Box
       sx={{
-        height: (theme) => theme.spacing(compact ? theme.layout.thumbnailHeight / 3 : theme.layout.thumbnailHeight),
+        height: (theme) => theme.spacing(theme.layout.thumbnailHeight * heightFactor),
         position: 'relative',
         bgcolor: 'background.sunken',
         color: 'text.primary',
       }}
     >
-      <Box sx={{ position: 'absolute', inset: (theme) => theme.spacing(compact ? 0.5 : 2) }}>
+      <Box sx={{ position: 'absolute', inset: (theme) => theme.spacing(compact ? 0.5 : size === 'tile' ? 1.25 : 2) }}>
       <Box
         component="svg"
         viewBox={`${-pad} ${-pad} ${width + pad * 2} ${height + pad * 2}`}

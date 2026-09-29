@@ -8,7 +8,7 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     signedIn: true,
-    userName: 'Beni',
+    userName: 'Manu',
     autoAdvanceMs: 7000,
     onOpenProject: linkTo('Pages/Editor', 'Working'),
     onNewProject: linkTo('Pages/Editor', 'New project'),
