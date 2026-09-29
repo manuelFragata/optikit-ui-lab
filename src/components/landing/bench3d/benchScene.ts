@@ -13,8 +13,9 @@
  *
  * Plain three.js, loaded only when the section is on screen; it renders on
  * demand and stops when nothing moves. Coordinates follow the meshes:
- * millimetres, z up, one cell = 50 mm, a cube centred on its cell at z = 0.
- * The root group turns z-up into three's y-up.
+ * millimetres, z up, one cell = 50 mm, a cube centred on its cell; cubes on
+ * the plate are at z = 0 and each level up adds a cube height (50 mm, like the
+ * horizontal pitch). The root group turns z-up into three's y-up.
  */
 import {
   ACESFilmicToneMapping,
@@ -60,6 +61,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 export type BenchStep = 'sketch' | 'simulate' | 'cubify' | 'build';
 export type Axis = '+x' | '-x' | '+y' | '-y' | '+z' | '-z';
 export type OpticKind = 'source' | 'lens' | 'objective' | 'mirror' | 'dichroic' | 'sample' | 'detector' | 'spacer';
+/** Grid cell [x, y] on the plate, or [x, y, level] for a cube stacked above it. */
+export type BenchCell = [number, number] | [number, number, number];
 
 /**
  * A light path through cell centres. `excitation` starts at a source as a
@@ -67,7 +70,7 @@ export type OpticKind = 'source' | 'lens' | 'objective' | 'mirror' | 'dichroic' 
  */
 export interface BenchBeam {
   id: string;
-  cells: [number, number][];
+  cells: BenchCell[];
   light: 'excitation' | 'emission';
 }
 
@@ -82,8 +85,8 @@ export interface BenchPart {
   label: string;
   /** GLB URL of the module. */
   url: string;
-  /** Grid cell on the baseplate. */
-  cell: [number, number];
+  /** Grid cell; a third number stacks the cube that many levels up. */
+  cell: BenchCell;
   /**
    * Orientation as in optikit-v2 designs: where the module's local z and x
    * axes point in the world (z up). Identity when omitted.
@@ -143,6 +146,8 @@ export interface BenchScene {
 }
 
 const CELL = 50;
+
+const cellPoint = (cell: BenchCell) => new Vector3(cell[0] * CELL, cell[1] * CELL, (cell[2] ?? 0) * CELL);
 const PLATE_TOP = -26.9; // cube bottoms sit on the tiles
 
 /** Beam radius leaving the laser, mm. */
@@ -183,19 +188,35 @@ function orientation(axes: { z: Axis; x: Axis }) {
 
 interface PathModel {
   length: number;
-  at: (s: number) => { pos: Vector3; dir: Vector3 };
+  /** Position, direction and a lateral direction (for ray heights) at distance s. */
+  at: (s: number) => { pos: Vector3; dir: Vector3; lat: Vector3 };
   /** Distance along the path of a point on it, or null when it is off the path. */
   distanceOf: (p: Vector3) => number | null;
   /** Directions before and after a point (they differ at a fold). */
   dirsAt: (s: number) => { before: Vector3; after: Vector3 };
 }
 
-function makePath(cells: [number, number][]): PathModel {
-  const pts = cells.map(([x, y]) => new Vector3(x * CELL, y * CELL, 0));
+function makePath(cells: BenchCell[]): PathModel {
+  const pts = cells.map(cellPoint);
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
   const length = cum[cum.length - 1];
   const segDir = (i: number) => new Vector3().subVectors(pts[i + 1], pts[i]).normalize();
+
+  // The lateral direction starts in the plane of the first fold and is
+  // mirrored at every fold, as a ray's height is: the traced heights stay
+  // on the right side of the axis around corners and between levels.
+  const dirs = pts.slice(0, -1).map((_, i) => segDir(i));
+  const lats: Vector3[] = [];
+  const bend = dirs.length > 1 ? new Vector3().crossVectors(dirs[0], dirs[1]) : new Vector3();
+  if (bend.lengthSq() > 1e-6) lats.push(new Vector3().crossVectors(bend, dirs[0]).normalize());
+  else if (Math.abs(dirs[0].z) > 0.9) lats.push(new Vector3(1, 0, 0));
+  else lats.push(new Vector3(-dirs[0].y, dirs[0].x, 0));
+  for (let i = 1; i < dirs.length; i++) {
+    const n = new Vector3().subVectors(dirs[i], dirs[i - 1]).normalize();
+    const prev = lats[i - 1];
+    lats.push(n.lengthSq() > 1e-6 ? prev.clone().addScaledVector(n, -2 * prev.dot(n)) : prev.clone());
+  }
 
   const segmentOf = (s: number) => {
     for (let i = 0; i < pts.length - 1; i++) if (s <= cum[i + 1] + 1e-6) return i;
@@ -208,7 +229,7 @@ function makePath(cells: [number, number][]): PathModel {
       const c = Math.min(Math.max(s, 0), length);
       const i = segmentOf(c);
       const dir = segDir(i);
-      return { pos: pts[i].clone().addScaledVector(dir, c - cum[i]), dir };
+      return { pos: pts[i].clone().addScaledVector(dir, c - cum[i]), dir, lat: lats[i].clone() };
     },
     distanceOf(p) {
       for (let i = 0; i < pts.length - 1; i++) {
@@ -269,10 +290,23 @@ function trace(y0: number, u0: number, from: number, to: number, lenses: OpticEv
 const loader = new GLTFLoader();
 const cache = new Map<string, Promise<Group>>();
 
+/** raw.githubusercontent.com drops the odd connection; try a few times. */
+async function fetchModel(url: string, attempts = 3): Promise<Group> {
+  for (let i = 1; ; i++) {
+    try {
+      return (await loader.loadAsync(url)).scene;
+    } catch (err) {
+      if (i >= attempts) throw err;
+      await new Promise((r) => setTimeout(r, 600 * i));
+    }
+  }
+}
+
 function loadModel(url: string): Promise<Group> {
   let p = cache.get(url);
   if (!p) {
-    p = loader.loadAsync(url).then((gltf) => gltf.scene);
+    p = fetchModel(url);
+    p.catch(() => cache.delete(url));
     cache.set(url, p);
   }
   return p.then((scene) => scene.clone(true));
@@ -446,7 +480,8 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0004;
-  const span = Math.max(plate[0], plate[1]) * CELL;
+  const levels = Math.max(...parts.map((p) => p.cell[2] ?? 0)) + 1;
+  const span = Math.max(plate[0], plate[1], levels) * CELL;
   Object.assign(sun.shadow.camera, { left: -span, right: span, top: span, bottom: -span, near: 10, far: 1600 });
   scene.add(sun);
 
@@ -454,30 +489,34 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   root.rotation.x = -Math.PI / 2; // z-up content
   scene.add(root);
 
-  const centre = new Vector3(((plate[0] - 1) * CELL) / 2, ((plate[1] - 1) * CELL) / 2, 0);
-  sun.target.position.set(centre.x, 0, -centre.y);
+  const centre = new Vector3(((plate[0] - 1) * CELL) / 2, ((plate[1] - 1) * CELL) / 2, ((levels - 1) * CELL) / 2);
+  sun.target.position.set(centre.x, centre.z, -centre.y);
   scene.add(sun.target);
 
   /* ---- sketch grid (cell boundaries, a major line every 5 cells) ---- */
+  // A flat bench is drawn from above, on the plate; a stacked one from the
+  // front, so its grid stands behind it like the sheet of a side view.
   const gridGroup = new Group();
   const minorMat = new LineBasicMaterial({ color: colors.grid, transparent: true, opacity: 1 });
   const majorMat = new LineBasicMaterial({ color: colors.gridMajor, transparent: true, opacity: 1 });
   {
-    const margin = 2;
-    const x0 = -margin;
-    const x1 = plate[0] + margin;
-    const y0 = -margin;
-    const y1 = plate[1] + margin;
+    const upright = levels > 1;
+    const margin = upright ? 6 : 2;
+    const u0 = -margin;
+    const u1 = plate[0] + margin;
+    const v0 = upright ? 0 : -margin;
+    const v1 = (upright ? levels : plate[1]) + margin;
     const minor: number[] = [];
     const major: number[] = [];
-    const z = PLATE_TOP;
-    for (let i = x0; i <= x1; i++) {
-      const x = i * CELL - CELL / 2;
-      (i % 5 === 0 ? major : minor).push(x, y0 * CELL - CELL / 2, z, x, y1 * CELL - CELL / 2, z);
+    const wall = plate[1] * CELL - CELL / 2 + 1;
+    const pt = (u: number, v: number) => (upright ? [u, wall, v + CELL / 2 + PLATE_TOP] : [u, v, PLATE_TOP]);
+    for (let i = u0; i <= u1; i++) {
+      const u = i * CELL - CELL / 2;
+      (i % 5 === 0 ? major : minor).push(...pt(u, v0 * CELL - CELL / 2), ...pt(u, v1 * CELL - CELL / 2));
     }
-    for (let j = y0; j <= y1; j++) {
-      const y = j * CELL - CELL / 2;
-      (j % 5 === 0 ? major : minor).push(x0 * CELL - CELL / 2, y, z, x1 * CELL - CELL / 2, y, z);
+    for (let j = v0; j <= v1; j++) {
+      const v = j * CELL - CELL / 2;
+      (j % 5 === 0 ? major : minor).push(...pt(u0 * CELL - CELL / 2, v), ...pt(u1 * CELL - CELL / 2, v));
     }
     const g = (arr: number[]) => new BufferGeometry().setAttribute('position', new BufferAttribute(new Float32Array(arr), 3));
     gridGroup.add(new LineSegments(g(minor), minorMat), new LineSegments(g(major), majorMat));
@@ -504,8 +543,6 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   root.add(plateGroup);
 
   /* ---- light paths: a paraxial trace per path, drawn as a tube and rays ---- */
-  const lateralOf = (dir: Vector3) => new Vector3(-dir.y, dir.x, 0);
-  const cellPoint = (cell: [number, number]) => new Vector3(cell[0] * CELL, cell[1] * CELL, 0);
   const isLens = (k: OpticKind) => k === 'lens' || k === 'objective';
   const RING = 20;
 
@@ -562,13 +599,12 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     const envPositions = new Float32Array(rings * RING * 3);
     const axisPositions = new Float32Array(rings * 3);
     for (let i = 0; i < rings; i++) {
-      const { pos, dir } = path.at(i);
-      const lat = lateralOf(dir);
+      const { pos, dir, lat } = path.at(i);
+      const lat2 = new Vector3().crossVectors(dir, lat);
       const r = Math.max(0.35, Math.abs(envelopeYs[i]));
       for (let k = 0; k < RING; k++) {
         const ang = (k / RING) * Math.PI * 2;
-        const q = pos.clone().addScaledVector(lat, Math.cos(ang) * r);
-        q.z += Math.sin(ang) * r;
+        const q = pos.clone().addScaledVector(lat, Math.cos(ang) * r).addScaledVector(lat2, Math.sin(ang) * r);
         envPositions.set([q.x, q.y, q.z], (i * RING + k) * 3);
       }
       axisPositions.set([pos.x, pos.y, pos.z], i * 3);
@@ -599,8 +635,8 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     const rays = rayYs.map((ys) => {
       const arr = new Float32Array(ys.length * 3);
       ys.forEach((y, i) => {
-        const { pos, dir } = path.at(i);
-        const q = pos.addScaledVector(lateralOf(dir), y);
+        const { pos, lat } = path.at(i);
+        const q = pos.addScaledVector(lat, y);
         arr.set([q.x, q.y, q.z], i * 3);
       });
       const line = new Line(new BufferGeometry().setAttribute('position', new BufferAttribute(arr, 3)), rayMat);
@@ -659,7 +695,6 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   };
   const X = new Vector3(1, 0, 0);
   const Y = new Vector3(0, 1, 0);
-  const Z = new Vector3(0, 0, 1);
 
   for (const p of placed) {
     const g = new Group();
@@ -668,9 +703,10 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     const color = kind === 'source' ? colors.beam : colors.glyphs[kind];
     const dirs = p.s === null || !p.path ? { before: X, after: X } : p.path.dirsAt(p.s);
     const dir = kind === 'detector' ? dirs.before : dirs.after;
-    // Beam frame: x along the beam, y lateral, z up.
+    // Beam frame: x along the beam, y lateral, z the third axis (up on a flat bench).
+    const lat = p.s === null || !p.path ? Y : p.path.at(kind === 'detector' ? p.s - 0.5 : p.s + 0.5).lat;
     const frame = new Group();
-    frame.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(dir, lateralOf(dir), Z));
+    frame.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(dir, lat, new Vector3().crossVectors(dir, lat)));
     g.add(frame);
     const along = (mesh: Mesh) => {
       mesh.quaternion.setFromUnitVectors(Y, X);
@@ -746,14 +782,16 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     liftTarget: number;
     apart: number;
     apartTarget: number;
+    /** Height of its level, mm. */
+    base: number;
   }
   const states: PartState[] = parts.map((part) => {
     const group = new Group();
-    group.position.set(part.cell[0] * CELL, part.cell[1] * CELL, 0);
+    group.position.copy(cellPoint(part.cell));
     if (part.axes) group.quaternion.setFromRotationMatrix(orientation(part.axes));
     group.userData.partId = part.id;
     root.add(group);
-    return { part, group, subs: null, lift: 0, liftTarget: 0, apart: 0, apartTarget: 0 };
+    return { part, group, subs: null, lift: 0, liftTarget: 0, apart: 0, apartTarget: 0, base: group.position.z };
   });
 
   function placeSub(s: PartState, sub: Sub) {
@@ -797,17 +835,35 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
 
   const world = (x: number, y: number, z: number) => new Vector3(x, z, -y);
   const c = centre;
-  // Cameras sit on the +x side, so the long leg of the path (+y) runs left to
-  // right across the wide stage; targets are nudged so the bench sits right
-  // of and below the title notch.
+  // Cameras look at the front of the stack (from -y), so the arms run along
+  // the bottom of the wide stage and the tower rises on its right, over the
+  // step list; targets are nudged so it clears the title notch.
   const POSES: Record<BenchStep, { position: Vector3; target: Vector3; fov: number }> = {
-    sketch: { position: world(c.x + 150, c.y - 40, 660), target: world(c.x - 55, c.y - 40, 0), fov: 30 },
-    simulate: { position: world(c.x + 450, c.y - 50, 330), target: world(c.x - 20, c.y - 50, 0), fov: 30 },
-    cubify: { position: world(c.x + 540, c.y + 250, 420), target: world(c.x - 10, c.y - 95, -10), fov: 30 },
-    build: { position: world(c.x + 540, c.y - 170, 470), target: world(c.x - 30, c.y - 45, 45), fov: 32 },
+    sketch: { position: world(c.x - 48, c.y - 680, c.z + 60), target: world(c.x - 48, c.y, c.z - 13), fov: 22 },
+    simulate: { position: world(c.x - 300, c.y - 600, c.z + 170), target: world(c.x - 42, c.y, c.z - 14), fov: 24 },
+    cubify: { position: world(c.x + 330, c.y - 600, c.z + 260), target: world(c.x - 40, c.y, c.z - 18), fov: 24 },
+    build: { position: world(c.x - 400, c.y - 660, c.z + 300), target: world(c.x - 55, c.y, c.z + 78), fov: 31 },
   };
 
+
   let step: BenchStep = options.initialStep ?? 'sketch';
+  type Pose = (typeof POSES)[BenchStep];
+  /**
+   * The pose for the canvas's shape. The wide poses push the bench right of
+   * the title; a narrower canvas centres it, lower, and steps back until it fits.
+   */
+  function fitted(p: Pose): Pose {
+    const aspect = camera.aspect;
+    const wide = Math.min(1, Math.max(0, (aspect - 0.6) / 0.9));
+    const target = p.target.clone();
+    target.x = c.x + (p.target.x - c.x) * wide;
+    // On a phone the title sits over the top of the stage: keep the bench low.
+    target.y += (1 - wide) * 70;
+    const back = Math.max(1, 0.9 / aspect);
+    const position = target.clone().add(new Vector3().subVectors(p.position, p.target).multiplyScalar(back));
+    return { position, target, fov: p.fov };
+  }
+
   let pose = POSES[step];
   let flying = true;
   let stepStart = performance.now();
@@ -832,7 +888,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
 
     const frame = step === 'cubify' ? (motion ? Math.min(FRAMES.length - 1, Math.floor(t / FRAME_MS)) : FRAMES.length - 1) : -1;
     for (const s of states) {
-      s.liftTarget = step === 'build' ? 60 : 0;
+      s.liftTarget = step === 'build' ? 40 + (s.part.cell[2] ?? 0) * 30 : 0;
       s.apartTarget = step === 'build' ? 1 : 0;
       if (!s.subs) continue;
       for (const name of SUBS) {
@@ -887,6 +943,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      if (!userTookOver) flying = true; // re-fit to the new shape
     }
   }
 
@@ -897,7 +954,6 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     options.onPins(
       states.map((s) => {
         s.group.getWorldPosition(tmp);
-        tmp.y += 36;
         tmp.project(camera);
         const x = ((tmp.x + 1) / 2) * w;
         const y = ((1 - tmp.y) / 2) * h;
@@ -915,12 +971,13 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     applyTargets(now);
 
     if (flying) {
+      const goal = fitted(pose);
       const k = motion ? 1 - Math.exp(-dt * 3.2) : 1;
-      camera.position.lerp(pose.position, k);
-      controls.target.lerp(pose.target, k);
-      camera.fov += (pose.fov - camera.fov) * k;
+      camera.position.lerp(goal.position, k);
+      controls.target.lerp(goal.target, k);
+      camera.fov += (goal.fov - camera.fov) * k;
       camera.updateProjectionMatrix();
-      if (camera.position.distanceTo(pose.position) < 0.5 && controls.target.distanceTo(pose.target) < 0.5) flying = false;
+      if (camera.position.distanceTo(goal.position) < 0.5 && controls.target.distanceTo(goal.target) < 0.5) flying = false;
       else moving = true;
     }
 
@@ -937,7 +994,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
           moving = true;
         } else s[key] = target;
       }
-      s.group.position.z = s.lift;
+      s.group.position.z = s.base + s.lift;
       if (!s.subs) continue;
       for (const name of SUBS) {
         const sub = s.subs[name];

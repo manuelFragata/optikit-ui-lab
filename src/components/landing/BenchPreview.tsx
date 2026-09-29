@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useColorScheme, type Theme } from '@mui/material/styles';
 import ThreeSixtyIcon from '@mui/icons-material/ThreeSixty';
-import { benchBeams, benchParts, benchPlate } from '../../demo/benchAssembly';
+import { benchBeams, benchLevels, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { benchColors } from '../../theme/tokens';
 import { TagChip } from '../primitives/TagChip';
@@ -163,12 +163,14 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         <Box
           component="canvas"
           ref={canvasRef}
-          aria-label="3D preview of a fluorescence microscope built from openUC2 cubes: a green laser excites the sample, and its orange light is imaged onto a camera. Drag to turn it."
+          aria-label="3D preview of a fluorescence microscope built as a tower of openUC2 cubes: a green laser excites the sample, and its orange light is imaged onto a camera. Drag to turn it."
           role="img"
           sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
         />
 
-        {/* Hotspots on the parts. In the build step every part is labelled, like a parts list. */}
+        {/* Hotspots on the parts. The sketch labels every symbol, under it in
+            its cube; later steps put a dot on each cube, and the build step
+            labels them too, like a parts list. */}
         <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           {/* While the light runs, the hotspots step aside so the beam reads clearly. */}
           {step !== 'simulate' &&
@@ -177,6 +179,31 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             .map((p) => {
               const part = benchParts.find((b) => b.id === p.id);
               const on = p.id === selected;
+              const named = Boolean(part) && part?.optic.kind !== 'spacer';
+              if (step === 'sketch') {
+                return named ? (
+                  <ButtonBase
+                    key={p.id}
+                    aria-pressed={on}
+                    onClick={() => pick(on ? null : p.id)}
+                    sx={(t) => ({
+                      position: 'absolute',
+                      left: p.x,
+                      top: p.y,
+                      transform: 'translateX(-50%)',
+                      mt: 3.5,
+                      px: 1,
+                      pointerEvents: 'auto',
+                      borderRadius: `${t.radius.pill}px`,
+                      bgcolor: 'background.paper',
+                      boxShadow: on ? `0 0 0 ${t.spacing(0.25)} ${colors.selection}` : 'none',
+                      whiteSpace: 'nowrap',
+                    })}
+                  >
+                    <Typography variant="meta">{part?.label}</Typography>
+                  </ButtonBase>
+                ) : null;
+              }
               return (
                 <Box key={p.id} sx={{ position: 'absolute', left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}>
                   <ButtonBase
@@ -199,23 +226,23 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
                       },
                     })}
                   />
-                  {(step === 'build' || step === 'sketch') && part && part.optic.kind !== 'spacer' && !on && (
+                  {step === 'build' && named && !on && (
                     <Typography
                       variant="meta"
                       sx={{
                         position: 'absolute',
-                        // Centred above the dot, so neighbours on a row don't collide.
+                        // Centred under the dot, inside its own cube.
                         left: '50%',
-                        bottom: '100%',
+                        top: '100%',
                         transform: 'translateX(-50%)',
-                        mb: 0.75,
+                        mt: 0.75,
                         px: 1,
                         borderRadius: (t) => `${t.radius.pill}px`,
                         bgcolor: 'background.paper',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {part.label}
+                      {part?.label}
                     </Typography>
                   )}
                 </Box>
@@ -345,7 +372,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             {status === 'failed'
               ? 'The 3D preview needs WebGL, which this browser does not offer.'
               : status === 'ready' && allLoaded
-                ? `Real parts from the openUC2 library · ${benchParts.length} modules on a ${benchPlate[0]} × ${benchPlate[1]} plate`
+                ? `Real parts from the openUC2 library · ${benchParts.length} modules, ${benchLevels} levels high`
                 : status === 'idle'
                   ? 'Real parts from the openUC2 library'
                   : `Loading real parts from the openUC2 library · ${loaded} of ${benchParts.length}`}

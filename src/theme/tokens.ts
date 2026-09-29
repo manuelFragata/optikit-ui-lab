@@ -353,7 +353,7 @@ export const layout = {
   topbarBlur: 1.5,
   /** Height of the 3D bench stage on the landing page. */
   benchStageHeight: 108,
-  benchStageHeightCompact: 72,
+  benchStageHeightCompact: 96,
   /** Height of the example stage on the signed-out landing page. */
   exampleStageHeight: 58,
   exampleStageHeightCompact: 36,
