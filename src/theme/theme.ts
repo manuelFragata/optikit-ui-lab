@@ -36,6 +36,9 @@ declare module '@mui/material/styles' {
     header?: ColorRoles['header'];
     canvas?: ColorRoles['canvas'];
   }
+  interface TypeBackground {
+    sunken: string;
+  }
   interface TypographyVariants {
     mono: CSSProperties;
   }

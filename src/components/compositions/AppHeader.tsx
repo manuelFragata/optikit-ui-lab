@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { BrandMark } from '../primitives/BrandMark';
 
 export type HeaderVariant = 'navy' | 'light';
 
@@ -10,12 +11,14 @@ export interface AppHeaderProps {
   variant?: HeaderVariant;
   title?: string;
   projectName?: string;
+  /** Makes the brand mark a link back to the home page. */
+  onHome?: () => void;
   /** Right-hand actions. Icon buttons should use `color="inherit"`. */
   actions?: ReactNode;
 }
 
 /** Top application bar, either a solid navy bar or a light surface bar. */
-export function AppHeader({ variant = 'navy', title = 'Optikit', projectName, actions }: AppHeaderProps) {
+export function AppHeader({ variant = 'navy', title = 'Optikit', projectName, onHome, actions }: AppHeaderProps) {
   const navy = variant === 'navy';
 
   return (
@@ -38,18 +41,7 @@ export function AppHeader({ variant = 'navy', title = 'Optikit', projectName, ac
           px: 2,
         }}
       >
-        <Box
-          aria-hidden
-          sx={{
-            width: (theme) => theme.spacing(3),
-            height: (theme) => theme.spacing(3),
-            borderRadius: 1,
-            bgcolor: 'accent.main',
-          }}
-        />
-        <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'fontWeightBold' }}>
-          {title}
-        </Typography>
+        <BrandMark product={title} onClick={onHome} />
         {projectName && (
           <>
             <Divider orientation="vertical" flexItem sx={{ borderColor: 'currentColor', opacity: 0.3, my: 2 }} />

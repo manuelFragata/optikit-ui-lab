@@ -1,23 +1,32 @@
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
-import { useColorScheme } from '@mui/material/styles';
-import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
-import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import { useEffect, useState } from 'react';
 import { EditorShell } from './components/compositions/EditorShell';
+import { HomePage } from './components/pages/HomePage';
+import { ColorSchemeToggle } from './components/primitives/ColorSchemeToggle';
 
-function SchemeToggle() {
-  const { mode, systemMode, setMode } = useColorScheme();
-  const resolved = mode === 'system' ? systemMode : mode;
-  const next = resolved === 'dark' ? 'light' : 'dark';
-  return (
-    <Tooltip title={`Switch to ${next} mode`}>
-      <IconButton color="inherit" aria-label={`Switch to ${next} mode`} onClick={() => setMode(next)}>
-        {resolved === 'dark' ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />}
-      </IconButton>
-    </Tooltip>
-  );
+type Route = 'home' | 'editor';
+
+/** Tiny hash router (#/ and #/editor), so the demo app needs no routing library. */
+function useHashRoute(): [Route, (route: Route) => void] {
+  const read = (): Route => (window.location.hash.startsWith('#/editor') ? 'editor' : 'home');
+  const [route, setRoute] = useState<Route>(read);
+
+  useEffect(() => {
+    const onChange = () => setRoute(read());
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+
+  const navigate = (next: Route) => {
+    window.location.hash = next === 'editor' ? '/editor' : '/';
+  };
+  return [route, navigate];
 }
 
 export function App() {
-  return <EditorShell headerActions={<SchemeToggle />} />;
+  const [route, navigate] = useHashRoute();
+
+  if (route === 'editor') {
+    return <EditorShell onHome={() => navigate('home')} headerActions={<ColorSchemeToggle />} />;
+  }
+  return <HomePage onOpenProject={() => navigate('editor')} onNewProject={() => navigate('editor')} />;
 }

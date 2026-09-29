@@ -34,6 +34,7 @@ export const grey = {
   600: '#6B6E73',
   700: '#3A3F47',
   800: '#23282F',
+  850: '#1C2026',
   900: '#15181D',
 } as const;
 
@@ -48,7 +49,8 @@ export interface ColorRoles {
   success: { main: string };
   warning: { main: string };
   error: { main: string };
-  background: { default: string; paper: string };
+  /** `sunken` is for recessed areas: thumbnails, table heads, wells. */
+  background: { default: string; paper: string; sunken: string };
   text: { primary: string; secondary: string; disabled: string };
   divider: string;
   /** App header in its "navy bar" style. */
@@ -65,7 +67,7 @@ export const colorRoles: Record<'light' | 'dark', ColorRoles> = {
     success: { main: brand.teal },
     warning: { main: '#C77700' },
     error: { main: '#C62828' },
-    background: { default: grey[50], paper: white },
+    background: { default: grey[50], paper: white, sunken: grey[100] },
     text: { primary: grey[900], secondary: grey[600], disabled: grey[500] },
     divider: grey[200],
     header: { main: brand.navy, contrastText: white },
@@ -78,7 +80,7 @@ export const colorRoles: Record<'light' | 'dark', ColorRoles> = {
     success: { main: brand.teal },
     warning: { main: '#F0A43A' },
     error: { main: '#EF6B6B' },
-    background: { default: grey[900], paper: grey[800] },
+    background: { default: grey[900], paper: grey[800], sunken: grey[850] },
     text: { primary: grey[50], secondary: grey[400], disabled: grey[600] },
     divider: grey[700],
     header: { main: brand.navy, contrastText: white },
@@ -114,6 +116,12 @@ export const layout = {
   panelHeaderHeight: 6,
   canvasGridMinor: 2,
   canvasGridMajor: 10,
+  /** Max content width of document-style pages (home, browse). */
+  pageMaxWidth: 184,
+  /** Height of design-card thumbnails. */
+  thumbnailHeight: 20,
+  /** Stacked-card content height, so switching cards never shifts the layout. */
+  stackedCardHeight: 46,
   hairline,
 } as const;
 

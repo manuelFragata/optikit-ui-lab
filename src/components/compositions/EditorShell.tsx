@@ -28,6 +28,8 @@ export interface EditorShellProps {
   onActivePanelChange?: (id: string) => void;
   inspectorOpen?: boolean;
   onInspectorOpenChange?: (open: boolean) => void;
+  /** Called when the brand mark is clicked. */
+  onHome?: () => void;
   /** Extra header actions, placed before the built-in ones. */
   headerActions?: ReactNode;
 }
@@ -45,6 +47,7 @@ export function EditorShell({
   onActivePanelChange,
   inspectorOpen: inspectorOpenProp,
   onInspectorOpenChange,
+  onHome,
   headerActions,
 }: EditorShellProps) {
   const [innerInspectorOpen, setInnerInspectorOpen] = useState(true);
@@ -62,6 +65,7 @@ export function EditorShell({
       <AppHeader
         variant={headerVariant}
         projectName={projectName}
+        onHome={onHome}
         actions={
           <>
             {headerActions}

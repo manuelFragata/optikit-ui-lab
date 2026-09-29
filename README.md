@@ -9,7 +9,7 @@ A sandbox for trying out ideas for the Optikit UI revamp. It uses the same stack
 ```bash
 npm install
 npm run storybook        # http://localhost:6006
-npm run dev              # the editor shell as a standalone Vite app
+npm run dev              # the app: Home (#/) and Editor (#/editor)
 ```
 
 Other scripts:
@@ -44,7 +44,11 @@ Stories are grouped as follows:
 1. **Tokens**: colour swatches with WCAG contrast ratios, the type scale and families, the spacing scale, layout dimensions and radius.
 2. **Primitives**: Button, Tag Chip, Tooltip, Text Field, Slider Field (a slider with a linked numeric input), Select.
 3. **Panels**: Side Panel (collapsed rail, expanded, pinned), Disclosure Section, Overflow Menu, Inspector Panel (XYZ position and notes).
-4. **Compositions**: Editor Shell, with Default, Everything collapsed and Working (palette pinned, inspector open) stories. Its controls cover rail state, header style (navy or light), density and whether the inspector is open.
+4. **Cards**: Dashboard Card, Design Card (part, assembly, instrument, collection) and Stacked Cards (tabbed, auto-advancing, pauses on hover or focus).
+5. **Compositions**: Editor Shell, with Default, Everything collapsed and Working (palette pinned, inspector open) stories. Its controls cover rail state, header style (navy or light), density and whether the inspector is open.
+6. **Pages**: whole screens. **Home** (signed in, signed out, no projects) and **Editor**. Clicking a project on Home opens the Editor story, and the brand mark in the editor goes back to Home.
+
+To view a page full screen, press **F** in Storybook, or open the story on its own, e.g. `iframe.html?id=pages-home--signed-in&viewMode=story`.
 
 ## Layout
 
@@ -54,10 +58,12 @@ src/
     tokens.ts          all values
     theme.ts           MUI theme factory and type augmentation
   components/
-    primitives/        NumberInput, SliderField, TagChip, SelectField, Vec3Field
+    primitives/        NumberInput, SliderField, TagChip, SelectField, Vec3Field, BrandMark, ColorSchemeToggle
     panels/            SidePanel, DisclosureSection, OverflowMenu, InspectorPanel
-    compositions/      AppHeader, CanvasPlaceholder, StatusBar, EditorShell
-  demo/                placeholder panel content for stories and the demo app
+    cards/             CubeThumbnail, DashboardCard, DesignCard, StackedCards
+    compositions/      AppHeader, SiteHeader, CanvasPlaceholder, StatusBar, EditorShell
+    pages/             HomePage (+ Home and Editor page stories)
+  demo/                placeholder content for stories and the demo app
   stories/tokens/      token documentation stories
 .storybook/            Storybook config, theme decorator, toolbar globals
 ```
