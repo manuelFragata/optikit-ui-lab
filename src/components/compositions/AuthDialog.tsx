@@ -13,7 +13,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { OpenUC2Mark } from '../primitives/OpenUC2Mark';
 
 export type AuthMode = 'login' | 'signup';
 
@@ -59,7 +59,7 @@ export function AuthDialog({ open, mode, onModeChange, onClose, onSubmit, defaul
       <Box component="form" onSubmit={submit} sx={{ p: 3 }}>
         <Stack direction="row" sx={{ alignItems: 'flex-start', mb: 2 }}>
           <Stack spacing={0.5} sx={{ flex: 1 }}>
-            <ViewInArOutlinedIcon sx={{ color: 'brand.lime' }} />
+            <OpenUC2Mark sx={{ height: (theme) => theme.spacing(4), mb: 1, alignSelf: 'flex-start' }} />
             <Typography variant="h2" component="h2">
               {login ? 'Log in to Optikit' : 'Create your Optikit account'}
             </Typography>

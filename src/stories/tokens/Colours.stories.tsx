@@ -177,10 +177,15 @@ export const SchemeColours: Story = {
 
 export const Brand: Story = {
   render: () => (
-    <Section title="Brand" note="Identity only. Anchor: wordmark and page titles, light mode only. Lime: logo and landing page only.">
+    <Section
+      title="Brand"
+      note="openUC2 brand guide. Anchor (blue): primary in light mode, wordmark, navy bar. Lime (green): logo, 'in a cube' status fill. Turquoise: logo. Grey: decoration and disabled text only."
+    >
       <Box sx={gridSx}>
         <Swatch name="anchor" color={brand.anchor} against={{ label: 'white', bg: colors.light.surface }} />
         <Swatch name="lime" color={brand.lime} against={{ label: 'white', bg: colors.light.surface }} />
+        <Swatch name="turquoise" color={brand.turquoise} against={{ label: 'white', bg: colors.light.surface }} />
+        <Swatch name="grey" color={brand.grey} against={{ label: 'page', bg: colors.light.page }} />
       </Box>
     </Section>
   ),

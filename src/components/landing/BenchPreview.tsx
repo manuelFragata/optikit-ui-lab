@@ -8,15 +8,15 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useColorScheme, type Theme } from '@mui/material/styles';
 import ThreeSixtyIcon from '@mui/icons-material/ThreeSixty';
-import { benchBeams, benchLevels, benchParts, benchPlate } from '../../demo/benchAssembly';
+import { benchBeams, benchController, benchLevels, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { benchColors } from '../../theme/tokens';
 import { TagChip } from '../primitives/TagChip';
 import { PillButton } from './PillButton';
-import type { BenchPin, BenchScene, BenchStep } from './bench3d/benchScene';
+import type { BenchControlState, BenchPin, BenchScene, BenchStep } from './bench3d/benchScene';
 
 export interface BenchPreviewProps {
-  /** The four steps, in order: sketch, mount, assemble, build. */
+  /** The four steps, in order: sketch, simulate, cubify, control. */
   features: FeatureHighlight[];
   /** Advance to the next step every this many ms until the visitor interacts; 0 turns it off. */
   autoAdvanceMs?: number;
@@ -27,9 +27,99 @@ export interface BenchPreviewProps {
 }
 
 /** How long each step stays up when advancing on its own, relative to `autoAdvanceMs`. */
-const DWELL: Record<BenchStep, number> = { sketch: 1, simulate: 1.3, cubify: 1.3, build: 1 };
+const DWELL: Record<BenchStep, number> = { sketch: 1, simulate: 1.3, cubify: 1.3, control: 1.8 };
 
 const stageRadius = (t: Theme) => `${t.radius.stage}px`;
+
+/** The live view's pixels: a scanned image is coarse, and shows it. */
+const LIVE_W = 96;
+const LIVE_H = 64;
+
+/**
+ * A made-up fluorescence image of cells (seeded, so it is the same every
+ * time): what the cameras record once the scan is done.
+ */
+function makeSampleImage(emission: string) {
+  const img = document.createElement('canvas');
+  img.width = LIVE_W;
+  img.height = LIVE_H;
+  const ctx = img.getContext('2d');
+  if (!ctx) return img;
+  // Canvas gradients take plain colours only (no color-mix).
+  const hex = emission.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const tint = (a: number) => `rgba(${r}, ${g}, ${b}, ${a})`;
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  ctx.fillStyle = '#07090b';
+  ctx.fillRect(0, 0, LIVE_W, LIVE_H);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 16; i++) {
+    const x = rnd() * LIVE_W;
+    const y = rnd() * LIVE_H;
+    const r = 5 + rnd() * 7;
+    const cell = ctx.createRadialGradient(x, y, 0, x, y, r);
+    cell.addColorStop(0, emission);
+    cell.addColorStop(0.55, tint(0.45));
+    cell.addColorStop(1, tint(0));
+    ctx.globalAlpha = 0.5 + rnd() * 0.5;
+    ctx.fillStyle = cell;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * (0.6 + rnd() * 0.4), rnd() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+    // A brighter nucleus.
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#fff3e0';
+    ctx.beginPath();
+    ctx.arc(x + (rnd() - 0.5) * 2, y + (rnd() - 0.5) * 2, 1 + rnd() * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  return img;
+}
+
+/** Draw one frame of the live view: nothing until plugged in, a blur while focusing, then the scan. */
+function drawLive(ctx: CanvasRenderingContext2D, image: HTMLCanvasElement, state: BenchControlState, scanline: string) {
+  ctx.fillStyle = '#07090b';
+  ctx.fillRect(0, 0, LIVE_W, LIVE_H);
+  if (state.phase === 'plug') return;
+  if (state.phase === 'focus') {
+    ctx.filter = `blur(${Math.min(4, Math.abs(state.defocus) * 0.45).toFixed(2)}px)`;
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(image, 0, 0);
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
+    return;
+  }
+  if (state.phase === 'done') {
+    ctx.drawImage(image, 0, 0);
+    return;
+  }
+  const rows = state.scan * state.lines;
+  const line = Math.floor(rows);
+  const along = rows - line;
+  const lineH = LIVE_H / state.lines;
+  // Lines already scanned, then the part of this line the spot has crossed.
+  ctx.drawImage(image, 0, 0, LIVE_W, line * lineH, 0, 0, LIVE_W, line * lineH);
+  const w = Math.max(1, along * LIVE_W);
+  ctx.drawImage(image, 0, line * lineH, w, lineH, 0, line * lineH, w, lineH);
+  ctx.fillStyle = scanline;
+  ctx.fillRect(Math.min(LIVE_W - 1, w), line * lineH, 1, lineH);
+}
+
+function liveCaption(state: BenchControlState) {
+  switch (state.phase) {
+    case 'plug':
+      return 'Connecting the laser, galvo, z-stage and cameras';
+    case 'focus':
+      return `Autofocus · ${state.defocus >= 0 ? '+' : '−'}${Math.abs(state.defocus * 10).toFixed(0)} µm`;
+    case 'scan':
+      return `Scanning · line ${Math.min(state.lines, Math.floor(state.scan * state.lines) + 1)} of ${state.lines}`;
+    default:
+      return `Frame done · ${state.lines} lines`;
+  }
+}
 
 /**
  * An inverted corner: a square of the page colour with a quarter circle cut
@@ -61,6 +151,9 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<BenchScene | null>(null);
+  const liveRef = useRef<HTMLCanvasElement>(null);
+  const liveCaptionRef = useRef<HTMLSpanElement>(null);
+  const liveImage = useRef<HTMLCanvasElement | null>(null);
   const [index, setIndex] = useState(0);
   const [engaged, setEngaged] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -75,6 +168,17 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
 
   const feature = features[index];
   const step: BenchStep = feature.id;
+  const colorsRef = useRef(colors);
+  colorsRef.current = colors;
+
+  // Drawn straight from the scene's frames, outside React.
+  const onControl = useRef((state: BenchControlState) => {
+    const ctx = liveRef.current?.getContext('2d');
+    if (!ctx) return;
+    liveImage.current ??= makeSampleImage(colorsRef.current.beamEmission);
+    drawLive(ctx, liveImage.current, state, colorsRef.current.beam);
+    if (liveCaptionRef.current) liveCaptionRef.current.textContent = liveCaption(state);
+  });
 
   // Watch visibility: start loading once near the viewport, pause rendering off screen.
   useEffect(() => {
@@ -97,6 +201,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
           parts: benchParts,
           beams: benchBeams,
           plate: benchPlate,
+          controller: benchController,
           colors,
           initialStep: step,
           motion: !reducedMotion,
@@ -106,6 +211,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             setEngaged(true);
           },
           onPartLoaded: () => setLoaded((n) => n + 1),
+          onControl: (state) => onControl.current(state),
         });
         setStatus('ready');
       })
@@ -163,19 +269,19 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         <Box
           component="canvas"
           ref={canvasRef}
-          aria-label="3D preview of a fluorescence microscope built as a tower of openUC2 cubes: a green laser excites the sample, and its orange light is imaged onto a camera. Drag to turn it."
+          aria-label="3D preview of a laser-scanning fluorescence microscope built as a tower of openUC2 cubes: a galvo sweeps a green laser spot over the sample, and its orange light is imaged onto two cameras. Drag to turn it."
           role="img"
           sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
         />
 
         {/* Hotspots on the parts. The sketch labels every symbol, under it in
-            its cube; later steps put a dot on each cube, and the build step
-            labels them too, like a parts list. */}
+            its cube; cubify puts a dot on each cube. */}
         <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           {/* While the light runs, the hotspots step aside so the beam reads clearly. */}
-          {step !== 'simulate' &&
+          {(step === 'sketch' || step === 'cubify') &&
             pins
-            .filter((p) => p.visible)
+            // Empty cubes only hold things up: no hotspot.
+            .filter((p) => p.visible && benchParts.find((b) => b.id === p.id)?.optic.kind !== 'spacer')
             .map((p) => {
               const part = benchParts.find((b) => b.id === p.id);
               const on = p.id === selected;
@@ -226,25 +332,6 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
                       },
                     })}
                   />
-                  {step === 'build' && named && !on && (
-                    <Typography
-                      variant="meta"
-                      sx={{
-                        position: 'absolute',
-                        // Centred under the dot, inside its own cube.
-                        left: '50%',
-                        top: '100%',
-                        transform: 'translateX(-50%)',
-                        mt: 0.75,
-                        px: 1,
-                        borderRadius: (t) => `${t.radius.pill}px`,
-                        bgcolor: 'background.paper',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {part?.label}
-                    </Typography>
-                  )}
                 </Box>
               );
             })}
@@ -272,9 +359,42 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
               {info.role}
             </Typography>
-            {(step === 'cubify' || step === 'build') && <TagChip label="In a cube" tone="success" dot size="small" sx={{ mt: 1 }} />}
+            {(step === 'cubify' || step === 'control') && <TagChip label="In a cube" tone="success" dot size="small" sx={{ mt: 1 }} />}
           </Paper>
         )}
+
+        {/* Control: what the cameras see while the instrument runs. */}
+        <Fade in={step === 'control' && status === 'ready'} timeout={reducedMotion ? 0 : 300} unmountOnExit={false}>
+          <Paper
+            variant="outlined"
+            aria-live="polite"
+            sx={(t) => ({
+              position: 'absolute',
+              // Phones: bottom right, clear of the controller; wider stages: bottom left, above the status line.
+              left: { xs: 'auto', md: t.spacing(3) },
+              right: { xs: t.spacing(1.5), md: 'auto' },
+              bottom: { xs: t.spacing(2), md: t.spacing(8) },
+              width: { xs: t.spacing(19), md: t.spacing(30) },
+              p: 1.25,
+              borderRadius: `${t.radius.tile * 2}px`,
+              pointerEvents: 'none',
+            })}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1 }}>
+              <Typography variant="subtitle2">Live view</Typography>
+              <Typography variant="meta" color="text.meta" sx={{ display: { xs: 'none', md: 'block' } }}>
+                Camera 1
+              </Typography>
+            </Stack>
+            {/* A plain canvas: on Box, width and height would be read as styles, not pixels. */}
+            <Box sx={(t) => ({ borderRadius: `${t.radius.tile}px`, overflow: 'hidden', '& canvas': { display: 'block', width: '100%', height: 'auto', imageRendering: 'pixelated' } })}>
+              <canvas ref={liveRef} width={LIVE_W} height={LIVE_H} />
+            </Box>
+            <Typography variant="meta" color="text.secondary" component="div" sx={{ mt: 1 }}>
+              <span ref={liveCaptionRef}>Connecting the laser, galvo, z-stage and cameras</span>
+            </Typography>
+          </Paper>
+        </Fade>
 
         {/* The notch: the section's title and the current step sit in a cut-out of the stage's top-left corner. */}
         <Box
@@ -366,7 +486,16 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         <Stack
           direction="row"
           spacing={1}
-          sx={{ position: 'absolute', left: (t) => t.spacing(3), right: (t) => t.spacing(3), bottom: (t) => t.spacing(2.5), alignItems: 'center', pointerEvents: 'none' }}
+          sx={{
+            // On phones the live view takes this corner in the control step.
+            display: { xs: step === 'control' ? 'none' : 'flex', md: 'flex' },
+            position: 'absolute',
+            left: (t) => t.spacing(3),
+            right: (t) => t.spacing(3),
+            bottom: (t) => t.spacing(2.5),
+            alignItems: 'center',
+            pointerEvents: 'none',
+          }}
         >
           <Typography variant="meta" color="text.secondary" sx={{ flex: 1 }}>
             {status === 'failed'

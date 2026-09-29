@@ -29,9 +29,9 @@ Other scripts:
 
 ## Where the tokens live
 
-All raw values are in **`src/theme/tokens.ts`**. They follow the **Bench** direction (hairlines instead of fills, labels and values in mono, one accent used sparingly):
+All raw values are in **`src/theme/tokens.ts`**. They follow the **Bench** direction (hairlines instead of fills, labels and values in mono, one accent used sparingly), with colours and type from the [openUC2 brand guide](https://docs.openuc2.com/dev/design/brand-guidelines/):
 
-- `brand`: anchor navy (wordmark and page titles, light mode only) and lime (logo only)
+- `brand`: openUC2 blue (`anchor`), green (`lime`), turquoise and grey; `markColors` holds the two approved colourings of the cube mark (full colour, and greyscale for dark backgrounds), drawn by `src/components/primitives/OpenUC2Mark.tsx`
 - `colors.light` / `colors.dark`: accent, accent hover and soft, status, surface, sunken, line, ink 1–3
 - `canvasColors` and `rayColors`: the drawing surface, which never uses brand colour
 - radius (3px), spacing and density, layout dimensions, font families and the Bench type scale
@@ -50,7 +50,8 @@ Components never import `tokens.ts`. They read from the theme (`sx={{ bgcolor: '
 
 Font candidates live in `src/theme/tokens.ts`:
 
-- `uiFonts` and `monoFonts` list the candidates. Each has a CSS family stack and its Google Fonts query.
+- `uiFonts` and `monoFonts` list the candidates. Each has a CSS family stack and, unless it is self-hosted, its Google Fonts query.
+- The default UI font is **Objectivity** (SIL OFL 1.1), the free alternative the openUC2 guide names for its licensed Stolzl. It is self-hosted from `src/theme/fonts/objectivity/` (licence in `OFL.txt` there).
 - `defaultFonts` names the pair the app and Storybook start with.
 
 To compare fonts, open **Tokens → Typography → Font candidates**, which shows every UI font side by side. To try one across all stories, pick it in the **Font** and **Mono** menus in the Storybook toolbar. To make it permanent, change `defaultFonts`. To add a new candidate, add an entry to `uiFonts` or `monoFonts` and it appears in the toolbar. Fonts load at runtime from these tokens (`src/theme/fonts.ts`), so no HTML file needs editing.

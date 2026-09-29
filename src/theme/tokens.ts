@@ -1,10 +1,14 @@
 /**
  * Design tokens: the ONLY place where raw values live.
  *
- * Values follow "Direction C · Bench": hairlines instead of fills, labels and
- * values in mono, one accent used sparingly. Values marked (derived) are not
- * on the Bench sheet and were filled in to complete the dark scheme or the
- * warning/error roles; replace them when the sheet covers them.
+ * Values follow "Direction C · Bench" (hairlines instead of fills, labels and
+ * values in mono, one accent used sparingly), coloured and set in type after
+ * the openUC2 brand guide (docs.openuc2.com/dev/design/brand-guidelines):
+ * blue #023773 leads, green #85B918 and turquoise #1F9C7C support, light
+ * grey #FAF9F9 is the page, grey #999999 is for decoration and disabled
+ * states only (it is below 4.5:1 on the page). Values marked (derived) are
+ * not in the guide and were filled in to complete the dark scheme, tints or
+ * the warning/error roles.
  *
  * Components never read this file directly; they read the MUI theme built
  * from it in `theme.ts`. The token stories are the one exception, because
@@ -16,11 +20,46 @@
 /* ------------------------------------------------------------------ */
 
 export const brand = {
-  /** Wordmark, page titles. Light scheme only. */
-  anchor: '#023672',
-  /** Logo and landing page only. */
-  lime: '#84B818',
+  /** openUC2 blue, the main brand colour: wordmark (light scheme), navy header bar. */
+  anchor: '#023773',
+  /** openUC2 green, the secondary brand colour: logo, "in a cube" status. */
+  lime: '#85B918',
+  /** openUC2 turquoise, the third brand colour: logo. */
+  turquoise: '#1F9C7C',
+  /** openUC2 grey: decoration and disabled text only (2.7:1 on the page). */
+  grey: '#999999',
 } as const;
+
+/**
+ * Faces of the openUC2 cube mark: the blue top, and the left and right faces
+ * each split into an upper and a lower triangle. `light` is the full-colour
+ * mark; `dark` is the approved greyscale mark for dark backgrounds. The brand
+ * guide allows no other colourings.
+ */
+export interface MarkColors {
+  top: string;
+  leftUpper: string;
+  leftLower: string;
+  rightUpper: string;
+  rightLower: string;
+}
+
+export const markColors: Record<'light' | 'dark', MarkColors> = {
+  light: {
+    top: brand.anchor,
+    leftUpper: brand.lime,
+    leftLower: '#709740',
+    rightUpper: brand.turquoise,
+    rightLower: '#27756B',
+  },
+  dark: {
+    top: '#FFFFFF',
+    leftUpper: '#EAEAEA',
+    leftLower: '#C9C9C9',
+    rightUpper: '#DBDBDB',
+    rightLower: '#BCBCBC',
+  },
+};
 
 /* ------------------------------------------------------------------ */
 /* UI colours per scheme                                               */
@@ -64,50 +103,50 @@ export interface SchemeColors {
 
 export const colors: Record<'light' | 'dark', SchemeColors> = {
   light: {
-    accent: '#1A745D',
-    accentHover: '#145C4A',
-    accentSoft: '#E2F0EB',
-    onAccentSoft: '#115A47',
+    accent: brand.anchor, // 11.1:1 on the page
+    accentHover: '#012A59', // (derived)
+    accentSoft: '#E4ECF6', // (derived)
+    onAccentSoft: brand.anchor, // 9.7:1 on accentSoft
     onAccent: '#FFFFFF',
-    status: '#76B133',
-    statusSoft: '#EAF3DC',
-    onStatusSoft: '#3A6210',
+    status: brand.lime, // fill only (2.4:1 on white)
+    statusSoft: '#EEF5DC', // (derived)
+    onStatusSoft: '#3E5A08', // (derived) 7.0:1 on statusSoft
     warning: '#B45309', // (derived)
     warningSoft: '#FCEFE3', // (derived)
     onWarningSoft: '#8A3F06', // (derived)
     error: '#B42318', // (derived)
     errorSoft: '#FBE9E7', // (derived)
     onErrorSoft: '#912018', // (derived)
-    page: '#FAFAF8',
+    page: '#FAF9F9', // openUC2 light grey
     surface: '#FFFFFF',
-    sunken: '#F1F2EF',
-    line: '#DDDFD9',
-    ink: '#16191A',
-    ink2: '#4E5553',
-    ink3: '#636B69',
+    sunken: '#F2F1F1', // (derived)
+    line: '#E1E0E0', // (derived)
+    ink: '#141B24', // (derived) near-black with a trace of the brand blue
+    ink2: '#5C5C5C', // (derived) brand grey, darkened to 6.4:1 on the page
+    ink3: '#666666', // (derived) brand grey, darkened to 5.0:1 on sunken
   },
   dark: {
-    accent: '#5BB49D',
-    accentHover: '#74C4AF', // (derived)
-    accentSoft: '#15312A',
-    onAccentSoft: '#8ACFBA',
-    onAccent: '#101315',
-    status: '#76B133',
-    statusSoft: '#1E2C12',
-    onStatusSoft: '#A6D27A', // (derived)
+    accent: '#7AA7E6', // (derived) tint of the brand blue, 7.6:1 on the page
+    accentHover: '#97BBEE', // (derived)
+    accentSoft: '#14253D', // (derived)
+    onAccentSoft: '#A9C6F0', // (derived) 8.9:1 on accentSoft
+    onAccent: '#0E1218',
+    status: brand.lime,
+    statusSoft: '#1D2A0C', // (derived)
+    onStatusSoft: '#B3D96A', // (derived)
     warning: '#F0A64B', // (derived)
     warningSoft: '#33240F', // (derived)
     onWarningSoft: '#F3C185', // (derived)
     error: '#F07A70', // (derived)
     errorSoft: '#3A1916', // (derived)
     onErrorSoft: '#F5A39B', // (derived)
-    page: '#101315',
-    surface: '#171A19',
-    sunken: '#0F1211',
-    line: '#2A2F2C',
-    ink: '#EAEDEB',
-    ink2: '#AEB6B2', // (derived)
-    ink3: '#8E9793', // (derived)
+    page: '#0E1218', // (derived)
+    surface: '#151A21', // (derived)
+    sunken: '#0B0F14', // (derived)
+    line: '#262E38', // (derived)
+    ink: '#E9ECF0', // (derived)
+    ink2: '#AEB5BE', // (derived)
+    ink3: '#8C949E', // (derived) 5.7:1 on surface
   },
 };
 
@@ -149,18 +188,35 @@ export interface BenchColors {
   grid: string;
   gridMajor: string;
   /** Sketch glyphs per optic kind (optikit-v2 GLYPH_COLORS). */
-  glyphs: { source: string; lens: string; objective: string; mirror: string; dichroic: string; sample: string; detector: string; spacer: string };
+  glyphs: {
+    source: string;
+    galvo: string;
+    lens: string;
+    objective: string;
+    mirror: string;
+    dichroic: string;
+    splitter: string;
+    sample: string;
+    detector: string;
+    spacer: string;
+  };
   sensor: string;
   coating: string;
+  /** Cables from the controller in the control step. */
+  cable: string;
+  /** The controller's status light: brand green. */
+  led: string;
 }
 
 /** optikit-v2 schematic glyph colours (components/schematic/colors.ts). */
 const v2Glyphs = {
   source: '#E74C3C',
+  galvo: '#C86BD8', // v2's programmable surfaces
   lens: '#4AA3FF',
   objective: '#2F6FD6',
   mirror: '#B8C4CC',
   dichroic: '#2EC4A5',
+  splitter: '#9B7FD4', // v2's beamsplitter
   sample: '#7CC142',
   detector: '#546878',
   spacer: '#8A8F98',
@@ -181,6 +237,8 @@ export const benchColors: Record<'light' | 'dark', BenchColors> = {
     glyphs: v2Glyphs,
     sensor: '#1C242B',
     coating: '#EEF4F8',
+    cable: '#2E343B',
+    led: '#85B918',
   },
   dark: {
     beam: '#4BE06A',
@@ -196,6 +254,8 @@ export const benchColors: Record<'light' | 'dark', BenchColors> = {
     glyphs: v2Glyphs,
     sensor: '#1C242B',
     coating: '#EEF4F8',
+    cable: '#8E98A3',
+    led: '#85B918',
   },
 };
 
@@ -272,7 +332,16 @@ export interface ColorRoles {
   divider: string;
   /** App header in its solid "anchor bar" style. */
   header: { main: string; contrastText: string };
-  brand: { anchor: string; lime: string };
+  brand: {
+    anchor: string;
+    lime: string;
+    turquoise: string;
+    grey: string;
+    /** The cube mark for this scheme. */
+    mark: MarkColors;
+    /** The greyscale mark in both schemes, for dark bars (navy header). */
+    markMono: MarkColors;
+  };
   canvas: CanvasColors;
   rays: RayColors;
 }
@@ -286,10 +355,11 @@ function roles(mode: 'light' | 'dark'): ColorRoles {
     warning: { main: c.warning, contrastText: c.surface, soft: c.warningSoft, onSoft: c.onWarningSoft },
     error: { main: c.error, contrastText: c.surface, soft: c.errorSoft, onSoft: c.onErrorSoft },
     background: { default: c.page, paper: c.surface, sunken: c.sunken },
-    text: { primary: c.ink, secondary: c.ink2, meta: c.ink3, disabled: c.ink3 },
+    // Disabled text may sit below 4.5:1 (WCAG exempts it), so the brand grey fits there in light mode.
+    text: { primary: c.ink, secondary: c.ink2, meta: c.ink3, disabled: mode === 'light' ? brand.grey : c.ink3 },
     divider: c.line,
     header: { main: brand.anchor, contrastText: '#FFFFFF' },
-    brand,
+    brand: { ...brand, mark: markColors[mode], markMono: markColors.dark },
     canvas: canvasColors[mode],
     rays: rayColors[mode],
   };
@@ -372,8 +442,8 @@ export interface FontOption {
   label: string;
   /** CSS font-family stack. */
   family: string;
-  /** Google Fonts `family=` query, loaded at runtime by theme/fonts.ts. */
-  google: string;
+  /** Google Fonts `family=` query, loaded at runtime by theme/fonts.ts. Omitted for self-hosted fonts. */
+  google?: string;
   note: string;
 }
 
@@ -385,6 +455,11 @@ const MONO_FALLBACK = 'ui-monospace, "SFMono-Regular", Consolas, monospace';
  * toolbar ("Font"); make one the default with `defaultFonts` below.
  */
 export const uiFonts = {
+  objectivity: {
+    label: 'Objectivity',
+    family: `"Objectivity", ${SANS_FALLBACK}`,
+    note: 'Geometric sans, SIL OFL 1.1, self-hosted (theme/fonts/objectivity). The openUC2 brand guide names it as the free stand-in for Stolzl.',
+  },
   plex: {
     label: 'IBM Plex Sans',
     family: `"IBM Plex Sans", ${SANS_FALLBACK}`,
@@ -456,7 +531,7 @@ export type MonoFontName = keyof typeof monoFonts;
 
 /** The fonts the app and Storybook start with. Change these two names to switch for good. */
 export const defaultFonts: { ui: UiFontName; mono: MonoFontName } = {
-  ui: 'instrument',
+  ui: 'objectivity',
   mono: 'jetbrains',
 };
 
@@ -468,19 +543,21 @@ export const fontWeight = {
 } as const;
 
 /**
- * Bench scale: Display 24/600, Section 17/600, Body 13/400, UI 12/400,
- * Label 10/500, Mono 12/400. The remaining MUI variants sit between them.
+ * Bench scale: Display 24, Section 17, Body 13/400, UI 12/400, Label 10/500,
+ * Mono 12/400. The remaining MUI variants sit between them. Weights follow the
+ * openUC2 guide: headings in regular, bold only for the wordmark. The small
+ * headings (h3-h6) use medium so they still read as headings at 13-16px.
  */
 export const typeScale = {
   // Marketing sizes for the signed-out landing page only (derived; Bench stops at Display 24).
   display: { fontSize: 'clamp(2.25rem, 5.6vw, 4.5rem)', lineHeight: 1.02, fontWeight: fontWeight.regular, letterSpacing: '-0.04em' },
   headline: { fontSize: 'clamp(1.625rem, 3.4vw, 2.75rem)', lineHeight: 1.08, fontWeight: fontWeight.regular, letterSpacing: '-0.035em' },
-  h1: { fontSize: '1.5rem', lineHeight: 1.3, fontWeight: fontWeight.semibold, letterSpacing: '-0.01em' }, // Display 24
-  h2: { fontSize: '1.0625rem', lineHeight: 1.4, fontWeight: fontWeight.semibold }, // Section 17
-  h3: { fontSize: '1rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
-  h4: { fontSize: '0.9375rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
-  h5: { fontSize: '0.875rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
-  h6: { fontSize: '0.8125rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
+  h1: { fontSize: '1.5rem', lineHeight: 1.3, fontWeight: fontWeight.regular, letterSpacing: '-0.01em' }, // Display 24
+  h2: { fontSize: '1.0625rem', lineHeight: 1.4, fontWeight: fontWeight.regular }, // Section 17
+  h3: { fontSize: '1rem', lineHeight: 1.4, fontWeight: fontWeight.medium },
+  h4: { fontSize: '0.9375rem', lineHeight: 1.4, fontWeight: fontWeight.medium },
+  h5: { fontSize: '0.875rem', lineHeight: 1.4, fontWeight: fontWeight.medium },
+  h6: { fontSize: '0.8125rem', lineHeight: 1.4, fontWeight: fontWeight.medium },
   subtitle1: { fontSize: '0.875rem', lineHeight: 1.45, fontWeight: fontWeight.medium },
   subtitle2: { fontSize: '0.8125rem', lineHeight: 1.45, fontWeight: fontWeight.medium },
   body1: { fontSize: '0.8125rem', lineHeight: 1.5, fontWeight: fontWeight.regular }, // Body 13

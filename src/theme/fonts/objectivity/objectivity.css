@@ -1,0 +1,41 @@
+/*
+ * Objectivity by Alexander Slobzheninov, SIL Open Font License 1.1 (see OFL.txt).
+ * Self-hosted: the openUC2 brand guide names it as the free alternative to Stolzl.
+ * Only the weights the app uses are shipped: Thin (taglines), Light, Regular
+ * (headings, per the guide), Medium (small UI labels) and Bold (the Optikit wordmark).
+ */
+@font-face {
+  font-family: 'Objectivity';
+  src: url('./Objectivity-Thin.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Objectivity';
+  src: url('./Objectivity-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Objectivity';
+  src: url('./Objectivity-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Objectivity';
+  src: url('./Objectivity-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Objectivity';
+  src: url('./Objectivity-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

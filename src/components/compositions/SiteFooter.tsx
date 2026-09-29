@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { OpenUC2Mark } from '../primitives/OpenUC2Mark';
 import { PageContainer } from './PageContainer';
 
 export interface FooterLink {
@@ -84,9 +84,9 @@ export function SiteFooter({
           }}
         >
           <Stack spacing={1.5} sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, maxWidth: (t) => t.spacing(52) }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <ViewInArOutlinedIcon sx={{ color: 'brand.lime' }} />
-              <Typography variant="subtitle1" component="span">
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <OpenUC2Mark sx={{ height: (theme) => theme.spacing(3.5) }} />
+              <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'fontWeightBold' }}>
                 Optikit
               </Typography>
             </Stack>

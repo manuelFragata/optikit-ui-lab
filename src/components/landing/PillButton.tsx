@@ -3,7 +3,7 @@ import Button, { type ButtonProps } from '@mui/material/Button';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 
 export interface PillButtonProps extends Omit<ButtonProps, 'variant' | 'endIcon'> {
-  /** `solid`: ink fill, for the one main action. `outline`: hairline. `paper`: for use on an ink surface. */
+  /** `solid`: brand-blue fill, for the one main action. `outline`: hairline. `paper`: for use on a blue or ink surface. */
   tone?: 'solid' | 'outline' | 'paper';
   /** Show the round ↗ arrow at the end. */
   arrow?: boolean;
@@ -25,7 +25,7 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
           py: 0.75,
           gap: 1.25,
           ...(solid
-            ? { bgcolor: 'text.primary', color: 'background.paper', '&:hover': { bgcolor: 'text.primary', opacity: 0.88 } }
+            ? { bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }
             : paper
               ? { bgcolor: 'background.paper', color: 'text.primary', '&:hover': { bgcolor: 'background.paper', opacity: 0.9 } }
               : { borderColor: 'text.primary', color: 'text.primary' }),
@@ -44,8 +44,8 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
             width: t.spacing(3.5),
             height: t.spacing(3.5),
             borderRadius: '50%',
-            bgcolor: solid ? 'background.paper' : 'text.primary',
-            color: solid ? 'text.primary' : 'background.paper',
+            bgcolor: solid ? 'primary.contrastText' : 'text.primary',
+            color: solid ? 'primary.main' : 'background.paper',
           })}
         >
           <NorthEastIcon sx={{ fontSize: '0.875rem' }} />

@@ -212,20 +212,28 @@ export const pricingPlans: PricingPlan[] = [
 ];
 
 export interface FeatureHighlight {
-  id: 'sketch' | 'simulate' | 'cubify' | 'build';
+  id: 'sketch' | 'simulate' | 'cubify' | 'control';
   title: string;
   text: string;
 }
 
 export const featureHighlights: FeatureHighlight[] = [
-  { id: 'sketch', title: 'Sketch', text: 'Put the laser, lenses, dichroic, sample and camera on the grid, stacked where it helps, the way Optikit draws them. Each symbol is a real part.' },
+  {
+    id: 'sketch',
+    title: 'Sketch',
+    text: 'Put a laser, a galvo scanner, lenses, a dichroic, the sample and two cameras on the grid, stacked where it helps. Each symbol is a real part.',
+  },
   {
     id: 'simulate',
     title: 'Simulate',
-    text: 'The green laser lights the sample, and the sample answers in orange. That light goes back down the tower, through the objective and the dichroic, and a mirror turns it onto the camera as a 2× image.',
+    text: 'The galvo steers the green laser into the objective, which focuses it to a spot on the sample. The sample answers in orange, and a beamsplitter shares that light between two cameras.',
   },
   { id: 'cubify', title: 'Cubify', text: 'Every part gets its cube: the optic, then the insert that holds it, then one half of the cube, then the other.' },
-  { id: 'build', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },
+  {
+    id: 'control',
+    title: 'Control',
+    text: 'Plug it into the openUC2 controller. The z-stage finds focus, the galvo sweeps the spot across the sample, and the image builds up line by line.',
+  },
 ];
 
 /** Plain facts for the community section (placeholder numbers). */

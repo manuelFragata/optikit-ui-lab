@@ -38,7 +38,7 @@ function FeatureTags({ features, inverted }: { features: string[]; inverted: boo
             py: 0.5,
             borderRadius: `${t.radius.pill}px`,
             border: `${t.layout.hairline}px solid`,
-            borderColor: inverted ? `color-mix(in srgb, ${(t.vars ?? t).palette.background.paper} 35%, transparent)` : 'divider',
+            borderColor: inverted ? `color-mix(in srgb, ${(t.vars ?? t).palette.header.contrastText} 35%, transparent)` : 'divider',
             typography: 'meta',
           })}
         >
@@ -83,7 +83,8 @@ export function PricingSection({ plans, kits = [], onChoosePlan, onChooseKit }: 
                 // Hairlines between columns (between rows on phones).
                 borderLeft: { xs: 'none', md: i > 0 ? rule(t) : 'none' },
                 borderTop: { xs: i > 0 ? rule(t) : 'none', md: 'none' },
-                ...(inverted ? { bgcolor: 'text.primary', color: 'background.paper' } : {}),
+                // The highlighted plan sits on the deep brand blue in both schemes.
+                ...(inverted ? { bgcolor: 'header.main', color: 'header.contrastText' } : {}),
               })}
             >
               <Typography variant="meta" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.75 }}>

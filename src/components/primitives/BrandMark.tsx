@@ -2,7 +2,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { OpenUC2Mark } from './OpenUC2Mark';
 
 export interface BrandMarkProps {
   /** Product name next to the org name. */
@@ -10,18 +10,16 @@ export interface BrandMarkProps {
   /** Makes the mark a "go home" button. */
   onClick?: () => void;
   /**
-   * Brand colours (lime logo, anchor wordmark in light mode). Turn off on a
-   * coloured bar, where the mark should inherit the bar's text colour.
+   * Brand colours (full-colour mark, blue wordmark in light mode). Turn off on
+   * a coloured bar: the mark switches to the approved greyscale version and the
+   * text inherits the bar's colour.
    */
   colored?: boolean;
 }
 
-/**
- * openUC2 · Optikit wordmark. The cube icon stands in for the real logo;
- * swap in the SVG here and every header follows.
- */
+/** openUC2 · Optikit wordmark: the openUC2 cube mark, the org name and the product. */
 export function BrandMark({ product = 'Optikit', onClick, colored = true }: BrandMarkProps) {
-  // Bench: lime is for the logo only; the anchor navy is for the wordmark in light mode only.
+  // The openUC2 blue is for the wordmark in light mode only.
   const wordmarkSx = colored
     ? (theme: Theme) => ({
         color: (theme.vars ?? theme).palette.text.primary,
@@ -31,7 +29,7 @@ export function BrandMark({ product = 'Optikit', onClick, colored = true }: Bran
 
   const content = (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-      <ViewInArOutlinedIcon fontSize="small" sx={{ color: colored ? 'brand.lime' : 'inherit' }} />
+      <OpenUC2Mark variant={colored ? 'auto' : 'mono'} sx={{ height: (theme) => theme.spacing(3), mr: 0.5 }} />
       <Typography
         variant="caption"
         component="span"

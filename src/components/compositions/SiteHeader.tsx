@@ -10,8 +10,8 @@ import type { Theme } from '@mui/material/styles';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import SearchIcon from '@mui/icons-material/Search';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { ColorSchemeToggle } from '../primitives/ColorSchemeToggle';
+import { OpenUC2Mark } from '../primitives/OpenUC2Mark';
 import { AccountMenu, type AccountUser } from './AccountMenu';
 import { PageContainer } from './PageContainer';
 
@@ -56,7 +56,7 @@ function RoundButton({ label, children, href, onClick }: { label: string; childr
   );
 }
 
-/** Wordmark in brand anchor (light mode only, per Bench). */
+/** Wordmark in openUC2 blue (light mode only; ink on dark). */
 const wordmarkSx = (theme: Theme) => ({
   color: (theme.vars ?? theme).palette.text.primary,
   ...theme.applyStyles('light', { color: (theme.vars ?? theme).palette.brand.anchor }),
@@ -96,12 +96,13 @@ export function SiteHeader({
     >
       <PageContainer sx={{ display: 'flex', alignItems: 'center', gap: 3, minHeight: (t) => t.spacing(t.layout.topbarHeight) }}>
         <ButtonBase onClick={onHome} aria-label="Optikit home" sx={{ borderRadius: 1, flexShrink: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <ViewInArOutlinedIcon sx={{ color: 'brand.lime', fontSize: (theme) => theme.spacing(3.5) }} />
-            <Typography component="span" sx={[{ typography: 'h2', lineHeight: 1 }, wordmarkSx]}>
+          {/* Clear space between mark and wordmark: about the height of a capital, per the brand guide. */}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <OpenUC2Mark sx={{ height: (theme) => theme.spacing(4) }} />
+            <Typography component="span" sx={[{ typography: 'h2', fontWeight: 'fontWeightBold', lineHeight: 1 }, wordmarkSx]}>
               Optikit
             </Typography>
-            <Typography variant="overline" component="span" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' }, alignSelf: 'flex-end', lineHeight: 1.4 }}>
+            <Typography variant="overline" component="span" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' }, alignSelf: 'flex-end', lineHeight: 1.4, textTransform: 'none', letterSpacing: '0.02em' }}>
               by openUC2
             </Typography>
           </Stack>
