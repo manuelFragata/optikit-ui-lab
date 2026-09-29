@@ -100,14 +100,14 @@ export function LandingPage({
           sx={{ scrollMarginTop: (t) => t.spacing(t.layout.topbarHeight), pt: { xs: 5, md: 8 }, pb: { xs: 6, md: 10 } }}
         >
           <PageContainer>
-            <Stack direction="row" spacing={1.5} sx={{ mb: { xs: 2, md: 3 } }}>
-              <Typography variant="meta" color="text.meta">
-                01
-              </Typography>
-              <Typography variant="meta" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Examples · no account needed
-              </Typography>
-            </Stack>
+            <Typography
+              variant="meta"
+              color="text.secondary"
+              component="p"
+              sx={{ mb: { xs: 2, md: 3 }, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
+              Examples · no account needed
+            </Typography>
             <Typography variant="display" component="h1" sx={{ mb: { xs: 4, md: 6 }, maxWidth: (t) => t.spacing(150) }}>
               See? You can do it too, give it a try:
             </Typography>
@@ -122,7 +122,6 @@ export function LandingPage({
 
         <Band id="community">
           <CommunitySection
-            index="02"
             items={[...demoGallery.filter((g) => g.source === 'community'), ...demoGallery.filter((g) => g.source === 'optikit')].slice(0, 4)}
             facts={communityFacts}
             onOpenDesign={onOpenDesign}
@@ -132,7 +131,7 @@ export function LandingPage({
 
         <Band id="how-it-works">
           <Stack spacing={{ xs: 4, md: 6 }}>
-            <SectionHeading index="03" eyebrow="How it works" title="From a sketch to a box of parts">
+            <SectionHeading eyebrow="How it works" title="From a sketch to a box of parts">
               Real openUC2 modules, in 3D. Drag the bench to turn it, click a part to see what it is.
             </SectionHeading>
             <BenchPreview features={featureHighlights} />
@@ -140,7 +139,7 @@ export function LandingPage({
         </Band>
 
         <Band id="pricing">
-          <PricingSection index="04" plans={pricingPlans} onChoosePlan={onChoosePlan} />
+          <PricingSection plans={pricingPlans} onChoosePlan={onChoosePlan} />
         </Band>
       </Box>
 

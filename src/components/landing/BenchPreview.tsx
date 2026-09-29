@@ -256,11 +256,8 @@ export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewPro
           })}
         >
           <Fade in key={feature.id} timeout={reducedMotion ? 0 : 300}>
-            <Box>
-              <Typography variant="meta" color="text.meta">
-                {String(index + 1).padStart(2, '0')} / {String(features.length).padStart(2, '0')}
-              </Typography>
-              <Typography variant="headline" component="h3" sx={{ mt: 0.5 }}>
+            <Box sx={{ pt: 0.5 }}>
+              <Typography variant="headline" component="h3">
                 {feature.title}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: (t) => t.spacing(48) }}>
@@ -317,9 +314,6 @@ export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewPro
                     bgcolor: on ? 'text.primary' : 'transparent',
                   })}
                 />
-                <Typography variant="meta" color="inherit" sx={{ width: (t) => t.spacing(2.5) }}>
-                  {String(i + 1).padStart(2, '0')}
-                </Typography>
                 <Typography variant="subtitle2" color="inherit" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {f.title}
                 </Typography>
@@ -374,7 +368,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewPro
               typography: 'subtitle2',
             })}
           >
-            {String(i + 1).padStart(2, '0')} {f.title}
+            {f.title}
           </ButtonBase>
         ))}
       </Stack>

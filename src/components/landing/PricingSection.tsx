@@ -10,15 +10,13 @@ import { SectionHeading } from './SectionHeading';
 export interface PricingSectionProps {
   plans: PricingPlan[];
   onChoosePlan?: (id: string) => void;
-  /** Section number in the page, e.g. "04". */
-  index?: string;
 }
 
 /** The plans side by side. */
-export function PricingSection({ plans, onChoosePlan, index }: PricingSectionProps) {
+export function PricingSection({ plans, onChoosePlan }: PricingSectionProps) {
   return (
     <Stack spacing={{ xs: 4, md: 6 }}>
-      <SectionHeading index={index} eyebrow="Pricing" title="Designing is free">
+      <SectionHeading eyebrow="Pricing" title="Designing is free">
         Pay when you need more private projects, or the files to print and order parts.
       </SectionHeading>
 

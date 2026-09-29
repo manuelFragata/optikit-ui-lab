@@ -7,7 +7,7 @@ const meta = {
   title: 'Landing/Pricing Section',
   component: PricingSection,
   parameters: { layout: 'padded' },
-  args: { plans: pricingPlans, onChoosePlan: fn(), index: '04' },
+  args: { plans: pricingPlans, onChoosePlan: fn() },
   argTypes: { plans: { control: false } },
 } satisfies Meta<typeof PricingSection>;
 

@@ -14,15 +14,13 @@ export interface CommunitySectionProps {
   onOpenDesign?: (id: string) => void;
   onBrowseGallery?: () => void;
   forumUrl?: string;
-  /** Section number in the page, e.g. "02". */
-  index?: string;
 }
 
 /** One row, two columns: why the gallery matters on the left, a handful of designs on the right. */
-export function CommunitySection({ items, facts, onOpenDesign, onBrowseGallery, forumUrl = '#forum', index }: CommunitySectionProps) {
+export function CommunitySection({ items, facts, onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
   return (
     <Stack spacing={{ xs: 4, md: 6 }}>
-      <SectionHeading index={index} eyebrow="Community gallery" title="Start from someone else's microscope">
+      <SectionHeading eyebrow="Community gallery" title="Start from someone else's microscope">
         Every design in the gallery is open. Open one, change the parts that don't fit your bench, and share your version back.
       </SectionHeading>
     <Box
