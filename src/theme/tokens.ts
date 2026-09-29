@@ -281,6 +281,8 @@ export const layout = {
   /** Height of the example stage on the signed-out landing page. */
   exampleStageHeight: 58,
   exampleStageHeightCompact: 36,
+  /** Cube height in the landing-page feature bench. */
+  featureCubeHeight: 22,
   hairline,
 } as const;
 

@@ -4,11 +4,8 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CheckIcon from '@mui/icons-material/Check';
-import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import LinkIcon from '@mui/icons-material/Link';
-import SchemaOutlinedIcon from '@mui/icons-material/SchemaOutlined';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import type { FeatureHighlight, PricingPlan } from '../../demo/landingContent';
+import { FeatureBench } from './FeatureBench';
 import { SectionHeading } from './SectionHeading';
 
 export interface PricingSectionProps {
@@ -17,48 +14,17 @@ export interface PricingSectionProps {
   onChoosePlan?: (id: string) => void;
 }
 
-const FEATURE_ICONS = {
-  schematic: SchemaOutlinedIcon,
-  parts: LinkIcon,
-  assembly: ViewInArOutlinedIcon,
-  export: FileDownloadOutlinedIcon,
-} as const;
-
-const tileRadius = (t: { radius: { tile: number } }) => `${t.radius.tile}px`;
-
-/** What Optikit does (four features), then the plans side by side. */
+/** How it works (the feature bench), then the plans side by side. */
 export function PricingSection({ features, plans, onChoosePlan }: PricingSectionProps) {
   return (
     <Stack spacing={{ xs: 5, md: 7 }}>
-      <SectionHeading eyebrow="Features and pricing" title="Designing is free">
-        Pay when you need more private projects, or the files to print and order parts.
-      </SectionHeading>
+      <SectionHeading eyebrow="How it works" title="From a sketch to a box of parts" />
+      <FeatureBench features={features} />
 
-      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' } }}>
-        {features.map((feature) => {
-          const Icon = FEATURE_ICONS[feature.id];
-          return (
-            <Stack key={feature.id} spacing={1}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  placeItems: 'center',
-                  width: (t) => t.spacing(5),
-                  height: (t) => t.spacing(5),
-                  borderRadius: tileRadius,
-                  bgcolor: 'primary.soft',
-                  color: 'primary.onSoft',
-                }}
-              >
-                <Icon fontSize="small" />
-              </Box>
-              <Typography variant="h3">{feature.title}</Typography>
-              <Typography variant="body1" color="text.secondary">
-                {feature.text}
-              </Typography>
-            </Stack>
-          );
-        })}
+      <Box sx={{ pt: { xs: 2, md: 4 } }}>
+        <SectionHeading eyebrow="Pricing" title="Designing is free">
+          Pay when you need more private projects, or the files to print and order parts.
+        </SectionHeading>
       </Box>
 
       <Box

@@ -215,10 +215,10 @@ export interface FeatureHighlight {
 }
 
 export const featureHighlights: FeatureHighlight[] = [
-  { id: 'schematic', title: 'Draw the optics first', text: 'Place lasers, lenses, mirrors and cameras on a grid. The rays follow as you move things.' },
-  { id: 'parts', title: 'Link real parts', text: 'Each symbol becomes an openUC2 cube or a catalogue part, with the version you tested.' },
-  { id: 'assembly', title: 'Check it in 3D', text: 'Switch to the assembly view to see the cubes you will actually put on the plate.' },
-  { id: 'export', title: 'Then build it', text: 'Export the parts list and STEP files for printing, or order the cubes as a kit.' },
+  { id: 'schematic', title: 'Sketch', text: 'Put lasers, lenses, mirrors and cameras on a grid. The beam follows as you move them.' },
+  { id: 'parts', title: 'Link', text: 'Turn each symbol into a real part: an openUC2 cube insert or a catalogue lens.' },
+  { id: 'assembly', title: 'Assemble', text: 'See the cubes you will actually put on the baseplate, before you print anything.' },
+  { id: 'export', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },
 ];
 
 /** Plain facts for the community section (placeholder numbers). */
