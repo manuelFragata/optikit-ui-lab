@@ -11,6 +11,7 @@ import ThreeSixtyIcon from '@mui/icons-material/ThreeSixty';
 import { benchBeams, benchController, benchLevels, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { benchColors } from '../../theme/tokens';
+import { OpenUC2Mark } from '../primitives/OpenUC2Mark';
 import { TagChip } from '../primitives/TagChip';
 import { PillButton } from './PillButton';
 import type { BenchControlState, BenchPin, BenchScene, BenchStep } from './bench3d/benchScene';
@@ -125,7 +126,7 @@ function liveCaption(state: BenchControlState) {
  * An inverted corner: a square of the page colour with a quarter circle cut
  * out, so the notch's edges curve into the stage like the stage's own corners.
  */
-function InvertedCorner({ sx }: { sx: object }) {
+function InvertedCorner({ sx, stageAt = '100% 100%' }: { sx: object; stageAt?: string }) {
   return (
     <Box
       aria-hidden
@@ -133,10 +134,62 @@ function InvertedCorner({ sx }: { sx: object }) {
         position: 'absolute',
         width: stageRadius(t),
         height: stageRadius(t),
-        background: `radial-gradient(circle at 100% 100%, transparent ${t.radius.stage - 0.5}px, ${(t.vars ?? t).palette.background.default} ${t.radius.stage}px)`,
+        background: `radial-gradient(circle at ${stageAt}, transparent ${t.radius.stage - 0.5}px, ${(t.vars ?? t).palette.background.default} ${t.radius.stage}px)`,
         ...sx,
       })}
     />
+  );
+}
+
+/** Diameter of the corner badge, spacing units. */
+const BADGE = 12;
+const BADGE_TEXT = 'openUC2 · Optikit · real cubes · ';
+
+/**
+ * Decoration for the stage's top-right corner: a disc cut from the stage, set
+ * apart in its own notch, with the openUC2 mark and a line of text slowly
+ * turning round it. It does nothing.
+ */
+function CornerBadge({ top, bottom, still }: { top: string; bottom: string; still: boolean }) {
+  // The text runs on a circle just inside the disc's edge.
+  const r = 37;
+  return (
+    <Box
+      aria-hidden
+      sx={(t) => ({
+        position: 'relative',
+        width: t.spacing(BADGE),
+        height: t.spacing(BADGE),
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        background: `linear-gradient(180deg, ${top}, ${bottom})`,
+      })}
+    >
+      <Box
+        component="svg"
+        viewBox="0 0 100 100"
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          color: 'text.secondary',
+          animation: still ? 'none' : 'badgeTurn 40s linear infinite',
+          '@keyframes badgeTurn': { to: { transform: 'rotate(360deg)' } },
+        }}
+      >
+        <defs>
+          <path id="badge-ring" d={`M 50 ${50 - r} a ${r} ${r} 0 1 1 0 ${2 * r} a ${r} ${r} 0 1 1 0 ${-2 * r}`} />
+        </defs>
+        <text fill="currentColor" style={{ fontSize: 10.5, letterSpacing: '0.04em' }}>
+          <textPath href="#badge-ring" textLength={2 * Math.PI * r - 2} lengthAdjust="spacing">
+            {BADGE_TEXT}
+          </textPath>
+        </text>
+      </Box>
+      <OpenUC2Mark sx={(t) => ({ height: t.spacing(3.5) })} />
+    </Box>
   );
 }
 
@@ -260,8 +313,9 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
           mx: { lg: -4 },
           height: { xs: t.spacing(t.layout.benchStageHeightCompact), md: `min(${t.spacing(t.layout.benchStageHeight)}, 88vh)` },
           borderRadius: stageRadius(t),
-          // The notch covers this corner; squaring it keeps the notch's text from being clipped.
+          // The notches cover these corners; squaring them keeps what sits in them from being clipped.
           borderTopLeftRadius: 0,
+          borderTopRightRadius: { xs: stageRadius(t), md: 0 },
           overflow: 'hidden',
           background: `linear-gradient(180deg, ${colors.stageTop}, ${colors.stageBottom})`,
         })}
@@ -427,6 +481,24 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
           </Fade>
           <InvertedCorner sx={{ top: 0, left: '100%' }} />
           <InvertedCorner sx={{ top: '100%', left: 0 }} />
+        </Box>
+
+        {/* The badge in its own small notch, top right (desktop). */}
+        <Box
+          sx={(t) => ({
+            display: { xs: 'none', md: 'block' },
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            pl: 1.25,
+            pb: 1.25,
+            bgcolor: 'background.default',
+            borderBottomLeftRadius: stageRadius(t),
+          })}
+        >
+          <CornerBadge top={colors.stageTop} bottom={colors.stageBottom} still={reducedMotion} />
+          <InvertedCorner stageAt="0% 100%" sx={{ top: 0, right: '100%' }} />
+          <InvertedCorner stageAt="0% 100%" sx={{ top: '100%', right: 0 }} />
         </Box>
 
         {/* Step timeline, right edge (desktop). */}

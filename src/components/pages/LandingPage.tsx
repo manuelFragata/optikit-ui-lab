@@ -114,10 +114,18 @@ export function LandingPage({
           sx={{ scrollMarginTop: (t) => t.spacing(t.layout.topbarHeight), pt: { xs: 5, md: 8 }, pb: { xs: 6, md: 10 } }}
         >
           <PageContainer>
-            <Typography variant="display" component="h1" sx={{ mb: { xs: 4, md: 6 }, maxWidth: (t) => t.spacing(150) }}>
-              See? You can do it 2, give it a try:
-            </Typography>
-            <ExampleShowcase examples={exampleDesigns} autoAdvanceMs={autoAdvanceMs} onOpen={onOpenExample} onLocked={onSignUp} />
+            <ExampleShowcase
+              examples={exampleDesigns}
+              autoAdvanceMs={autoAdvanceMs}
+              onOpen={onOpenExample}
+              onLocked={onSignUp}
+              heading={
+                <Typography variant="display" component="h1" sx={{ maxWidth: (t) => t.spacing(150) }}>
+                  See? You can do it 2, give it a try:
+                </Typography>
+              }
+              callout={{ title: 'Not just another ray tracer…', text: 'Every part you draw is a real openUC2 cube. Switch to the assembly to see them.' }}
+            />
             <Box sx={{ mt: 2, textAlign: 'right' }}>
               <Link component="button" variant="body2" onClick={onNewProject}>
                 Or start from an empty page

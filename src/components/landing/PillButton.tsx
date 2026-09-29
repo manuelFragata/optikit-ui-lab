@@ -14,15 +14,19 @@ const ARROW = 3.5;
 /** Its inset from the pill's end, spacing units. */
 const ARROW_INSET = 0.75;
 
+/** Room between the label and the arrow, spacing units. */
+const ARROW_GAP = 1.5;
+/** Room before the label, spacing units: the arrow's inset plus its gap, so both ends of the pill read alike. */
+const LEAD = 2.25;
+
 /**
- * Landing-page call to action: a pill, optionally with a round ↗ arrow. The
- * label is centred on the whole pill: the arrow sits over the end, with the
- * same room kept free on both sides.
+ * Landing-page call to action: a pill, optionally with a round ↗ arrow at the
+ * end. The label starts close to the pill's start; the arrow keeps the room it
+ * needs at the other end.
  */
 export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest }: PillButtonProps) {
   const solid = tone === 'solid';
   const paper = tone === 'paper';
-  const side = arrow ? ARROW + ARROW_INSET + 1.25 : 2.25;
   return (
     <Button
       {...rest}
@@ -31,7 +35,8 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
         (t) => ({
           position: 'relative',
           borderRadius: `${t.radius.pill}px`,
-          px: side,
+          pl: LEAD,
+          pr: arrow ? ARROW + ARROW_INSET + ARROW_GAP : LEAD,
           py: 0.75,
           minHeight: arrow ? t.spacing(ARROW + 2 * ARROW_INSET) : undefined,
           ...(solid
