@@ -39,7 +39,7 @@ export interface EditorShellProps {
  * status bar. Rail and inspector state can be controlled or left internal.
  */
 export function EditorShell({
-  headerVariant = 'navy',
+  headerVariant = 'light',
   projectName = 'Double Gauss 50 mm f/2',
   railState,
   onRailStateChange,

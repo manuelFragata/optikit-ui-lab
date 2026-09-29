@@ -21,12 +21,12 @@ export function CanvasPlaceholder({ children }: CanvasPlaceholderProps) {
           flex: 1,
           minWidth: 0,
           overflow: 'hidden',
-          bgcolor: 'canvas.background',
+          bgcolor: 'canvas.ground',
           backgroundImage: [
             `linear-gradient(to right, ${palette.canvas.gridMajor} ${line}, transparent ${line})`,
             `linear-gradient(to bottom, ${palette.canvas.gridMajor} ${line}, transparent ${line})`,
-            `linear-gradient(to right, ${palette.canvas.gridMinor} ${line}, transparent ${line})`,
-            `linear-gradient(to bottom, ${palette.canvas.gridMinor} ${line}, transparent ${line})`,
+            `linear-gradient(to right, ${palette.canvas.grid} ${line}, transparent ${line})`,
+            `linear-gradient(to bottom, ${palette.canvas.grid} ${line}, transparent ${line})`,
           ].join(', '),
           backgroundSize: `${major} ${major}, ${major} ${major}, ${minor} ${minor}, ${minor} ${minor}`,
         };

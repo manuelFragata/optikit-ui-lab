@@ -105,8 +105,8 @@ export function SidePanel({
                 onClick={() => handleRailClick(item.id)}
                 sx={{
                   borderRadius: 1,
-                  color: selected ? 'primary.main' : 'text.secondary',
-                  bgcolor: selected ? 'action.selected' : 'transparent',
+                  color: selected ? 'primary.onSoft' : 'text.secondary',
+                  bgcolor: selected ? 'primary.soft' : 'transparent',
                 }}
               >
                 {item.icon}
@@ -151,7 +151,12 @@ export function SidePanel({
               {active.label}
             </Typography>
             <Tooltip title={pinned ? 'Unpin panel' : 'Pin panel'}>
-              <IconButton aria-pressed={pinned} aria-label="Pin panel" onClick={() => setState(pinned ? 'expanded' : 'pinned')}>
+              <IconButton
+                aria-pressed={pinned}
+                aria-label="Pin panel"
+                onClick={() => setState(pinned ? 'expanded' : 'pinned')}
+                sx={pinned ? { borderRadius: 1, bgcolor: 'primary.soft', color: 'primary.onSoft' } : { borderRadius: 1 }}
+              >
                 {pinned ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>

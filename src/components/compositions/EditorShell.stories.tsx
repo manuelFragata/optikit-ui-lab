@@ -13,7 +13,7 @@ const meta = {
   component: EditorShell,
   parameters: { layout: 'fullscreen' },
   args: {
-    headerVariant: 'navy',
+    headerVariant: 'light',
     railState: 'collapsed',
     activePanel: 'palette',
     inspectorOpen: true,

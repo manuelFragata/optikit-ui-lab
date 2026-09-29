@@ -12,7 +12,7 @@ const meta = {
   component: EditorShell,
   parameters: { layout: 'fullscreen' },
   args: {
-    headerVariant: 'navy',
+    headerVariant: 'light',
     onHome: linkTo('Pages/Home', 'Signed in'),
     headerActions: <ColorSchemeToggle />,
   },

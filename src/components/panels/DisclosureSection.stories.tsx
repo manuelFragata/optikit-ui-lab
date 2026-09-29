@@ -52,7 +52,7 @@ export const WithActions: Story = {
     ),
     children: (
       <Stack direction="row" spacing={1}>
-        <TagChip label="AR · 550 nm" tone="secondary" />
+        <TagChip label="AR · 550 nm" tone="primary" />
         <TagChip label="MgF₂" />
       </Stack>
     ),

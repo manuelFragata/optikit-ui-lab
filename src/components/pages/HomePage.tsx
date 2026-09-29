@@ -72,6 +72,7 @@ function ProjectRow({ project, onOpen }: { project: ProjectSummary; onOpen?: () 
       <TagChip
         label={project.status}
         tone={project.status === 'Published' ? 'success' : 'neutral'}
+        dot
         sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
       />
       <ChevronRightIcon fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -134,7 +135,7 @@ function ReleaseNotesList() {
         <Box key={note.version}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 0.5 }}>
             <Typography variant="subtitle2">v{note.version}</Typography>
-            {i === 0 && <TagChip label="Current" tone="success" />}
+            {i === 0 && <TagChip label="Current" tone="success" dot />}
             <Box sx={{ flex: 1 }} />
             <Typography variant="mono" color="text.secondary">
               {note.date}
@@ -183,7 +184,14 @@ export function HomePage({
         }}
       >
         <Stack spacing={0.5} sx={{ mb: 4 }}>
-          <Typography variant="h1">{signedIn ? `Welcome back, ${userName}` : 'Design optical instruments from cubes'}</Typography>
+          <Typography
+            variant="h1"
+            sx={(theme) => ({
+              color: (theme.vars ?? theme).palette.text.primary,
+              ...theme.applyStyles('light', { color: (theme.vars ?? theme).palette.brand.anchor }),
+            })}
+          >
+            {signedIn ? `Welcome back, ${userName}` : 'Design optical instruments from cubes'}</Typography>
           <Typography variant="body1" color="text.secondary">
             {signedIn
               ? 'Pick up where you left off, or start something new.'

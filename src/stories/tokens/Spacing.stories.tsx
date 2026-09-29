@@ -77,7 +77,7 @@ export const Radius: Story = {
               width: (theme) => theme.spacing(10),
               height: (theme) => theme.spacing(10),
               borderRadius: multiple,
-              bgcolor: 'secondary.main',
+              bgcolor: 'primary.main',
             }}
           />
           <Typography variant="mono">

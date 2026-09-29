@@ -64,7 +64,7 @@ function PaletteContent() {
         <Stack direction="row" spacing={1}>
           <TagChip label="Dimension" />
           <TagChip label="Label" />
-          <TagChip label="Ray fan" tone="accent" />
+          <TagChip label="Ray fan" tone="primary" />
         </Stack>
       </DisclosureSection>
     </>

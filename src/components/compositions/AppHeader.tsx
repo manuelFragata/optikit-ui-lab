@@ -5,6 +5,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { BrandMark } from '../primitives/BrandMark';
 
+/** `light`: Bench surface bar with a hairline. `navy`: solid brand-anchor bar. */
 export type HeaderVariant = 'navy' | 'light';
 
 export interface AppHeaderProps {
@@ -18,7 +19,7 @@ export interface AppHeaderProps {
 }
 
 /** Top application bar, either a solid navy bar or a light surface bar. */
-export function AppHeader({ variant = 'navy', title = 'Optikit', projectName, onHome, actions }: AppHeaderProps) {
+export function AppHeader({ variant = 'light', title = 'Optikit', projectName, onHome, actions }: AppHeaderProps) {
   const navy = variant === 'navy';
 
   return (
@@ -41,7 +42,7 @@ export function AppHeader({ variant = 'navy', title = 'Optikit', projectName, on
           px: 2,
         }}
       >
-        <BrandMark product={title} onClick={onHome} />
+        <BrandMark product={title} onClick={onHome} colored={!navy} />
         {projectName && (
           <>
             <Divider orientation="vertical" flexItem sx={{ borderColor: 'currentColor', opacity: 0.3, my: 2 }} />

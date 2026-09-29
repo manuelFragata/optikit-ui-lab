@@ -22,7 +22,14 @@ Other scripts:
 
 ## Where the tokens live
 
-All raw values are in **`src/theme/tokens.ts`**: brand colours, the grey ramp, light and dark semantic roles, radius, spacing and density, layout dimensions, font families and the type scale. To try a new colour or size, edit that file.
+All raw values are in **`src/theme/tokens.ts`**. They follow the **Bench** direction (hairlines instead of fills, labels and values in mono, one accent used sparingly):
+
+- `brand`: anchor navy (wordmark and page titles, light mode only) and lime (logo only)
+- `colors.light` / `colors.dark`: accent, accent hover and soft, status, surface, sunken, line, ink 1–3
+- `canvasColors` and `rayColors`: the drawing surface, which never uses brand colour
+- radius (3px), spacing and density, layout dimensions, font families and the Bench type scale
+
+Values marked `(derived)` are not on the Bench sheet: some dark-mode greys and rays, and the warning/error colours. To try a new colour or size, edit that file.
 
 `src/theme/theme.ts` turns the tokens into an MUI theme with `createTheme({ cssVariables, colorSchemes: { light, dark } })`. It also:
 

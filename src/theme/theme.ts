@@ -4,7 +4,6 @@ import {
   colorRoles,
   density as densityTokens,
   fontFamily,
-  grey,
   layout,
   radius,
   typeScale,
@@ -27,17 +26,33 @@ declare module '@mui/material/styles' {
     density?: DensityName;
   }
   interface Palette {
-    accent: ColorRoles['accent'];
     header: ColorRoles['header'];
+    brand: ColorRoles['brand'];
     canvas: ColorRoles['canvas'];
+    rays: ColorRoles['rays'];
   }
   interface PaletteOptions {
-    accent?: ColorRoles['accent'];
     header?: ColorRoles['header'];
+    brand?: ColorRoles['brand'];
     canvas?: ColorRoles['canvas'];
+    rays?: ColorRoles['rays'];
+  }
+  interface PaletteColor {
+    /** Tinted background for badges and selected rows. */
+    soft?: string;
+    /** Text and icons on `soft`. */
+    onSoft?: string;
+  }
+  interface SimplePaletteColorOptions {
+    soft?: string;
+    onSoft?: string;
   }
   interface TypeBackground {
     sunken: string;
+  }
+  interface TypeText {
+    /** Meta text: timestamps, counts, hashes. */
+    meta: string;
   }
   interface TypographyVariants {
     mono: CSSProperties;
@@ -57,10 +72,6 @@ declare module '@mui/material/Typography' {
 /* Theme factory                                                       */
 /* ------------------------------------------------------------------ */
 
-function palette(mode: 'light' | 'dark') {
-  return { ...colorRoles[mode], grey };
-}
-
 export function createAppTheme(densityName: DensityName = 'comfortable'): Theme {
   const d = densityTokens[densityName];
   const size = d.controlSize;
@@ -71,8 +82,8 @@ export function createAppTheme(densityName: DensityName = 'comfortable'): Theme 
     // scheme be switched at runtime with useColorScheme().setMode().
     cssVariables: { colorSchemeSelector: 'data' },
     colorSchemes: {
-      light: { palette: palette('light') },
-      dark: { palette: palette('dark') },
+      light: { palette: colorRoles.light },
+      dark: { palette: colorRoles.dark },
     },
     spacing: d.spacing,
     shape: { borderRadius: radius.base },
@@ -85,17 +96,75 @@ export function createAppTheme(densityName: DensityName = 'comfortable'): Theme 
     components: {
       MuiButton: {
         defaultProps: { size, disableElevation: true },
+        styleOverrides: {
+          root: { whiteSpace: 'nowrap' },
+        },
+        variants: [
+          // Bench: one accent action per view; the rest are neutral outline + ink.
+          {
+            props: { variant: 'outlined', color: 'primary' },
+            style: ({ theme }) => ({
+              borderColor: (theme.vars ?? theme).palette.divider,
+              color: (theme.vars ?? theme).palette.text.primary,
+              '&:hover': {
+                borderColor: (theme.vars ?? theme).palette.text.secondary,
+                backgroundColor: (theme.vars ?? theme).palette.action.hover,
+              },
+            }),
+          },
+        ],
       },
       MuiIconButton: { defaultProps: { size } },
       MuiToggleButton: { defaultProps: { size } },
       MuiTextField: { defaultProps: { size } },
       MuiFormControl: { defaultProps: { size } },
       MuiSlider: { defaultProps: { size } },
-      MuiChip: { defaultProps: { size: 'small' } },
+      MuiChip: {
+        defaultProps: { size: 'small' },
+        styleOverrides: { root: ({ theme }) => ({ borderRadius: theme.shape.borderRadius }) },
+      },
       MuiList: { defaultProps: { dense } },
       MuiMenuItem: { defaultProps: { dense } },
+      MuiLink: {
+        defaultProps: { underline: 'always' },
+        styleOverrides: { root: { textUnderlineOffset: '0.2em' } },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          // Fields sit on the sunken tone with a hairline border.
+          root: ({ theme }) => ({
+            backgroundColor: (theme.vars ?? theme).palette.background.sunken,
+            '&:hover:not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline': {
+              borderColor: (theme.vars ?? theme).palette.text.secondary,
+            },
+          }),
+          notchedOutline: ({ theme }) => ({ borderColor: (theme.vars ?? theme).palette.divider }),
+        },
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            '&.Mui-selected, &.Mui-selected:hover': {
+              backgroundColor: (theme.vars ?? theme).palette.primary.soft,
+              color: (theme.vars ?? theme).palette.primary.onSoft,
+              '& .MuiListItemIcon-root': { color: 'inherit' },
+            },
+          }),
+        },
+      },
+      MuiTab: {
+        styleOverrides: { root: { textTransform: 'none' } },
+      },
       MuiTooltip: {
         defaultProps: { arrow: true, enterDelay: 400 },
+        styleOverrides: {
+          tooltip: ({ theme }) => ({
+            backgroundColor: (theme.vars ?? theme).palette.text.primary,
+            color: (theme.vars ?? theme).palette.background.paper,
+            ...theme.typography.body2,
+          }),
+          arrow: ({ theme }) => ({ color: (theme.vars ?? theme).palette.text.primary }),
+        },
       },
     },
   });
