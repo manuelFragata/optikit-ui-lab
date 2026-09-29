@@ -113,6 +113,16 @@ export const demoGallery: GalleryItem[] = [
     forks: 34,
     blurb: 'A brightfield FRAME with the LED folded over two mirrors, so the whole thing fits on a 5 × 4 plate.',
   },
+  {
+    id: 'g7',
+    title: "Franzi's fluorescence tower",
+    source: 'community',
+    author: 'franzi',
+    kind: 'Instrument',
+    cubes: 9,
+    forks: 27,
+    blurb: 'An inverted fluorescence microscope stacked four cubes high: the laser comes in halfway up, and a mirror at the foot folds the image onto the camera.',
+  },
   { id: 'g5', title: 'Slit scope', source: 'community', author: 'ohkyung', kind: 'Instrument', cubes: 2, forks: 12 },
   { id: 'g6', title: 'Core BOX devices', source: 'community', author: 'manu', kind: 'Collection', cubes: 4, forks: 17 },
 ];

@@ -17,7 +17,7 @@ import { useHashRoute, useSession, type Route } from './routing';
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
 
 /** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
-const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield' };
+const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield', g7: 'ex-fluor' };
 
 /** Which design an editor route opens. */
 function findDesign(id: string): { name: string; version: string; schematic: Schematic; empty: boolean } | null {

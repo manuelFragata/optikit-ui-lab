@@ -188,6 +188,21 @@ export interface BenchSceneOptions {
   initialStep?: BenchStep;
   /** Camera flights, the light run and the cubify frames; off for reduced motion. */
   motion?: boolean;
+  /** Drag to turn and click to pick; off for a picture (a card). Default on. */
+  interactive?: boolean;
+  /** Camera per step, relative to the bench's centre (mm, z up), replacing the defaults. */
+  poses?: Partial<Record<BenchStep, BenchPose>>;
+  /** One cubify frame, ms. */
+  frameMs?: number;
+  /** Turn slowly once cubify is done. Default on. */
+  turntable?: boolean;
+}
+
+/** A camera: where it is and what it looks at, both relative to the bench's centre. */
+export interface BenchPose {
+  from: [number, number, number];
+  at: [number, number, number];
+  fov: number;
 }
 
 export interface BenchScene {
@@ -196,6 +211,8 @@ export interface BenchScene {
   select: (id: string | null) => void;
   /** Pause rendering while off screen. */
   setActive: (active: boolean) => void;
+  /** Play the current step again from its start (cubify builds up again). */
+  restart: () => void;
   dispose: () => void;
 }
 
@@ -224,7 +241,7 @@ const LIGHT_SPEED = 85;
 /** Pause at the end of a light run before it starts again, ms. */
 const LIGHT_HOLD = 2600;
 /** One cubify frame, ms. */
-const FRAME_MS = 1400;
+const DEFAULT_FRAME_MS = 1400;
 /** Lateral offset of the second imaged point on the sample, mm. */
 const OBJECT_HEIGHT = 1.2;
 /** Height at the first lens of the emission's marginal ray, mm. */
@@ -579,6 +596,9 @@ class Fader {
 export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneOptions): BenchScene {
   const { parts, beams, plate, controller } = options;
   const motion = options.motion ?? true;
+  const interactive = options.interactive ?? true;
+  const turntable = options.turntable ?? true;
+  const FRAME_MS = options.frameMs ?? DEFAULT_FRAME_MS;
   let colors = options.colors;
   const glyphColor = (kind: OpticKind) => colors.glyphs[kind] ?? V2_GLYPHS[kind];
 
@@ -1116,6 +1136,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   controls.enablePan = false;
   controls.maxPolarAngle = Math.PI * 0.46;
   controls.autoRotateSpeed = 0.5;
+  controls.enabled = interactive;
 
   const world = (x: number, y: number, z: number) => new Vector3(x, z, -y);
   const c = centre;
@@ -1129,6 +1150,14 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     cubify: { position: world(c.x + 380, c.y - 600, c.z + 330), target: world(c.x - 40, c.y + 10, c.z - 25), fov: 30 },
     control: { position: world(c.x - 520, c.y - 640, c.z + 420), target: world(c.x - 120, c.y, c.z - 30), fov: 32, narrowX: c.x - 95 },
   };
+
+  for (const [key, spec] of Object.entries(options.poses ?? {}) as [BenchStep, BenchPose][]) {
+    POSES[key] = {
+      position: world(c.x + spec.from[0], c.y + spec.from[1], c.z + spec.from[2]),
+      target: world(c.x + spec.at[0], c.y + spec.at[1], c.z + spec.at[2]),
+      fov: spec.fov,
+    };
+  }
 
   type Pose = (typeof POSES)[BenchStep];
   /**
@@ -1210,7 +1239,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
         s.subs[name].target = shown ? 1 : 0;
       }
     }
-    controls.autoRotate = motion && step === 'cubify' && frame === FRAMES.length - 1 && !userTookOver;
+    controls.autoRotate = motion && turntable && step === 'cubify' && frame === FRAMES.length - 1 && !userTookOver;
   }
 
   let disposed = false;
@@ -1449,8 +1478,10 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     select(id);
     options.onSelect?.(id);
   };
-  canvas.addEventListener('pointerdown', onDown);
-  canvas.addEventListener('pointerup', onUp);
+  if (interactive) {
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointerup', onUp);
+  }
 
   const selectionMat = new LineBasicMaterial({ color: colors.selection });
   const selectionBox = new LineSegments(new EdgesGeometry(new BoxGeometry(CELL + 2, CELL + 2, 57)), selectionMat);
@@ -1501,6 +1532,15 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
       requestRender();
     },
     select,
+    restart() {
+      stepStart = performance.now();
+      flying = true;
+      userTookOver = false;
+      if (step === 'cubify' && motion) {
+        for (const s of states) if (s.subs) for (const name of SUBS) s.subs[name].v = 0;
+      }
+      requestRender();
+    },
     setActive(next) {
       active = next;
       if (next) requestRender();

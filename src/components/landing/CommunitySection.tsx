@@ -8,6 +8,8 @@ import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { GalleryItem } from '../../demo/homeContent';
+import type { Assembly } from '../../demo/assemblies';
+import { AssemblyView } from './AssemblyView';
 import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
@@ -17,6 +19,8 @@ export interface CommunitySectionProps {
   items: GalleryItem[];
   /** Drawings for designs that have one; the featured card shows it live. */
   drawings?: Record<string, Schematic>;
+  /** Cube assemblies for designs that have one; the featured card prefers these and shows it in 3D. */
+  assemblies?: Record<string, Assembly>;
   facts: { value: string; label: string }[];
   /** Initials of a few makers, for the avatar stack. */
   makers?: string[];
@@ -93,7 +97,21 @@ const byline = (item: GalleryItem) => (item.source === 'optikit' ? 'Shipped with
  * with the section's title written over it (the title is part of the picture,
  * not a header above it).
  */
-function FeaturedPanel({ item, drawing, title, lead, onOpen }: { item: GalleryItem; drawing?: Schematic; title: string; lead: string; onOpen?: () => void }) {
+function FeaturedPanel({
+  item,
+  drawing,
+  assembly,
+  title,
+  lead,
+  onOpen,
+}: {
+  item: GalleryItem;
+  drawing?: Schematic;
+  assembly?: Assembly;
+  title: string;
+  lead: string;
+  onOpen?: () => void;
+}) {
   return (
     <ButtonBase
       onClick={onOpen}
@@ -110,16 +128,26 @@ function FeaturedPanel({ item, drawing, title, lead, onOpen }: { item: GalleryIt
         '&:hover .corner-arrow': { transform: 'rotate(45deg)' },
       })}
     >
-      {/* The drawing keeps to the upper part; the words sit below it on a fade. */}
-      <Box sx={(t) => ({ position: 'absolute', top: t.spacing(4), left: '18%', right: 0, bottom: { xs: t.spacing(30), md: t.spacing(26) }, display: 'flex', pointerEvents: 'none' })}>
-        {drawing ? (
-          <SchematicCanvas fit schematic={drawing} selectedId={null} onSelect={() => undefined} options={{ showRayLabels: false }} hint={false} />
-        ) : (
-          <Box sx={{ flex: 1 }}>
-            <CubeThumbnail cubes={item.cubes} size="card" />
-          </Box>
-        )}
-      </Box>
+      {/* The build itself, in 3D, fills the panel; the words sit below it on a fade. */}
+      {assembly ? (
+        <AssemblyView
+          assembly={assembly}
+          animate={false}
+          label={`${item.title}: openUC2 cubes stacked into a tower`}
+          // Phones: only the band between the byline and the title, so the words don't cover it.
+          sx={{ position: 'absolute', left: 0, right: 0, top: { xs: 88, md: 0 }, bottom: { xs: '50%', md: 0 }, pointerEvents: 'none' }}
+        />
+      ) : (
+        <Box sx={(t) => ({ position: 'absolute', top: t.spacing(4), left: '18%', right: 0, bottom: { xs: t.spacing(30), md: t.spacing(26) }, display: 'flex', pointerEvents: 'none' })}>
+          {drawing ? (
+            <SchematicCanvas fit schematic={drawing} selectedId={null} onSelect={() => undefined} options={{ showRayLabels: false }} hint={false} />
+          ) : (
+            <Box sx={{ flex: 1 }}>
+              <CubeThumbnail cubes={item.cubes} size="card" />
+            </Box>
+          )}
+        </Box>
+      )}
 
       <Box sx={{ position: 'absolute', top: (t) => t.spacing(3.5), left: (t) => t.spacing(4) }}>
         <Typography variant="meta" color="text.secondary" component="div">
@@ -205,10 +233,11 @@ function SmallTile({ item, onOpen }: { item: GalleryItem; onOpen?: () => void })
  * section's title over it, a row of the latest designs with filter pills,
  * and a strip of makers with the numbers.
  */
-export function CommunitySection({ items, drawings = {}, facts, makers = [], onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
+export function CommunitySection({ items, drawings = {}, assemblies = {}, facts, makers = [], onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
   const [filter, setFilter] = useState<Filter>('all');
-  // The spotlight stays put; the filters act on the row below it.
-  const spotlight = items.find((i) => i.source === 'community' && drawings[i.id]) ?? items[0];
+  // The spotlight stays put; the filters act on the row below it. A build with cubes to show wins.
+  const spotlight =
+    items.find((i) => i.source === 'community' && assemblies[i.id]) ?? items.find((i) => i.source === 'community' && drawings[i.id]) ?? items[0];
   const latest = items.filter((i) => i !== spotlight && (filter === 'all' || i.kind === filter)).slice(0, 4);
 
   return (
@@ -217,6 +246,7 @@ export function CommunitySection({ items, drawings = {}, facts, makers = [], onO
         <FeaturedPanel
           item={spotlight}
           drawing={drawings[spotlight.id]}
+          assembly={assemblies[spotlight.id]}
           title="Start from someone else's microscope"
           lead="Every design in the gallery is open. Open one, change the parts that don't fit your bench, and share your version back."
           onOpen={() => onOpenDesign?.(spotlight.id)}

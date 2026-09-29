@@ -12,6 +12,7 @@ import { CommunitySection } from '../landing/CommunitySection';
 import { ExampleShowcase } from '../landing/ExampleShowcase';
 import { PricingSection } from '../landing/PricingSection';
 import { BenchPreview } from '../landing/BenchPreview';
+import { featuredBuild } from '../../demo/assemblies';
 
 export type LandingSection = 'examples' | 'community' | 'how-it-works' | 'pricing';
 
@@ -133,6 +134,7 @@ export function LandingPage({
           <CommunitySection
             items={[...demoGallery.filter((g) => g.source === 'community'), ...demoGallery.filter((g) => g.source === 'optikit')]}
             drawings={GALLERY_DRAWINGS}
+            assemblies={{ g7: featuredBuild }}
             facts={communityFacts}
             makers={communityMakers}
             onOpenDesign={onOpenDesign}
