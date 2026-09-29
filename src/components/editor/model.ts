@@ -5,14 +5,20 @@
 
 export type SymbolKind = 'laser' | 'mirror' | 'dichroic' | 'lens' | 'objective' | 'camera';
 
-export type LinkStatus = 'Linked' | 'Unlinked';
+/** Quarter turns of a part in its cube: 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°. */
+export type Seat = 0 | 1 | 2 | 3;
 
-export interface LinkedDesign {
-  name: string;
-  source: string;
-  version?: string;
-  status: LinkStatus;
-}
+/**
+ * Where a part physically sits (UI-V4 §1.2). Every part is in one of two
+ * states; realize, freeze and unbind move it between them.
+ */
+export type Placement =
+  /** Housed in a cube on the grid: an existing module, or a holder frozen for it. */
+  | { state: 'in-cube'; module: string; source: string; version?: string; seat: Seat; frozen?: boolean }
+  /** An optic placed freely, with no holder yet. */
+  | { state: 'unmounted'; part: string; source: string };
+
+export const isMounted = (s: { placement: Placement }) => s.placement.state === 'in-cube';
 
 /** One numeric, kind-specific parameter shown in the inspector (e.g. cut-on wavelength). */
 export interface SymbolParam {
@@ -34,7 +40,7 @@ export interface SchematicSymbol {
   x: number;
   y: number;
   z: number;
-  linked?: LinkedDesign;
+  placement: Placement;
   param?: SymbolParam;
   notes: string;
 }

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
@@ -12,7 +13,7 @@ import IosShareIcon from '@mui/icons-material/IosShare';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import TuneIcon from '@mui/icons-material/Tune';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { demoDesignInfo, demoFiles, demoHistory, demoPalette, demoSchematic } from '../../demo/editorContent';
+import { demoDesignInfo, demoFiles, demoHistory, demoModules, demoPalette, demoSchematic } from '../../demo/editorContent';
 import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/CanvasToolbar';
 import type { Schematic, SchematicSymbol } from '../editor/model';
 import { DesignInfoPanel } from '../editor/panels/DesignInfoPanel';
@@ -116,7 +117,7 @@ export function EditorShell({
   defaultSelectedId = null,
   onSelectedIdChange,
   view: viewProp,
-  defaultView = 'schematic',
+  defaultView = '2d',
   onViewChange,
   onHome,
   onLogIn,
@@ -137,6 +138,7 @@ export function EditorShell({
   const { symbols, rays } = schematic;
   const selectedIndex = symbols.findIndex((s) => s.id === selectedId);
   const selected = selectedIndex >= 0 ? symbols[selectedIndex] : null;
+  const unmounted = symbols.filter((s) => s.placement.state === 'unmounted').length;
 
   const openRight = (id: RightPanelId) => {
     if (rightPanel !== id) setRightPanel(id);
@@ -228,10 +230,10 @@ export function EditorShell({
           items={[
             {
               id: 'palette',
-              label: 'Symbol palette',
+              label: 'Add parts',
               icon: <ViewInArOutlinedIcon />,
               content: <SymbolPalettePanel groups={demoPalette} />,
-              footer: footerButton('Add symbol', <AddIcon />),
+              footer: footerButton('Import optic…', <AddIcon />),
             },
             {
               id: 'layers',
@@ -288,7 +290,13 @@ export function EditorShell({
               label: 'Properties',
               title: selected?.label ?? 'Properties',
               icon: <TuneIcon />,
-              content: <PropertiesPanel symbol={selected} onChange={(patch) => selected && updateSymbol(selected.id, patch)} />,
+              content: (
+                <PropertiesPanel
+                  symbol={selected}
+                  realizeOptions={selected ? demoModules[selected.kind] : []}
+                  onChange={(patch) => selected && updateSymbol(selected.id, patch)}
+                />
+              ),
               footer: selected && (
                 <PropertiesFooter
                   symbolId={selected.id}
@@ -313,7 +321,8 @@ export function EditorShell({
                 <DesignInfoPanel
                   {...demoDesignInfo}
                   stats={[
-                    { label: 'symbols', value: symbols.length },
+                    { label: 'parts', value: symbols.length },
+                    { label: 'not mounted yet', value: unmounted },
                     { label: 'rays', value: rays.length },
                     { label: 'groups', value: schematic.groups.length },
                   ]}
@@ -325,11 +334,23 @@ export function EditorShell({
       </Box>
 
       <StatusBar
-        status={selected ? `${selected.id} selected` : 'Ready'}
+        // UI-V4 §1.2: the status bar counts the parts that are not mounted yet; none left means buildable.
+        tone={unmounted > 0 ? 'warning' : 'success'}
+        status={
+          <ButtonBase
+            onClick={() => {
+              setLeftPanel('parts');
+              if (leftState === 'collapsed') setLeftState('expanded');
+            }}
+            sx={{ borderRadius: 1, px: 0.5, typography: 'caption', '&:hover': { color: 'text.primary' } }}
+          >
+            {unmounted > 0 ? `${unmounted} ${unmounted === 1 ? 'part' : 'parts'} not mounted yet` : 'Every part is in a cube · buildable'}
+          </ButtonBase>
+        }
         start={
           <>
             <Typography variant="mono">{selected ? `x ${selected.x} y ${selected.y} z ${selected.z}` : 'x – y – z –'}</Typography>
-            <Typography variant="caption">{symbols.length} symbols</Typography>
+            <Typography variant="caption">{symbols.length} parts</Typography>
             <Typography variant="caption">{rays.length} rays</Typography>
           </>
         }

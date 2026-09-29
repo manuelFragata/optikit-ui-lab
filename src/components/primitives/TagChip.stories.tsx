@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const StatusBadge: Story = {
-  args: { label: 'Linked', tone: 'success', dot: true },
+  args: { label: 'In a cube', tone: 'success', dot: true },
 };
 
 export const Deletable: Story = {

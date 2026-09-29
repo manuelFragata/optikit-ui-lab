@@ -14,7 +14,7 @@ export interface SchematicCanvasProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   view?: EditorView;
-  options: Pick<ViewOptions, 'showRayLabels'>;
+  options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages'>>;
   /** Floating controls in the top-left corner (see CanvasToolbar). */
   toolbar?: ReactNode;
   /**
@@ -83,7 +83,7 @@ export function SchematicCanvas({
   schematic,
   selectedId,
   onSelect,
-  view = 'schematic',
+  view = '2d',
   options,
   toolbar,
   fit = false,
@@ -143,7 +143,7 @@ export function SchematicCanvas({
         <Box component="path" d={MINOR} strokeWidth={1} sx={{ stroke: 'var(--mui-palette-canvas-grid)' }} {...line} />
         <Box component="path" d={MAJOR} strokeWidth={1} sx={{ stroke: 'var(--mui-palette-canvas-gridMajor)' }} {...line} />
 
-        {view === 'schematic' && (
+        {view === '2d' && (
           <>
             {/* origin */}
             <Box component="g" sx={{ color: 'text.meta' }}>
@@ -233,6 +233,28 @@ export function SchematicCanvas({
                     '&:hover .glyph, &:focus-visible .glyph': { color: 'primary.main' },
                   }}
                 >
+                  {/* Mounted: the cube around the part. Not mounted yet: a dashed outline, no holder. */}
+                  {(() => {
+                    const mounted = s.placement.state === 'in-cube';
+                    if (mounted && !options.showCages) return null;
+                    const side = Math.max(b.w, b.h) + 0.5;
+                    const cx = b.x + b.w / 2;
+                    const cy = b.y + b.h / 2;
+                    return (
+                      <Box
+                        component="rect"
+                        x={cx - side / 2}
+                        y={cy - side / 2}
+                        width={side}
+                        height={side}
+                        rx={0.15}
+                        strokeWidth={1}
+                        strokeDasharray={mounted ? undefined : '3 3'}
+                        {...line}
+                        sx={{ stroke: mounted ? 'var(--mui-palette-text-meta)' : 'var(--mui-palette-warning-main)' }}
+                      />
+                    );
+                  })()}
                   {/* generous hit area */}
                   <rect x={b.x - 0.2} y={b.y - 0.2} width={b.w + 0.4} height={b.h + 0.4} fill="transparent" />
                   <g className="glyph" transform={`translate(${s.x} ${-s.y})`} stroke="currentColor" strokeWidth={1.5} fill="none">
@@ -244,7 +266,14 @@ export function SchematicCanvas({
                     y={b.y + b.h + LABEL + 0.15}
                     fontSize={LABEL}
                     textAnchor="middle"
-                    sx={{ fill: isSelected ? 'var(--mui-palette-text-primary)' : 'var(--mui-palette-text-secondary)' }}
+                    sx={{
+                      fill:
+                        s.placement.state === 'unmounted'
+                          ? 'var(--mui-palette-warning-main)'
+                          : isSelected
+                            ? 'var(--mui-palette-text-primary)'
+                            : 'var(--mui-palette-text-secondary)',
+                    }}
                   >
                     {s.label}
                   </Box>
@@ -258,12 +287,12 @@ export function SchematicCanvas({
       </Box>
 
       {/* other views: placeholder */}
-      {view !== 'schematic' && (
+      {view === '3d' && (
         <Stack spacing={1} sx={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'text.secondary' }}>
           <ViewInArOutlinedIcon />
           <Typography variant="subtitle2">{VIEW_LABELS[view]}</Typography>
           <Typography variant="body2">
-            {view === 'assembly' ? 'The 3D cube assembly will render here.' : 'Pick concrete parts for each schematic symbol here.'}
+            The same design in 3D: cube cages, other layers translucent.
           </Typography>
         </Stack>
       )}
@@ -287,7 +316,7 @@ export function SchematicCanvas({
       </Box>
 
       {/* hint */}
-      {view === 'schematic' && !selected && hint && (
+      {view === '2d' && !selected && hint && (
         <Paper
           variant="outlined"
           sx={{

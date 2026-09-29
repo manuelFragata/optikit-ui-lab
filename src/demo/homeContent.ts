@@ -76,7 +76,7 @@ export const demoReleaseNotes: ReleaseNote[] = [
   {
     version: '0.4.2',
     date: '23 Sep 2026',
-    items: ['Linked designs show their status in the inspector', 'Snap to grid remembers its pitch per design', 'Fixed ray labels overlapping group outlines'],
+    items: ['The status bar counts parts not mounted yet', 'Snap to grid remembers its pitch per design', 'Fixed ray labels overlapping group outlines'],
   },
   {
     version: '0.4.1',

@@ -4,10 +4,8 @@ import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Popover from '@mui/material/Popover';
-import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -19,12 +17,12 @@ import TuneIcon from '@mui/icons-material/Tune';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 
 export type CanvasTool = 'select' | 'pan' | 'zoom';
-export type EditorView = 'schematic' | 'parts' | 'assembly';
+/** One document, two looks at it (UI-V4 §1.3): the 2D schematic is the 3D scene seen from the top. */
+export type EditorView = '2d' | '3d';
 
 export const VIEW_LABELS: Record<EditorView, string> = {
-  schematic: 'Optics Schematic View',
-  parts: 'Optics Part Selection View',
-  assembly: 'Assembly View',
+  '2d': '2D',
+  '3d': '3D',
 };
 
 export interface ViewOptions {
@@ -32,6 +30,8 @@ export interface ViewOptions {
   onionSkin: boolean;
   snapToGrid: boolean;
   showRayLabels: boolean;
+  /** Outline the cube around every mounted part. */
+  showCages: boolean;
 }
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
@@ -39,6 +39,7 @@ export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
   onionSkin: true,
   snapToGrid: true,
   showRayLabels: true,
+  showCages: true,
 };
 
 export interface CanvasToolbarProps {
@@ -105,24 +106,25 @@ export function CanvasToolbar({ tool, onToolChange, view, onViewChange, options,
         </Tooltip>
       </Paper>
 
-      <Paper variant="outlined" sx={floatingSx}>
-        <Select
+      <Paper variant="outlined" sx={{ ...floatingSx, p: 0.5 }}>
+        <ToggleButtonGroup
+          exclusive
           size="small"
           value={view}
-          onChange={(e) => onViewChange(e.target.value as EditorView)}
-          inputProps={{ 'aria-label': 'Canvas view' }}
-          sx={{
-            bgcolor: 'background.paper',
-            typography: 'body2',
-            '& .MuiOutlinedInput-notchedOutline': { border: 0 },
-          }}
+          onChange={(_, next: EditorView | null) => next && onViewChange(next)}
+          aria-label="Canvas view"
+          sx={{ '& .MuiToggleButton-root': { border: 0, borderRadius: 1, px: 1.25, typography: 'subtitle2' } }}
         >
           {(Object.keys(VIEW_LABELS) as EditorView[]).map((v) => (
-            <MenuItem key={v} value={v}>
+            <ToggleButton
+              key={v}
+              value={v}
+              sx={{ '&.Mui-selected': { bgcolor: 'primary.soft', color: 'primary.onSoft', '&:hover': { bgcolor: 'primary.soft' } } }}
+            >
               {VIEW_LABELS[v]}
-            </MenuItem>
+            </ToggleButton>
           ))}
-        </Select>
+        </ToggleButtonGroup>
       </Paper>
 
       <Popover
@@ -164,6 +166,10 @@ export function CanvasToolbar({ tool, onToolChange, view, onViewChange, options,
             <FormControlLabel
               control={<Checkbox size="small" checked={options.showRayLabels} onChange={(e) => set({ showRayLabels: e.target.checked })} />}
               label={<Typography variant="body2">Show ray labels</Typography>}
+            />
+            <FormControlLabel
+              control={<Checkbox size="small" checked={options.showCages} onChange={(e) => set({ showCages: e.target.checked })} />}
+              label={<Typography variant="body2">Cube cages around mounted parts</Typography>}
             />
           </Stack>
           <Stack direction="row" sx={{ justifyContent: 'space-between', borderTop: 1, borderColor: 'divider', pt: 1.5 }}>

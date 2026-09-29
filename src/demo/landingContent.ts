@@ -3,7 +3,7 @@
  * community highlights and pricing. Not part of the component set; the plans
  * and prices are made up for the prototype.
  */
-import type { Schematic } from '../components/editor/model';
+import type { Placement, Schematic } from '../components/editor/model';
 import { demoSchematic } from './editorContent';
 
 export interface ExampleDesign {
@@ -17,6 +17,9 @@ export interface ExampleDesign {
   schematic: Schematic;
 }
 
+const cube = (module: string, source = 'Core Box'): Placement => ({ state: 'in-cube', module, source, seat: 0 });
+const loose = (part: string, source: string): Placement => ({ state: 'unmounted', part, source });
+
 const brightfield: Schematic = {
   unitMm: 50,
   groups: [
@@ -25,7 +28,7 @@ const brightfield: Schematic = {
   ],
   symbols: [
     {
-      id: 'S1',
+      id: 'S1', placement: cube('LED module'),
       label: 'LED 520',
       kind: 'laser',
       type: 'LED source',
@@ -36,10 +39,10 @@ const brightfield: Schematic = {
       param: { label: 'Wavelength', value: 520, unit: 'nm', min: 400, max: 700, step: 1 },
       notes: '',
     },
-    { id: 'S2', label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', group: 'illumination', x: 22, y: 12, z: 1, notes: '' },
-    { id: 'S3', label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', x: 22, y: 4, z: 1, notes: '' },
+    { id: 'S2', placement: cube('Mirror cube 45°'), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', group: 'illumination', x: 22, y: 12, z: 1, notes: '' },
+    { id: 'S3', placement: cube('Mirror cube 45°'), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', x: 22, y: 4, z: 1, notes: '' },
     {
-      id: 'S4',
+      id: 'S4', placement: cube('Lens holder, f = 40'),
       label: 'Condenser',
       kind: 'lens',
       type: 'lens',
@@ -50,7 +53,7 @@ const brightfield: Schematic = {
       notes: '',
     },
     {
-      id: 'S5',
+      id: 'S5', placement: cube('RMS objective insert'),
       label: 'Objective',
       kind: 'objective',
       type: 'objective',
@@ -62,7 +65,7 @@ const brightfield: Schematic = {
       notes: '',
     },
     {
-      id: 'S6',
+      id: 'S6', placement: cube('Lens holder, f = 100'),
       label: 'Tube lens',
       kind: 'lens',
       type: 'lens',
@@ -73,7 +76,7 @@ const brightfield: Schematic = {
       param: { label: 'Focal length', value: 100, unit: 'mm', min: 10, max: 300, step: 1 },
       notes: '',
     },
-    { id: 'S7', label: 'Camera', kind: 'camera', type: 'camera', group: 'detection', x: 1, y: 4, z: 1, notes: '' },
+    { id: 'S7', placement: cube('IMX477 camera'), label: 'Camera', kind: 'camera', type: 'camera', group: 'detection', x: 1, y: 4, z: 1, notes: '' },
   ],
   rays: [
     {
@@ -96,7 +99,7 @@ const beamExpander: Schematic = {
   ],
   symbols: [
     {
-      id: 'S1',
+      id: 'S1', placement: cube('Laser 635 module', 'Q Box'),
       label: 'Laser 635',
       kind: 'laser',
       type: 'laser source',
@@ -107,7 +110,7 @@ const beamExpander: Schematic = {
       notes: '',
     },
     {
-      id: 'S2',
+      id: 'S2', placement: cube('Lens holder, f = 25'),
       label: 'L1',
       kind: 'lens',
       type: 'lens',
@@ -119,7 +122,7 @@ const beamExpander: Schematic = {
       notes: '',
     },
     {
-      id: 'S3',
+      id: 'S3', placement: loose('AC254-075-A', 'Thorlabs parts'),
       label: 'L2',
       kind: 'lens',
       type: 'lens',
@@ -130,9 +133,9 @@ const beamExpander: Schematic = {
       param: { label: 'Focal length', value: 75, unit: 'mm', min: 10, max: 300, step: 1 },
       notes: '',
     },
-    { id: 'S4', label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', x: 18, y: 4, z: 1, notes: '' },
-    { id: 'S5', label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', group: 'profiler', x: 18, y: 11, z: 1, notes: '' },
-    { id: 'S6', label: 'Camera', kind: 'camera', type: 'camera', group: 'profiler', x: 9, y: 11, z: 1, notes: '' },
+    { id: 'S4', placement: cube('Mirror cube 45°'), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', x: 18, y: 4, z: 1, notes: '' },
+    { id: 'S5', placement: cube('Mirror cube 45°'), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', group: 'profiler', x: 18, y: 11, z: 1, notes: '' },
+    { id: 'S6', placement: cube('IMX477 camera'), label: 'Camera', kind: 'camera', type: 'camera', group: 'profiler', x: 9, y: 11, z: 1, notes: '' },
   ],
   rays: [
     { id: 'beam', label: 'beam', color: 'ray4', path: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'], offset: 0, arrowSegment: 1, labelAt: 1 },
@@ -215,8 +218,8 @@ export interface FeatureHighlight {
 }
 
 export const featureHighlights: FeatureHighlight[] = [
-  { id: 'schematic', title: 'Sketch', text: 'Put lasers, lenses, mirrors and cameras on a grid. The beam follows as you move them.' },
-  { id: 'parts', title: 'Link', text: 'Turn each symbol into a real part: an openUC2 cube insert or a catalogue lens.' },
+  { id: 'schematic', title: 'Sketch', text: 'Put lasers, lenses, mirrors and cameras on a grid. Each symbol is the real part, and the beam is traced as you move it.' },
+  { id: 'parts', title: 'Mount', text: 'Every optic ends up in a cube: swap it for an existing module, or freeze it and get a holder made for that spot.' },
   { id: 'assembly', title: 'Assemble', text: 'See the cubes you will actually put on the baseplate, before you print anything.' },
   { id: 'export', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },
 ];

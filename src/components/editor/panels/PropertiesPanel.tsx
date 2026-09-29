@@ -1,10 +1,19 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
+import BlurOnIcon from '@mui/icons-material/BlurOn';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -15,11 +24,135 @@ import { DisclosureSection } from '../../panels/DisclosureSection';
 import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
 import { Vec3Field } from '../../primitives/Vec3Field';
-import type { SchematicSymbol } from '../model';
+import type { SchematicSymbol, Seat } from '../model';
+
+export interface ModuleOption {
+  module: string;
+  source: string;
+  version?: string;
+}
 
 export interface PropertiesPanelProps {
   symbol: SchematicSymbol | null;
   onChange: (patch: Partial<SchematicSymbol>) => void;
+  /** Existing modules the selected part can be realized as (swapped for). */
+  realizeOptions?: ModuleOption[];
+}
+
+const SEATS: Seat[] = [0, 1, 2, 3];
+
+/**
+ * In a cube or not mounted yet, and the operations between the two:
+ * realize (swap for an existing module), freeze (generate a holder here)
+ * and unbind (take the optic out of its cube).
+ */
+function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: SchematicSymbol; realizeOptions?: ModuleOption[]; onChange: PropertiesPanelProps['onChange'] }) {
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const p = symbol.placement;
+  const mounted = p.state === 'in-cube';
+
+  const realize = (option: ModuleOption) => {
+    setMenu(null);
+    onChange({ placement: { state: 'in-cube', ...option, seat: 0 } });
+  };
+  const freeze = () =>
+    p.state === 'unmounted' && onChange({ placement: { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: 0, frozen: true } });
+  const unbind = () =>
+    p.state === 'in-cube' && onChange({
+      placement: p.frozen
+        ? { state: 'unmounted', part: p.module.replace(/^Holder for /, ''), source: 'Holder removed' }
+        : { state: 'unmounted', part: symbol.label, source: `Taken out of ${p.module}` },
+    });
+
+  return (
+    <Stack spacing={1.25}>
+      <Stack
+        direction="row"
+        spacing={1.25}
+        sx={(t) => ({
+          alignItems: 'center',
+          p: 1,
+          borderRadius: 1,
+          bgcolor: 'background.sunken',
+          border: `${t.layout.hairline}px ${mounted ? 'solid' : 'dashed'} ${(t.vars ?? t).palette.divider}`,
+        })}
+      >
+        <Box sx={{ display: 'grid', placeItems: 'center', p: 0.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper', color: mounted ? 'text.primary' : 'text.meta' }}>
+          {mounted ? <ViewInArOutlinedIcon sx={{ fontSize: '1rem' }} /> : <BlurOnIcon sx={{ fontSize: '1rem' }} />}
+        </Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="body2" noWrap>
+            {p.state === 'in-cube' ? p.module : p.part}
+          </Typography>
+          <Typography variant="meta" color="text.meta" noWrap component="div">
+            {p.source}
+            {p.state === 'in-cube' && p.version && ` · v${p.version}`}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <TagChip label={mounted ? (p.state === 'in-cube' && p.frozen ? 'In a cube · frozen holder' : 'In a cube') : 'Not mounted yet'} tone={mounted ? 'success' : 'warning'} dot sx={{ alignSelf: 'flex-start' }} />
+
+      {p.state === 'in-cube' && (
+        <Box>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+            Seat
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            fullWidth
+            size="small"
+            value={p.seat}
+            onChange={(_, seat: Seat | null) => seat !== null && onChange({ placement: { ...p, seat } })}
+            aria-label="Seat, in quarter turns"
+          >
+            {SEATS.map((seat) => (
+              <ToggleButton key={seat} value={seat} aria-label={`${seat * 90} degrees`}>
+                {seat * 90}°
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+      )}
+
+      <Stack direction="row" spacing={1}>
+        {mounted ? (
+          <Tooltip title="Take the optic out of its cube. It stays where it is.">
+            <Button variant="outlined" size="small" startIcon={<LinkOffIcon fontSize="small" />} onClick={unbind}>
+              Unbind
+            </Button>
+          </Tooltip>
+        ) : (
+          <>
+            <Tooltip title="Swap it for an existing module">
+              <Button variant="contained" size="small" startIcon={<ViewInArOutlinedIcon fontSize="small" />} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu">
+                Realize…
+              </Button>
+            </Tooltip>
+            <Tooltip title="Generate a holder at the current position">
+              <Button variant="outlined" size="small" startIcon={<AcUnitIcon fontSize="small" />} onClick={freeze}>
+                Freeze
+              </Button>
+            </Tooltip>
+          </>
+        )}
+      </Stack>
+      {!mounted && (
+        <Typography variant="caption" color="text.secondary">
+          Parts that are not mounted yet can be saved and shared, but the design isn't buildable until every part is in a cube.
+        </Typography>
+      )}
+
+      <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
+        {realizeOptions.length === 0 && <MenuItem disabled>No matching module</MenuItem>}
+        {realizeOptions.map((o) => (
+          <MenuItem key={o.module} onClick={() => realize(o)}>
+            <ListItemText primary={o.module} secondary={`${o.source}${o.version ? ` · v${o.version}` : ''}`} />
+          </MenuItem>
+        ))}
+      </Menu>
+    </Stack>
+  );
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
@@ -34,13 +167,13 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 /** Contextual properties of the selected schematic symbol. */
-export function PropertiesPanel({ symbol, onChange }: PropertiesPanelProps) {
+export function PropertiesPanel({ symbol, onChange, realizeOptions }: PropertiesPanelProps) {
   if (!symbol) {
     return (
       <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', px: 3, py: 6, color: 'text.secondary' }}>
         <NearMeOutlinedIcon sx={{ transform: 'scaleX(-1)' }} />
         <Typography variant="subtitle2">Nothing selected</Typography>
-        <Typography variant="body2">Select a symbol on the canvas, in Layers or in the Parts list to see its properties.</Typography>
+        <Typography variant="body2">Select a part on the canvas, in Layers or in the Parts list to see its properties.</Typography>
       </Stack>
     );
   }
@@ -48,7 +181,7 @@ export function PropertiesPanel({ symbol, onChange }: PropertiesPanelProps) {
   return (
     <Box>
       <Stack spacing={0.75} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Detail label="Symbol" value={symbol.id} />
+        <Detail label="Part" value={symbol.id} />
         <Detail label="Type" value={symbol.type} />
         <Detail label="Layer" value={`z = ${symbol.z}`} />
       </Stack>
@@ -66,30 +199,9 @@ export function PropertiesPanel({ symbol, onChange }: PropertiesPanelProps) {
         </Typography>
       </DisclosureSection>
 
-      {symbol.linked && (
-        <DisclosureSection title="Linked design">
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.sunken', p: 1 }}>
-            <Box sx={{ display: 'grid', placeItems: 'center', p: 0.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-              <ViewInArOutlinedIcon sx={{ fontSize: '1rem' }} />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="body2" noWrap>
-                {symbol.linked.name}
-              </Typography>
-              <Typography variant="meta" color="text.meta" noWrap component="div">
-                {symbol.linked.source}
-                {symbol.linked.version && ` · v${symbol.linked.version}`}
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mt: 1 }}>
-            <TagChip label={symbol.linked.status} tone={symbol.linked.status === 'Linked' ? 'success' : 'warning'} dot />
-            <Link component="button" variant="body2">
-              {symbol.linked.status === 'Linked' ? 'Change…' : 'Link a part…'}
-            </Link>
-          </Stack>
-        </DisclosureSection>
-      )}
+      <DisclosureSection title="Placement">
+        <PlacementSection symbol={symbol} realizeOptions={realizeOptions} onChange={onChange} />
+      </DisclosureSection>
 
       {symbol.param && (
         <DisclosureSection title={symbol.param.label}>

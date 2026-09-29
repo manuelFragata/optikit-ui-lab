@@ -4,6 +4,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import type { Theme } from '@mui/material/styles';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
 import { SymbolGlyph } from '../editor/SymbolGlyph';
@@ -40,21 +41,31 @@ function SketchFace() {
   );
 }
 
-function LinkFace() {
+/** The two placement states and the move between them (UI-V4: realize / freeze). */
+function MountFace() {
   return (
-    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: '100%' }}>
-      <Box component="svg" viewBox="-0.8 -1.6 1.6 3.2" aria-hidden sx={{ width: (t) => t.spacing(2.5), flexShrink: 0, color: 'text.primary', '& *': glyphStroke }}>
-        <SymbolGlyph kind="lens" />
-      </Box>
-      <Box sx={(t) => ({ flex: 1, minWidth: 0, borderLeft: rule(t, 'dashed'), pl: 1.5 })}>
-        <Typography variant="subtitle2" noWrap>
-          Tube lens
-        </Typography>
-        <Typography variant="meta" color="text.meta" component="div" noWrap>
-          AC254-050-A · Thorlabs
-        </Typography>
-        <TagChip label="Linked" tone="success" dot size="small" sx={{ mt: 0.75 }} />
-      </Box>
+    <Stack spacing={1} sx={{ width: '100%' }}>
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+        <Box component="svg" viewBox="-0.8 -1.6 1.6 3.2" aria-hidden sx={{ width: (t) => t.spacing(2), flexShrink: 0, color: 'text.primary', '& *': glyphStroke }}>
+          <SymbolGlyph kind="lens" />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" noWrap>
+            Tube lens, f = 50
+          </Typography>
+          <Typography variant="meta" color="text.meta" component="div" noWrap>
+            AC254-050-A · Thorlabs
+          </Typography>
+        </Box>
+      </Stack>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }} useFlexGap>
+        <TagChip label="Not mounted yet" tone="warning" dot size="small" />
+        <ArrowForwardIcon sx={{ fontSize: '0.875rem', color: 'text.meta' }} />
+        <TagChip label="In a cube" tone="success" dot size="small" />
+      </Stack>
+      <Typography variant="meta" color="text.meta" component="div" noWrap>
+        Realize · Lens holder, f = 50
+      </Typography>
     </Stack>
   );
 }
@@ -96,7 +107,7 @@ function BuildFace() {
 
 const FACES: Record<FeatureHighlight['id'], () => ReactNode> = {
   schematic: SketchFace,
-  parts: LinkFace,
+  parts: MountFace,
   assembly: AssembleFace,
   export: BuildFace,
 };

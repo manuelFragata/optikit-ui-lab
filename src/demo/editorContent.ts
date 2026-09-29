@@ -2,7 +2,7 @@
  * Placeholder design for the editor stories: the BF+Fluor FRAME optical core.
  * Not part of the component set; replace freely.
  */
-import type { Schematic } from '../components/editor/model';
+import type { Schematic, SymbolKind } from '../components/editor/model';
 
 export const demoSchematic: Schematic = {
   unitMm: 50,
@@ -20,7 +20,7 @@ export const demoSchematic: Schematic = {
       x: 0,
       y: 13,
       z: 1,
-      linked: { name: 'Laser 488 module', source: 'Fluor Box', version: '1.1.0', status: 'Linked' },
+      placement: { state: 'in-cube', module: 'Laser 488 module', source: 'Fluor Box', version: '1.1.0', seat: 0 },
       param: { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 700, step: 1 },
       notes: '',
     },
@@ -33,7 +33,7 @@ export const demoSchematic: Schematic = {
       x: 10,
       y: 13,
       z: 1,
-      linked: { name: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1', status: 'Linked' },
+      placement: { state: 'in-cube', module: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1', seat: 0 },
       notes: '',
     },
     {
@@ -45,7 +45,7 @@ export const demoSchematic: Schematic = {
       x: 10,
       y: 4,
       z: 1,
-      linked: { name: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0', status: 'Linked' },
+      placement: { state: 'in-cube', module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0', seat: 0 },
       param: { label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 },
       notes: 'Swap for DMLP490 if the 488 line bleeds into the emission band.',
     },
@@ -58,7 +58,7 @@ export const demoSchematic: Schematic = {
       x: 17,
       y: 4,
       z: 1,
-      linked: { name: 'RMS objective insert', source: 'Core Box', version: '2.3.0', status: 'Linked' },
+      placement: { state: 'in-cube', module: 'RMS objective insert', source: 'Core Box', version: '2.3.0', seat: 0 },
       param: { label: 'Magnification', value: 10, unit: '×', min: 4, max: 60, step: 1 },
       notes: '',
     },
@@ -71,7 +71,7 @@ export const demoSchematic: Schematic = {
       x: 5,
       y: 4,
       z: 1,
-      linked: { name: 'AC254-050-A', source: 'Thorlabs parts', status: 'Unlinked' },
+      placement: { state: 'unmounted', part: 'AC254-050-A', source: 'Thorlabs parts' },
       param: { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
       notes: '',
     },
@@ -84,7 +84,7 @@ export const demoSchematic: Schematic = {
       x: 0,
       y: 4,
       z: 1,
-      linked: { name: 'IMX477 camera', source: 'Core Box', version: '1.0.4', status: 'Linked' },
+      placement: { state: 'in-cube', module: 'IMX477 camera', source: 'Core Box', version: '1.0.4', seat: 0 },
       notes: '',
     },
   ],
@@ -104,6 +104,7 @@ export interface PaletteGroup {
   label: string;
   /** Total parts in the library, even when only some are listed. */
   count: number;
+  mount: 'mounted' | 'unmounted';
   entries: PaletteEntry[];
 }
 
@@ -112,6 +113,7 @@ export const demoPalette: PaletteGroup[] = [
     id: 'core',
     label: 'openUC2 Core Box',
     count: 5,
+    mount: 'mounted',
     entries: [
       { id: 'bs', label: 'Beam splitter cube' },
       { id: 'mirror', label: 'Mirror cube 45°' },
@@ -124,6 +126,7 @@ export const demoPalette: PaletteGroup[] = [
     id: 'fluor',
     label: 'openUC2 Fluor Box',
     count: 3,
+    mount: 'mounted',
     entries: [
       { id: 'dichroic', label: 'Dichroic holder' },
       { id: 'emfilter', label: 'Emission filter slot' },
@@ -134,6 +137,7 @@ export const demoPalette: PaletteGroup[] = [
     id: 'thorlabs',
     label: 'Thorlabs parts',
     count: 62,
+    mount: 'unmounted',
     entries: [
       { id: 'ac254', label: 'AC254-050-A achromat' },
       { id: 'dmlp505', label: 'DMLP505 dichroic' },
@@ -180,4 +184,17 @@ export const demoDesignInfo = {
   tags: ['fluorescence', 'frame', 'core-box', '488nm'],
   license: 'CERN-OHL-S-2.0',
   created: '2 Mar 2026',
+};
+
+/** Existing modules a part of each kind can be realized as (swapped for). */
+export const demoModules: Record<SymbolKind, { module: string; source: string; version?: string }[]> = {
+  laser: [{ module: 'Laser 488 module', source: 'Fluor Box', version: '1.1.0' }, { module: 'Laser cube 520 nm', source: 'Q Box' }],
+  mirror: [{ module: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1' }, { module: 'Kinematic mirror cube', source: 'Q Box' }],
+  dichroic: [{ module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0' }],
+  lens: [
+    { module: 'Lens holder, f = 50', source: 'Core Box', version: '1.4.0' },
+    { module: 'Lens holder, f = 100', source: 'Core Box', version: '1.4.0' },
+  ],
+  objective: [{ module: 'RMS objective insert', source: 'Core Box', version: '2.3.0' }],
+  camera: [{ module: 'IMX477 camera', source: 'Core Box', version: '1.0.4' }],
 };

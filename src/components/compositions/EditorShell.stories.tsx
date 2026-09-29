@@ -20,7 +20,7 @@ const meta = {
     rightState: 'collapsed',
     rightPanel: 'properties',
     selectedId: null,
-    view: 'schematic',
+    view: '2d',
     density: 'comfortable',
   },
   argTypes: {
@@ -29,7 +29,7 @@ const meta = {
     rightState: { name: 'Right panel', control: 'inline-radio', options: PANEL_STATES },
     rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'history', 'info'] },
     selectedId: { name: 'Selected symbol', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
-    view: { name: 'Canvas view', control: 'inline-radio', options: ['schematic', 'parts', 'assembly'] },
+    view: { name: 'Canvas view', control: 'inline-radio', options: ['2d', '3d'] },
     headerVariant: { name: 'Header style', control: 'inline-radio', options: ['navy', 'light'] },
     density: { name: 'Density', control: 'inline-radio', options: ['comfortable', 'compact'] },
     headerActions: { control: false },
@@ -75,7 +75,7 @@ export const Working: Story = {
   args: { leftState: 'pinned', rightState: 'pinned', selectedId: 'S3' },
 };
 
-export const AssemblyView: Story = {
-  name: 'Assembly view',
-  args: { view: 'assembly', rightState: 'pinned', rightPanel: 'info' },
+export const ThreeD: Story = {
+  name: '3D view',
+  args: { view: '3d', rightState: 'pinned', rightPanel: 'info' },
 };

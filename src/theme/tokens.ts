@@ -36,7 +36,7 @@ export interface SchemeColors {
   onAccentSoft: string;
   /** Text on a solid accent fill. */
   onAccent: string;
-  /** Linked, published. Fill only; text sits on statusSoft in onStatusSoft. */
+  /** In a cube, buildable, published. Fill only; text sits on statusSoft in onStatusSoft. */
   status: string;
   statusSoft: string;
   onStatusSoft: string;

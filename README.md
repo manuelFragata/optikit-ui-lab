@@ -7,6 +7,8 @@ A sandbox for trying out ideas for the Optikit UI revamp. It uses the same stack
 
 Signed out, Home is the landing page: a translucent sticky top bar, a slideshow of live example designs a visitor can change without an account (and open in the editor, changes included), the community gallery, features and pricing, then the footer. Section links use plain anchors (`#examples`, `#community`, `#pricing`).
 
+The editor follows the part model of the UI-V4 brief (optikit-v2, `DOCS/editor/UI-V4-BRIEF.md`): the schematic is physical, and every part is either **in a cube** or **not mounted yet**. The inspector's Placement section moves a part between the two states with *Realize* (swap for an existing module), *Freeze* (generate a holder at the current position) and *Unbind*; a mounted part also has a *seat* in quarter turns. The status bar counts the parts not mounted yet (none left means buildable), and the canvas switches between 2D and 3D instead of separate schematic, parts and assembly views.
+
 The prototype links the pages together: Home, then Log in / Sign up (any details sign you in as the demo user Manu), then the Editor and the Account settings. Routes live in the URL hash (`#/`, `#/editor/<id>`, `#/account`, `#/login`, `#/signup`), so links and the back button work, and the session is remembered in the browser. The code is in `src/app/`, and the same app is the **Pages → Prototype** story.
 
 ## Run it

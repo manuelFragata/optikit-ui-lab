@@ -13,7 +13,7 @@ const meta = {
   args: {
     schematic: demoSchematic,
     selectedId: null,
-    view: 'schematic',
+    view: '2d',
     options: DEFAULT_VIEW_OPTIONS,
     onSelect: () => {},
   },
@@ -21,7 +21,7 @@ const meta = {
     schematic: { control: false },
     toolbar: { control: false },
     selectedId: { control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
-    view: { control: 'inline-radio', options: ['schematic', 'parts', 'assembly'] },
+    view: { control: 'inline-radio', options: ['2d', '3d'] },
   },
   decorators: [
     (Story) => (
@@ -43,7 +43,7 @@ const meta = {
           <CanvasToolbar
             tool={tool}
             onToolChange={setTool}
-            view={args.view ?? 'schematic'}
+            view={args.view ?? '2d'}
             onViewChange={(view) => updateArgs({ view })}
             options={options}
             onOptionsChange={setOptions}
