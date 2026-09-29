@@ -39,7 +39,7 @@ import { demoUser } from '../../demo/user';
 import type { AccountUser } from '../compositions/AccountMenu';
 
 export interface HomePageProps
-  extends Pick<LandingPageProps, 'onOpenExample' | 'onBrowseGallery' | 'onChoosePlan' | 'onSection'> {
+  extends Pick<LandingPageProps, 'onOpenExample' | 'onBrowseGallery' | 'onChoosePlan' | 'onChooseKit' | 'onSection'> {
   /** Signed-in account, or `null` when signed out (shows the landing page). */
   user?: AccountUser | null;
   /** Pass [] to see the empty state. */
@@ -315,6 +315,7 @@ export function HomePage({
   onOpenExample,
   onBrowseGallery,
   onChoosePlan,
+  onChooseKit,
   onSection,
 }: HomePageProps) {
   if (user === null) {
@@ -329,6 +330,7 @@ export function HomePage({
         onNewProject={onNewProject}
         onBrowseGallery={onBrowseGallery}
         onChoosePlan={onChoosePlan}
+        onChooseKit={onChooseKit}
         onSection={onSection}
       />
     );

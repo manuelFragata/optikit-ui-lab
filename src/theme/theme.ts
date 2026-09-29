@@ -120,6 +120,10 @@ export function createAppTheme({
       fontFamily: uiFonts[uiFont].family,
       ...typeScale,
       mono: { ...typeScale.mono, fontFamily: monoFonts[monoFont].family },
+      // Custom variants don't inherit the typography fontFamily; set it so they also hold inside <button>.
+      meta: { ...typeScale.meta, fontFamily: uiFonts[uiFont].family },
+      display: { ...typeScale.display, fontFamily: uiFonts[uiFont].family },
+      headline: { ...typeScale.headline, fontFamily: uiFonts[uiFont].family },
     },
     layout,
     radius,

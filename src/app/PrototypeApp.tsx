@@ -17,7 +17,7 @@ import { useHashRoute, useSession, type Route } from './routing';
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
 
 /** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
-const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor' };
+const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield' };
 
 /** Which design an editor route opens. */
 function findDesign(id: string): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
@@ -155,6 +155,7 @@ export function PrototypeApp() {
           }}
           onSection={(section) => navigate({ name: 'home', section })}
           onBrowseGallery={() => setToast('The full gallery is not part of the prototype yet.')}
+          onChooseKit={() => setToast('On the real site this opens the openUC2 shop.')}
           onChoosePlan={(plan) => (plan === 'lab' ? setToast('On the real site this opens a contact form.') : openAuth('signup'))}
         />
       )}

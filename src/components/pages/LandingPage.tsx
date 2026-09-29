@@ -4,7 +4,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { demoGallery } from '../../demo/homeContent';
-import { communityFacts, exampleDesigns, featureHighlights, pricingPlans } from '../../demo/landingContent';
+import { communityFacts, communityMakers, exampleDesigns, featureHighlights, kitOffers, pricingPlans } from '../../demo/landingContent';
 import type { Schematic } from '../editor/model';
 import { PageContainer } from '../compositions/PageContainer';
 import { SiteFooter } from '../compositions/SiteFooter';
@@ -29,6 +29,8 @@ export interface LandingPageProps {
   onNewProject?: () => void;
   onBrowseGallery?: () => void;
   onChoosePlan?: (id: string) => void;
+  /** A kit (CoreBox, QBox) was clicked. */
+  onChooseKit?: (id: string) => void;
   /**
    * A top-bar section link was clicked. Without it the page scrolls to the
    * section itself; the prototype passes it to put the section in the URL.
@@ -36,10 +38,22 @@ export interface LandingPageProps {
   onSection?: (section: LandingSection) => void;
 }
 
+/** Gallery designs with a drawing of their own (shown live on the featured card). */
+const GALLERY_DRAWINGS = Object.fromEntries(
+  [
+    ['g4', 'ex-brightfield'],
+    ['g1', 'ex-brightfield'],
+    ['g2', 'ex-fluor'],
+  ].flatMap(([galleryId, exampleId]) => {
+    const example = exampleDesigns.find((e) => e.id === exampleId);
+    return example ? [[galleryId, example.schematic]] : [];
+  }),
+);
+
 export const LANDING_SECTIONS: { id: LandingSection; label: string }[] = [
   { id: 'examples', label: 'Examples' },
-  { id: 'community', label: 'Community' },
   { id: 'how-it-works', label: 'How it works' },
+  { id: 'community', label: 'Community' },
   { id: 'pricing', label: 'Pricing' },
 ];
 
@@ -79,6 +93,7 @@ export function LandingPage({
   onNewProject,
   onBrowseGallery,
   onChoosePlan,
+  onChooseKit,
   onSection,
 }: LandingPageProps) {
   const goTo = onSection ?? scrollToSection;
@@ -120,15 +135,6 @@ export function LandingPage({
           </PageContainer>
         </Box>
 
-        <Band id="community">
-          <CommunitySection
-            items={[...demoGallery.filter((g) => g.source === 'community'), ...demoGallery.filter((g) => g.source === 'optikit')].slice(0, 4)}
-            facts={communityFacts}
-            onOpenDesign={onOpenDesign}
-            onBrowseGallery={onBrowseGallery}
-          />
-        </Band>
-
         <Band id="how-it-works">
           <Stack spacing={{ xs: 4, md: 6 }}>
             <SectionHeading eyebrow="How it works" title="From a sketch to a box of parts">
@@ -138,8 +144,19 @@ export function LandingPage({
           </Stack>
         </Band>
 
+        <Band id="community">
+          <CommunitySection
+            items={[...demoGallery.filter((g) => g.source === 'community'), ...demoGallery.filter((g) => g.source === 'optikit')]}
+            drawings={GALLERY_DRAWINGS}
+            facts={communityFacts}
+            makers={communityMakers}
+            onOpenDesign={onOpenDesign}
+            onBrowseGallery={onBrowseGallery}
+          />
+        </Band>
+
         <Band id="pricing">
-          <PricingSection plans={pricingPlans} onChoosePlan={onChoosePlan} />
+          <PricingSection plans={pricingPlans} kits={kitOffers} onChoosePlan={onChoosePlan} onChooseKit={onChooseKit} />
         </Band>
       </Box>
 

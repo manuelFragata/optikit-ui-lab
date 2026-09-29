@@ -230,3 +230,12 @@ export const communityFacts = [
   { value: '31', label: 'countries' },
   { value: 'CC BY-SA', label: 'by default' },
 ];
+
+/** A few of the people sharing designs (initials for the avatar stack). */
+export const communityMakers = ['pa', 'oh', 'ma', 'fr'];
+
+/** Real kits, for people who would rather not print (shop.openuc2.com, 2026-09-23). */
+export const kitOffers = [
+  { id: 'corebox', name: 'Discovery CoreBox', price: '€449', note: 'Lenses, mirrors, sample mount, Z-stage' },
+  { id: 'qbox', name: 'Discovery QBox', price: '€1 499', note: '520 nm laser, polarisers, beam splitters, ESP32' },
+];

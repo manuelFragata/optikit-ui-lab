@@ -3,8 +3,8 @@ import Button, { type ButtonProps } from '@mui/material/Button';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 
 export interface PillButtonProps extends Omit<ButtonProps, 'variant' | 'endIcon'> {
-  /** `solid`: ink fill, for the one main action. `outline`: hairline. */
-  tone?: 'solid' | 'outline';
+  /** `solid`: ink fill, for the one main action. `outline`: hairline. `paper`: for use on an ink surface. */
+  tone?: 'solid' | 'outline' | 'paper';
   /** Show the round ↗ arrow at the end. */
   arrow?: boolean;
 }
@@ -12,10 +12,11 @@ export interface PillButtonProps extends Omit<ButtonProps, 'variant' | 'endIcon'
 /** Landing-page call to action: a pill, optionally with a round ↗ arrow. */
 export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest }: PillButtonProps) {
   const solid = tone === 'solid';
+  const paper = tone === 'paper';
   return (
     <Button
       {...rest}
-      variant={solid ? 'contained' : 'outlined'}
+      variant={solid || paper ? 'contained' : 'outlined'}
       sx={[
         (t) => ({
           borderRadius: `${t.radius.pill}px`,
@@ -25,7 +26,9 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
           gap: 1.25,
           ...(solid
             ? { bgcolor: 'text.primary', color: 'background.paper', '&:hover': { bgcolor: 'text.primary', opacity: 0.88 } }
-            : { borderColor: 'text.primary', color: 'text.primary' }),
+            : paper
+              ? { bgcolor: 'background.paper', color: 'text.primary', '&:hover': { bgcolor: 'background.paper', opacity: 0.9 } }
+              : { borderColor: 'text.primary', color: 'text.primary' }),
         }),
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}

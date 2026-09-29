@@ -93,15 +93,28 @@ export interface GalleryItem {
   author?: string;
   cubes: number;
   kind: 'Instrument' | 'Assembly' | 'Collection';
+  /** How many people built their own version from it. */
+  forks?: number;
+  /** One line for the featured card. */
+  blurb?: string;
 }
 
 export const demoGallery: GalleryItem[] = [
-  { id: 'g1', title: 'Basic BF FRAME', source: 'optikit', kind: 'Instrument', cubes: 3 },
-  { id: 'g2', title: 'Fluorescence core', source: 'optikit', kind: 'Assembly', cubes: 2 },
-  { id: 'g3', title: 'Light sheet microscope', source: 'optikit', kind: 'Instrument', cubes: 4 },
-  { id: 'g4', title: "Paul's FRAME", source: 'community', author: 'paulh', kind: 'Instrument', cubes: 3 },
-  { id: 'g5', title: 'Slit scope', source: 'community', author: 'ohkyung', kind: 'Instrument', cubes: 2 },
-  { id: 'g6', title: 'Core BOX devices', source: 'community', author: 'manu', kind: 'Collection', cubes: 4 },
+  { id: 'g1', title: 'Basic BF FRAME', source: 'optikit', kind: 'Instrument', cubes: 3, forks: 58 },
+  { id: 'g2', title: 'Fluorescence core', source: 'optikit', kind: 'Assembly', cubes: 2, forks: 21 },
+  { id: 'g3', title: 'Light sheet microscope', source: 'optikit', kind: 'Instrument', cubes: 4, forks: 9 },
+  {
+    id: 'g4',
+    title: "Paul's FRAME",
+    source: 'community',
+    author: 'paulh',
+    kind: 'Instrument',
+    cubes: 3,
+    forks: 34,
+    blurb: 'A brightfield FRAME with the LED folded over two mirrors, so the whole thing fits on a 5 × 4 plate.',
+  },
+  { id: 'g5', title: 'Slit scope', source: 'community', author: 'ohkyung', kind: 'Instrument', cubes: 2, forks: 12 },
+  { id: 'g6', title: 'Core BOX devices', source: 'community', author: 'manu', kind: 'Collection', cubes: 4, forks: 17 },
 ];
 
 export interface Tutorial {

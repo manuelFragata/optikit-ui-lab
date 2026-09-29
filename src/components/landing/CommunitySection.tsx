@@ -1,78 +1,277 @@
+import { useState, type ReactNode } from 'react';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import type { Theme } from '@mui/material/styles';
+import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { GalleryItem } from '../../demo/homeContent';
-import { GalleryTile } from '../cards/GalleryTile';
+import type { Schematic } from '../editor/model';
+import { SchematicCanvas } from '../editor/SchematicCanvas';
+import { CubeThumbnail } from '../cards/CubeThumbnail';
 import { PillButton } from './PillButton';
 import { SectionHeading } from './SectionHeading';
 
 export interface CommunitySectionProps {
-  /** Designs shown on the right; four fit the grid best. */
   items: GalleryItem[];
+  /** Drawings for designs that have one; the featured card shows it live. */
+  drawings?: Record<string, Schematic>;
   facts: { value: string; label: string }[];
+  /** Initials of a few makers, for the avatar stack. */
+  makers?: string[];
   onOpenDesign?: (id: string) => void;
   onBrowseGallery?: () => void;
   forumUrl?: string;
 }
 
-/** One row, two columns: why the gallery matters on the left, a handful of designs on the right. */
-export function CommunitySection({ items, facts, onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
+type Filter = 'all' | GalleryItem['kind'];
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'Instrument', label: 'Instruments' },
+  { value: 'Assembly', label: 'Assemblies' },
+  { value: 'Collection', label: 'Collections' },
+];
+
+const tileRadius = (t: Theme) => `${t.radius.stage}px`;
+
+/** Outlined pill used for filters and the tags laid over tiles. */
+function Pill({ children, active, onClick, overlay }: { children: ReactNode; active?: boolean; onClick?: () => void; overlay?: boolean }) {
   return (
-    <Stack spacing={{ xs: 4, md: 6 }}>
+    <ButtonBase
+      component={onClick ? 'button' : 'span'}
+      onClick={onClick}
+      aria-pressed={onClick ? active : undefined}
+      sx={(t) => ({
+        px: 1.5,
+        py: 0.5,
+        borderRadius: `${t.radius.pill}px`,
+        border: `${t.layout.hairline}px solid`,
+        borderColor: active ? 'text.primary' : overlay ? 'transparent' : 'divider',
+        bgcolor: active ? 'text.primary' : overlay ? 'background.paper' : 'transparent',
+        color: active ? 'background.paper' : 'text.primary',
+        typography: 'meta',
+        pointerEvents: onClick ? 'auto' : 'none',
+        whiteSpace: 'nowrap',
+      })}
+    >
+      {children}
+    </ButtonBase>
+  );
+}
+
+/** The round ↗ in a tile's corner; it turns when the tile is hovered. */
+function CornerArrow({ inverted }: { inverted?: boolean }) {
+  return (
+    <Box
+      aria-hidden
+      className="corner-arrow"
+      sx={(t) => ({
+        position: 'absolute',
+        top: t.spacing(1.5),
+        right: t.spacing(1.5),
+        display: 'grid',
+        placeItems: 'center',
+        width: t.spacing(5),
+        height: t.spacing(5),
+        borderRadius: '50%',
+        bgcolor: inverted ? 'text.primary' : 'background.paper',
+        color: inverted ? 'background.paper' : 'text.primary',
+        transition: t.transitions.create('transform', { duration: t.transitions.duration.shorter }),
+      })}
+    >
+      <NorthEastIcon fontSize="small" />
+    </Box>
+  );
+}
+
+const byline = (item: GalleryItem) => (item.source === 'optikit' ? 'Shipped with Optikit' : `@${item.author}`);
+
+/** The big card: the design's own drawing, live, with its name laid over it. */
+function FeaturedTile({ item, drawing, onOpen }: { item: GalleryItem; drawing?: Schematic; onOpen?: () => void }) {
+  return (
+    <ButtonBase
+      onClick={onOpen}
+      aria-label={`Open ${item.title}`}
+      sx={(t) => ({
+        position: 'relative',
+        display: 'block',
+        textAlign: 'left',
+        minHeight: t.spacing(64),
+        height: '100%',
+        borderRadius: tileRadius(t),
+        overflow: 'hidden',
+        bgcolor: 'canvas.ground',
+        border: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}`,
+        '&:hover .corner-arrow': { transform: 'rotate(45deg)' },
+      })}
+    >
+      {/* The drawing keeps to the top; the title block sits below it on the fade. */}
+      <Box sx={(t) => ({ position: 'absolute', top: t.spacing(6), left: 0, right: 0, bottom: t.spacing(20), display: 'flex', pointerEvents: 'none' })}>
+        {drawing ? (
+          <SchematicCanvas fit schematic={drawing} selectedId={null} onSelect={() => undefined} options={{ showRayLabels: false }} hint={false} />
+        ) : (
+          <Box sx={{ flex: 1 }}>
+            <CubeThumbnail cubes={item.cubes} size="card" />
+          </Box>
+        )}
+      </Box>
+      <Stack direction="row" spacing={0.75} sx={{ position: 'absolute', top: (t) => t.spacing(2), left: (t) => t.spacing(2) }}>
+        <Pill overlay>Build of the week</Pill>
+        <Pill overlay>{item.kind}</Pill>
+      </Stack>
+      <CornerArrow inverted />
+      {/* Title block on a fade so it reads over the drawing. */}
+      <Box
+        sx={(t) => ({
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          p: { xs: 2.5, md: 3.5 },
+          pt: 10,
+          background: `linear-gradient(180deg, transparent, ${(t.vars ?? t).palette.background.paper} 45%)`,
+        })}
+      >
+        <Typography variant="headline" component="h3">
+          {item.title}
+        </Typography>
+        {item.blurb && (
+          <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: (t) => t.spacing(64) }}>
+            {item.blurb}
+          </Typography>
+        )}
+        <Typography variant="meta" color="text.meta" component="div" sx={{ mt: 1.5 }}>
+          {byline(item)} · {item.cubes} cubes{item.forks ? ` · ${item.forks} people built their own` : ''}
+        </Typography>
+      </Box>
+    </ButtonBase>
+  );
+}
+
+function SmallTile({ item, onOpen }: { item: GalleryItem; onOpen?: () => void }) {
+  return (
+    <ButtonBase
+      onClick={onOpen}
+      aria-label={`Open ${item.title}`}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        textAlign: 'left',
+        gap: 1.25,
+        '&:hover .corner-arrow': { transform: 'rotate(45deg)' },
+      }}
+    >
+      <Box sx={(t) => ({ position: 'relative', borderRadius: tileRadius(t), overflow: 'hidden' })}>
+        <CubeThumbnail cubes={item.cubes} layout={item.kind === 'Collection' ? 'mosaic' : 'row'} size="card" />
+        <Box sx={{ position: 'absolute', top: (t) => t.spacing(1.5), left: (t) => t.spacing(1.5) }}>
+          <Pill overlay>{item.kind}</Pill>
+        </Box>
+        <CornerArrow />
+      </Box>
+      <Box sx={{ px: 0.5 }}>
+        <Typography variant="subtitle1" noWrap>
+          {item.title}
+        </Typography>
+        <Typography variant="meta" color="text.meta" component="div" noWrap>
+          {byline(item)}
+          {item.forks ? ` · ${item.forks} builds` : ''}
+        </Typography>
+      </Box>
+    </ButtonBase>
+  );
+}
+
+/**
+ * The community gallery: filter pills, a featured design shown with its live
+ * drawing, smaller tiles beside it, and a strip of makers with the numbers.
+ */
+export function CommunitySection({ items, drawings = {}, facts, makers = [], onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
+  const [filter, setFilter] = useState<Filter>('all');
+  const shown = items.filter((i) => filter === 'all' || i.kind === filter);
+  const featured = shown.find((i) => i.source === 'community' && drawings[i.id]) ?? shown.find((i) => drawings[i.id]) ?? shown[0];
+  const rest = shown.filter((i) => i !== featured).slice(0, 4);
+
+  return (
+    <Stack spacing={{ xs: 4, md: 5 }}>
       <SectionHeading eyebrow="Community gallery" title="Start from someone else's microscope">
         Every design in the gallery is open. Open one, change the parts that don't fit your bench, and share your version back.
       </SectionHeading>
-    <Box
-      sx={{
-        display: 'grid',
-        gap: { xs: 4, md: 0 },
-        alignItems: 'stretch',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' },
-      }}
-    >
+
+      <Stack direction="row" useFlexGap spacing={0.75} sx={{ flexWrap: 'wrap' }} role="group" aria-label="Filter the gallery">
+        {FILTERS.map((f) => (
+          <Pill key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
+            {f.label}
+          </Pill>
+        ))}
+      </Stack>
+
+      {featured ? (
+        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 7fr) minmax(0, 5fr)' } }}>
+          <FeaturedTile item={featured} drawing={drawings[featured.id]} onOpen={() => onOpenDesign?.(featured.id)} />
+          <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', alignContent: 'start' }}>
+            {rest.map((item) => (
+              <SmallTile key={item.id} item={item} onOpen={() => onOpenDesign?.(item.id)} />
+            ))}
+          </Box>
+        </Box>
+      ) : (
+        <Typography variant="body1" color="text.secondary">
+          Nothing in this group yet.
+        </Typography>
+      )}
+
+      {/* Who is behind it: a stack of makers, the numbers, the way in. */}
       <Stack
-        spacing={4}
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={{ xs: 3, md: 5 }}
         sx={(t) => ({
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          pr: { md: 6 },
-          borderRight: { xs: 'none', md: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}` },
+          alignItems: { xs: 'flex-start', md: 'center' },
+          pt: { xs: 3, md: 4 },
+          borderTop: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}`,
         })}
       >
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: (t) => t.spacing(64) }}>
-          Schools, labs and hobbyists post what they have actually built, with the parts list and the files to print.
-        </Typography>
-
-        <Stack direction="row" useFlexGap spacing={4} sx={{ flexWrap: 'wrap' }}>
+        {makers.length > 0 && (
+          <Stack direction="row" sx={{ '& > *:not(:first-of-type)': { ml: -1.25 } }} aria-hidden>
+            {makers.map((m) => (
+              <Avatar
+                key={m}
+                sx={(t) => ({
+                  width: t.spacing(5.5),
+                  height: t.spacing(5.5),
+                  typography: 'subtitle2',
+                  bgcolor: 'background.sunken',
+                  color: 'text.primary',
+                  border: `${t.layout.hairline * 2}px solid ${(t.vars ?? t).palette.background.default}`,
+                })}
+              >
+                {m}
+              </Avatar>
+            ))}
+          </Stack>
+        )}
+        <Stack direction="row" useFlexGap spacing={4} sx={{ flexWrap: 'wrap', flex: 1 }}>
           {facts.map((fact) => (
-            <Box key={fact.label}>
-              <Typography variant="headline" component="div">
+            <Stack key={fact.label} direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+              <Typography variant="headline" component="span">
                 {fact.value}
               </Typography>
               <Typography variant="meta" color="text.meta">
                 {fact.label}
               </Typography>
-            </Box>
+            </Stack>
           ))}
         </Stack>
-
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <PillButton tone="outline" onClick={onBrowseGallery}>
-            Browse the gallery
-          </PillButton>
+        <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center' }}>
+          <PillButton onClick={onBrowseGallery}>Browse the gallery</PillButton>
           <Link href={forumUrl} variant="body2">
             Visit the forum
           </Link>
         </Stack>
       </Stack>
-
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', pl: { md: 6 } }}>
-        {items.map((item) => (
-          <GalleryTile key={item.id} item={item} onOpen={() => onOpenDesign?.(item.id)} />
-        ))}
-      </Box>
-    </Box>
     </Stack>
   );
 }
