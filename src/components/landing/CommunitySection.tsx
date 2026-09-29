@@ -228,11 +228,7 @@ export function CommunitySection({ items, drawings = {}, facts, makers = [], onO
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={{ xs: 3, md: 5 }}
-        sx={(t) => ({
-          alignItems: { xs: 'flex-start', md: 'center' },
-          pt: { xs: 3, md: 4 },
-          borderTop: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}`,
-        })}
+        sx={{ alignItems: { xs: 'flex-start', md: 'center' }, pt: { xs: 1, md: 2 } }}
       >
         {makers.length > 0 && (
           <Stack direction="row" sx={{ '& > *:not(:first-of-type)': { ml: -1.25 } }} aria-hidden>

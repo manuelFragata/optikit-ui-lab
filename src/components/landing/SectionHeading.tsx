@@ -3,47 +3,63 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 export interface SectionHeadingProps {
-  /** Small label above the title, on the rule. */
+  /** Small outlined tag above the title. */
   eyebrow?: string;
   title: ReactNode;
   /** Lead paragraph; sits in the right column on wide screens. */
   children?: ReactNode;
 }
 
+/** Small outlined pill that names a section without fencing it off. */
+export function SectionTag({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      component="span"
+      sx={(t) => ({
+        display: 'inline-block',
+        px: 1.5,
+        py: 0.375,
+        borderRadius: `${t.radius.pill}px`,
+        border: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}`,
+        typography: 'meta',
+        color: 'text.secondary',
+      })}
+    >
+      {children}
+    </Box>
+  );
+}
+
 /**
- * Editorial section header: a hairline rule with the section's name, a large
- * regular-weight title on the left, the lead on the right.
+ * Section title in the flow of the page: a small tag, a large regular-weight
+ * title on the left and the lead on the right. No rule; whitespace and the
+ * page's guide lines carry the separation.
  */
 export function SectionHeading({ eyebrow, title, children }: SectionHeadingProps) {
   return (
-    <Box sx={{ borderTop: 1, borderColor: 'divider', pt: { xs: 2, md: 2.5 } }}>
-      {eyebrow && (
-        <Typography
-          variant="meta"
-          color="text.secondary"
-          component="p"
-          sx={{ mb: { xs: 2.5, md: 4 }, textTransform: 'uppercase', letterSpacing: '0.08em' }}
-        >
-          {eyebrow}
-        </Typography>
-      )}
-      <Box
-        sx={{
-          display: 'grid',
-          gap: { xs: 2, md: 6 },
-          alignItems: 'end',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: children ? 'minmax(0, 3fr) minmax(0, 2fr)' : 'minmax(0, 1fr)' },
-        }}
-      >
+    <Box
+      sx={{
+        display: 'grid',
+        gap: { xs: 2, md: 6 },
+        alignItems: 'end',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: children ? 'minmax(0, 3fr) minmax(0, 2fr)' : 'minmax(0, 1fr)' },
+      }}
+    >
+      <Box>
+        {eyebrow && (
+          <Box sx={{ mb: { xs: 2, md: 2.5 } }}>
+            <SectionTag>{eyebrow}</SectionTag>
+          </Box>
+        )}
         <Typography variant="headline" component="h2">
           {title}
         </Typography>
-        {children && (
-          <Typography variant="subtitle1" component="p" color="text.secondary" sx={{ fontWeight: 'fontWeightRegular', maxWidth: (t) => t.spacing(70) }}>
-            {children}
-          </Typography>
-        )}
       </Box>
+      {children && (
+        <Typography variant="subtitle1" component="p" color="text.secondary" sx={{ fontWeight: 'fontWeightRegular', maxWidth: (t) => t.spacing(70) }}>
+          {children}
+        </Typography>
+      )}
     </Box>
   );
 }

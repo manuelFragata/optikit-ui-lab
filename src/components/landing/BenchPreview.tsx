@@ -12,6 +12,7 @@ import { benchBeam, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { benchColors } from '../../theme/tokens';
 import { TagChip } from '../primitives/TagChip';
+import { PillButton } from './PillButton';
 import type { BenchPin, BenchScene, BenchStep } from './bench3d/benchScene';
 
 export interface BenchPreviewProps {
@@ -19,6 +20,8 @@ export interface BenchPreviewProps {
   features: FeatureHighlight[];
   /** Advance to the next step every this many ms until the visitor interacts; 0 turns it off. */
   autoAdvanceMs?: number;
+  /** The pill that straddles the stage's bottom edge ("Start your own bench"). */
+  onStart?: () => void;
 }
 
 const STEP_OF: Record<FeatureHighlight['id'], BenchStep> = {
@@ -56,7 +59,7 @@ function InvertedCorner({ sx }: { sx: object }) {
  * an exploded build view). Drag to turn it; click a part to see what it is.
  * three.js loads only when the stage comes near the viewport.
  */
-export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewProps) {
+export function BenchPreview({ features, autoAdvanceMs = 6500, onStart }: BenchPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<BenchScene | null>(null);
@@ -143,6 +146,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewPro
 
   return (
     <Stack spacing={2}>
+      <Box sx={{ position: 'relative' }}>
       <Box
         ref={containerRef}
         onPointerDown={() => setEngaged(true)}
@@ -350,8 +354,18 @@ export function BenchPreview({ features, autoAdvanceMs = 6500 }: BenchPreviewPro
         </Stack>
       </Box>
 
+      {/* A pill that sits across the stage's bottom edge and leads on down the page. */}
+      {onStart && (
+        <Box sx={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translate(-50%, 50%)', zIndex: 1 }}>
+          <PillButton size="large" onClick={onStart} sx={(t) => ({ boxShadow: `0 0 0 ${t.spacing(0.75)} ${(t.vars ?? t).palette.background.default}` })}>
+            Start your own bench
+          </PillButton>
+        </Box>
+      )}
+      </Box>
+
       {/* Step pills (phones and tablets). */}
-      <Stack direction="row" useFlexGap spacing={0.75} sx={{ display: { xs: 'flex', md: 'none' }, flexWrap: 'wrap' }}>
+      <Stack direction="row" useFlexGap spacing={0.75} sx={{ display: { xs: 'flex', md: 'none' }, flexWrap: 'wrap', pt: onStart ? 3 : 0 }}>
         {features.map((f, i) => (
           <ButtonBase
             key={f.id}
