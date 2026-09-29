@@ -218,11 +218,11 @@ export interface FeatureHighlight {
 }
 
 export const featureHighlights: FeatureHighlight[] = [
-  { id: 'sketch', title: 'Sketch', text: 'Put the laser, lenses, mirror, sample and camera on the grid, the way Optikit draws them. Each symbol is a real part.' },
+  { id: 'sketch', title: 'Sketch', text: 'Put the laser, lenses, dichroic, sample and camera on the grid, the way Optikit draws them. Each symbol is a real part.' },
   {
     id: 'simulate',
     title: 'Simulate',
-    text: 'The light follows the real optics: it doubles in width through the expander, turns at the mirror, focuses behind the lens and lands on the camera.',
+    text: 'The green laser lights the sample, and the sample answers in orange. That light goes back through the objective and the dichroic, and lands on the camera as a 2× image.',
   },
   { id: 'cubify', title: 'Cubify', text: 'Every part gets its cube: the optic, then the insert that holds it, then one half of the cube, then the other.' },
   { id: 'build', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },

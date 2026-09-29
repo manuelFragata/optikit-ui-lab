@@ -4,7 +4,8 @@
  *  - sketch:   the design as Optikit draws it: simple glyphs on the cell grid,
  *              cube outlines, the beam axis (optikit-v2's schematic style).
  *  - simulate: the light, traced paraxially through the actual optics, runs
- *              slowly along the path as a beam of the right width.
+ *              slowly along each path as a beam of the right width: first the
+ *              excitation, then (after the sample lights up) the emission.
  *  - cubify:   the real openUC2 modules (GLB) appear part by part, all at the
  *              same time: optics, then inserts, then one cube half, then the
  *              other, then the screws.
@@ -58,7 +59,17 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 
 export type BenchStep = 'sketch' | 'simulate' | 'cubify' | 'build';
 export type Axis = '+x' | '-x' | '+y' | '-y' | '+z' | '-z';
-export type OpticKind = 'source' | 'lens' | 'mirror' | 'sample' | 'detector' | 'spacer';
+export type OpticKind = 'source' | 'lens' | 'objective' | 'mirror' | 'dichroic' | 'sample' | 'detector' | 'spacer';
+
+/**
+ * A light path through cell centres. `excitation` starts at a source as a
+ * parallel beam; `emission` starts at the sample as light from a point on it.
+ */
+export interface BenchBeam {
+  id: string;
+  cells: [number, number][];
+  light: 'excitation' | 'emission';
+}
 
 export interface BenchOptic {
   kind: OpticKind;
@@ -82,7 +93,10 @@ export interface BenchPart {
 }
 
 export interface BenchColors {
+  /** Excitation light. */
   beam: string;
+  /** The sample's response (fluorescence). */
+  beamEmission: string;
   plate: string;
   tile: string;
   outline: string;
@@ -105,8 +119,8 @@ export interface BenchPin {
 
 export interface BenchSceneOptions {
   parts: BenchPart[];
-  /** Beam path as cell centres, from the source onwards. */
-  beam: [number, number][];
+  /** Light paths, in the order the light travels them. */
+  beams: BenchBeam[];
   /** Plate size in cells. */
   plate: [number, number];
   colors: BenchColors;
@@ -139,8 +153,12 @@ const LIGHT_SPEED = 85;
 const LIGHT_HOLD = 2600;
 /** One cubify frame, ms. */
 const FRAME_MS = 1400;
-/** Lateral offset of the imaged point on the sample, mm. */
-const OBJECT_HEIGHT = 1.6;
+/** Lateral offset of the second imaged point on the sample, mm. */
+const OBJECT_HEIGHT = 1.2;
+/** Height at the first lens of the emission's marginal ray, mm. */
+const EMISSION_APERTURE = 8;
+/** The sample lights up this long before its emission sets off, ms. */
+const SAMPLE_PAUSE = 500;
 
 const AXIS: Record<Axis, [number, number, number]> = {
   '+x': [1, 0, 0],
@@ -403,7 +421,7 @@ class Fader {
 /* ------------------------------------------------------------------ */
 
 export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneOptions): BenchScene {
-  const { parts, beam, plate } = options;
+  const { parts, beams, plate } = options;
   const motion = options.motion ?? true;
   let colors = options.colors;
 
@@ -485,96 +503,149 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
   }
   root.add(plateGroup);
 
-  /* ---- path and optics ---- */
-  const path = makePath(beam);
-  const placed = parts.map((part) => {
-    const at = new Vector3(part.cell[0] * CELL, part.cell[1] * CELL, 0);
-    return { part, at, s: path.distanceOf(at) };
-  });
-  const sOf = (kind: OpticKind) => placed.find((p) => p.part.optic.kind === kind)?.s ?? null;
-  const lenses: OpticEvent[] = placed.flatMap((p) =>
-    p.part.optic.kind === 'lens' && p.s !== null && p.part.optic.f ? [{ s: p.s, f: p.part.optic.f }] : [],
-  );
-  const sEnd = sOf('detector') ?? path.length;
-  const sSample = sOf('sample');
-  const illumination = trace(BEAM_RADIUS, 0, 0, sEnd, lenses);
-
-  // Imaging: a small fan from a point on the sample, through the lens after it.
-  const lensAfterSample = sSample === null ? undefined : lenses.filter((l) => l.s > sSample).sort((a, b) => a.s - b.s)[0];
-  const imagingRays =
-    sSample !== null && lensAfterSample
-      ? [-9, 0, 9].map((yl) => trace(OBJECT_HEIGHT, (yl - OBJECT_HEIGHT) / (lensAfterSample.s - sSample), sSample, sEnd, lenses))
-      : [];
-
-  /* ---- beam: axis line, envelope tube, imaging rays, front glow ---- */
-  const beamGroup = new Group();
-  root.add(beamGroup);
-  const RING = 20;
-  const rings = illumination.length;
-  const envPositions = new Float32Array(rings * RING * 3);
-  const axisPositions = new Float32Array(rings * 3);
+  /* ---- light paths: a paraxial trace per path, drawn as a tube and rays ---- */
   const lateralOf = (dir: Vector3) => new Vector3(-dir.y, dir.x, 0);
-  for (let i = 0; i < rings; i++) {
-    const { pos, dir } = path.at(i);
-    const lat = lateralOf(dir);
-    const r = Math.max(0.35, Math.abs(illumination[i]));
-    for (let k = 0; k < RING; k++) {
-      const a = (k / RING) * Math.PI * 2;
-      const p = pos.clone().addScaledVector(lat, Math.cos(a) * r);
-      p.z += Math.sin(a) * r;
-      envPositions.set([p.x, p.y, p.z], (i * RING + k) * 3);
-    }
-    axisPositions.set([pos.x, pos.y, pos.z], i * 3);
-  }
-  const envIndex: number[] = [];
-  for (let i = 0; i < rings - 1; i++) {
-    for (let k = 0; k < RING; k++) {
-      const a = i * RING + k;
-      const b = i * RING + ((k + 1) % RING);
-      const cc = (i + 1) * RING + k;
-      const d = (i + 1) * RING + ((k + 1) % RING);
-      envIndex.push(a, cc, b, b, cc, d);
-    }
-  }
-  const envGeo = new BufferGeometry();
-  envGeo.setAttribute('position', new BufferAttribute(envPositions, 3));
-  envGeo.setIndex(envIndex);
-  const envMat = new MeshBasicMaterial({ color: colors.beam, transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide });
-  const envelope = new Mesh(envGeo, envMat);
-  envelope.renderOrder = 3;
+  const cellPoint = (cell: [number, number]) => new Vector3(cell[0] * CELL, cell[1] * CELL, 0);
+  const isLens = (k: OpticKind) => k === 'lens' || k === 'objective';
+  const RING = 20;
 
-  const axisGeo = new BufferGeometry().setAttribute('position', new BufferAttribute(axisPositions, 3));
-  const axisMat = new LineBasicMaterial({ color: colors.beam, transparent: true, opacity: 0.95 });
-  const axisLine = new Line(axisGeo, axisMat);
-  axisLine.renderOrder = 4;
+  interface BeamModel {
+    def: BenchBeam;
+    path: PathModel;
+    end: number;
+    envGeo: BufferGeometry;
+    envelope: Mesh;
+    axisGeo: BufferGeometry;
+    axisLine: Line;
+    rays: Line[];
+    glow: Mesh;
+    /** Emission only: the sample lighting up. */
+    sampleGlow: Mesh | null;
+    envMat: MeshBasicMaterial;
+    axisMat: LineBasicMaterial;
+    rayMat: LineBasicMaterial;
+    glowMat: MeshBasicMaterial;
+  }
 
-  const imagingMat = new LineBasicMaterial({ color: colors.beam, transparent: true, opacity: 0.85 });
-  const imagingLines = imagingRays.map((ys) => {
-    const arr = new Float32Array(ys.length * 3);
-    ys.forEach((y, i) => {
-      const { pos, dir } = path.at((sSample ?? 0) + i);
-      const p = pos.addScaledVector(lateralOf(dir), y);
-      arr.set([p.x, p.y, p.z], i * 3);
+  const beamColor = (def: BenchBeam, c: BenchColors) => (def.light === 'emission' ? c.beamEmission : c.beam);
+
+  const beamModels: BeamModel[] = beams.map((def) => {
+    const path = makePath(def.cells);
+    const on = parts.flatMap((part) => {
+      const at = path.distanceOf(cellPoint(part.cell));
+      return at === null ? [] : [{ part, s: at }];
     });
-    const line = new Line(new BufferGeometry().setAttribute('position', new BufferAttribute(arr, 3)), imagingMat);
-    line.renderOrder = 4;
-    return line;
+    const lenses: OpticEvent[] = on.flatMap((x) => (isLens(x.part.optic.kind) && x.part.optic.f ? [{ s: x.s, f: x.part.optic.f }] : []));
+    const first = (kind: OpticKind) => on.filter((x) => x.part.optic.kind === kind).sort((m, n) => m.s - n.s)[0]?.s ?? null;
+
+    let end: number;
+    let envelopeYs: Float32Array;
+    let rayYs: Float32Array[] = [];
+    if (def.light === 'excitation') {
+      // A parallel beam from the source, as far as the sample.
+      end = first('sample') ?? first('detector') ?? path.length;
+      envelopeYs = trace(BEAM_RADIUS, 0, 0, end, lenses);
+    } else {
+      // Light from points on the sample: the on-axis marginal ray gives the
+      // envelope; two small fans (on axis and off axis) show the image.
+      end = first('detector') ?? path.length;
+      const lens = lenses.filter((l) => l.s > 0).sort((m, n) => m.s - n.s)[0];
+      const d = lens ? lens.s : CELL;
+      envelopeYs = trace(0, EMISSION_APERTURE / d, 0, end, lenses);
+      rayYs = [0, OBJECT_HEIGHT].flatMap((h) =>
+        [-EMISSION_APERTURE, 0, EMISSION_APERTURE].map((yl) => trace(h, (yl - h) / d, 0, end, lenses)),
+      );
+    }
+
+    const color = beamColor(def, colors);
+    const rings = envelopeYs.length;
+    const envPositions = new Float32Array(rings * RING * 3);
+    const axisPositions = new Float32Array(rings * 3);
+    for (let i = 0; i < rings; i++) {
+      const { pos, dir } = path.at(i);
+      const lat = lateralOf(dir);
+      const r = Math.max(0.35, Math.abs(envelopeYs[i]));
+      for (let k = 0; k < RING; k++) {
+        const ang = (k / RING) * Math.PI * 2;
+        const q = pos.clone().addScaledVector(lat, Math.cos(ang) * r);
+        q.z += Math.sin(ang) * r;
+        envPositions.set([q.x, q.y, q.z], (i * RING + k) * 3);
+      }
+      axisPositions.set([pos.x, pos.y, pos.z], i * 3);
+    }
+    const index: number[] = [];
+    for (let i = 0; i < rings - 1; i++) {
+      for (let k = 0; k < RING; k++) {
+        const v0 = i * RING + k;
+        const v1 = i * RING + ((k + 1) % RING);
+        const v2 = (i + 1) * RING + k;
+        const v3 = (i + 1) * RING + ((k + 1) % RING);
+        index.push(v0, v2, v1, v1, v2, v3);
+      }
+    }
+    const envGeo = new BufferGeometry();
+    envGeo.setAttribute('position', new BufferAttribute(envPositions, 3));
+    envGeo.setIndex(index);
+    const envMat = new MeshBasicMaterial({ color, transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide });
+    const envelope = new Mesh(envGeo, envMat);
+    envelope.renderOrder = 3;
+
+    const axisGeo = new BufferGeometry().setAttribute('position', new BufferAttribute(axisPositions, 3));
+    const axisMat = new LineBasicMaterial({ color, transparent: true, opacity: 0.95 });
+    const axisLine = new Line(axisGeo, axisMat);
+    axisLine.renderOrder = 4;
+
+    const rayMat = new LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const rays = rayYs.map((ys) => {
+      const arr = new Float32Array(ys.length * 3);
+      ys.forEach((y, i) => {
+        const { pos, dir } = path.at(i);
+        const q = pos.addScaledVector(lateralOf(dir), y);
+        arr.set([q.x, q.y, q.z], i * 3);
+      });
+      const line = new Line(new BufferGeometry().setAttribute('position', new BufferAttribute(arr, 3)), rayMat);
+      line.renderOrder = 4;
+      return line;
+    });
+
+    const glowMat = new MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
+    const glow = new Mesh(new SphereGeometry(4, 16, 12), glowMat);
+    let sampleGlow: Mesh | null = null;
+    if (def.light === 'emission') {
+      sampleGlow = new Mesh(new SphereGeometry(9, 24, 16), new MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false }));
+      sampleGlow.position.copy(path.at(0).pos);
+      sampleGlow.visible = false;
+    }
+    const group = new Group();
+    group.add(envelope, axisLine, ...rays, glow, ...(sampleGlow ? [sampleGlow] : []));
+    root.add(group);
+    return { def, path, end, envGeo, envelope, axisGeo, axisLine, rays, glow, sampleGlow, envMat, axisMat, rayMat, glowMat };
   });
 
-  const glowMat = new MeshBasicMaterial({ color: colors.beam, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
-  const glow = new Mesh(new SphereGeometry(4, 16, 12), glowMat);
-  beamGroup.add(envelope, axisLine, ...imagingLines, glow);
-
-  /** Show the light up to path distance `front`. */
-  function setFront(front: number) {
-    const f = Math.max(0, Math.min(front, sEnd));
-    const ringsShown = Math.floor(f) + 1;
-    envGeo.setDrawRange(0, Math.max(0, ringsShown - 1) * RING * 6);
-    axisGeo.setDrawRange(0, ringsShown);
-    for (const line of imagingLines) line.geometry.setDrawRange(0, sSample === null ? 0 : Math.max(0, Math.floor(f - sSample) + 1));
-    glow.position.copy(path.at(f).pos);
-    glow.visible = f > 0 && f < sEnd - 0.5;
+  /** Show a path's light up to distance `front`; `lit` lights the sample (emission). */
+  function setFront(bm: BeamModel, front: number, lit = false, now = 0) {
+    const f = Math.max(0, Math.min(front, bm.end));
+    const shown = f > 0 ? Math.floor(f) + 1 : 0;
+    bm.envGeo.setDrawRange(0, Math.max(0, shown - 1) * RING * 6);
+    bm.axisGeo.setDrawRange(0, shown);
+    for (const line of bm.rays) line.geometry.setDrawRange(0, shown);
+    bm.glow.position.copy(bm.path.at(f).pos);
+    bm.glow.visible = f > 0 && f < bm.end - 0.5;
+    if (bm.sampleGlow) {
+      bm.sampleGlow.visible = lit;
+      if (lit) bm.sampleGlow.scale.setScalar(1 + 0.18 * Math.sin(now / 160));
+    }
   }
+
+  /** Each part's place on the first path it lies on (for glyph orientation). */
+  const placed = parts.map((part) => {
+    const at = cellPoint(part.cell);
+    for (const bm of beamModels) {
+      const s = bm.path.distanceOf(at);
+      if (s !== null) return { part, at, s, path: bm.path as PathModel | null };
+    }
+    return { part, at, s: null as number | null, path: null as PathModel | null };
+  });
 
   /* ---- sketch glyphs (optikit-v2 style) and cube outlines ---- */
   const glyphMats: Material[] = [];
@@ -595,7 +666,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     g.position.copy(p.at);
     const { kind } = p.part.optic;
     const color = kind === 'source' ? colors.beam : colors.glyphs[kind];
-    const dirs = p.s === null ? { before: X, after: X } : path.dirsAt(p.s);
+    const dirs = p.s === null || !p.path ? { before: X, after: X } : p.path.dirsAt(p.s);
     const dir = kind === 'detector' ? dirs.before : dirs.after;
     // Beam frame: x along the beam, y lateral, z up.
     const frame = new Group();
@@ -614,9 +685,10 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
         frame.add(body, cone);
         break;
       }
-      case 'lens': {
+      case 'lens':
+      case 'objective': {
         const lens = new Mesh(new SphereGeometry(14, 32, 16), glyphMat(color, 0.55));
-        lens.scale.set(0.18, 1, 1);
+        lens.scale.set(kind === 'objective' ? 0.32 : 0.18, 1, 1);
         frame.add(lens);
         if ((p.part.optic.f ?? 1) < 0) {
           // A diverging lens is thin in the middle: mark its thick edges.
@@ -636,6 +708,14 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
         coat.quaternion.copy(disc.quaternion);
         coat.position.copy(normal).multiplyScalar(1.5);
         g.add(disc, coat);
+        break;
+      }
+      case 'dichroic': {
+        // optikit-v2: a faint cube with the coloured plate on its diagonal.
+        const normal = new Vector3().subVectors(dirs.after, dirs.before).normalize();
+        const plateMesh = new Mesh(new BoxGeometry(34, 2.5, 26), glyphMat(color, 0.9));
+        plateMesh.quaternion.setFromUnitVectors(Y, normal);
+        g.add(plateMesh, new Mesh(new BoxGeometry(24, 24, 24), glyphMat(color, 0.16)));
         break;
       }
       case 'sample':
@@ -688,9 +768,21 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     grid: new Fader([minorMat, majorMat], [gridGroup], 1),
     plate: new Fader([slabMat, tileMat], [plateGroup], 0),
     glyphs: new Fader([...glyphMats, outlineMat], glyphObjects, 1),
-    envelope: new Fader([envMat, glowMat], [envelope], 0),
-    axis: new Fader([axisMat], [axisLine], 1),
-    imaging: new Fader([imagingMat], imagingLines, 0),
+    envelope: new Fader(
+      beamModels.flatMap((bm) => [bm.envMat, bm.glowMat]),
+      beamModels.map((bm) => bm.envelope),
+      0,
+    ),
+    axis: new Fader(
+      beamModels.map((bm) => bm.axisMat),
+      beamModels.map((bm) => bm.axisLine),
+      1,
+    ),
+    imaging: new Fader(
+      beamModels.map((bm) => bm.rayMat),
+      beamModels.flatMap((bm) => bm.rays),
+      0,
+    ),
   };
 
   /* ---- camera and controls ---- */
@@ -712,7 +804,7 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     sketch: { position: world(c.x + 150, c.y - 40, 660), target: world(c.x - 55, c.y - 40, 0), fov: 30 },
     simulate: { position: world(c.x + 450, c.y - 50, 330), target: world(c.x - 20, c.y - 50, 0), fov: 30 },
     cubify: { position: world(c.x + 540, c.y + 250, 420), target: world(c.x - 10, c.y - 95, -10), fov: 30 },
-    build: { position: world(c.x + 120, c.y - 600, 440), target: world(c.x - 30, c.y + 20, 30), fov: 32 },
+    build: { position: world(c.x + 540, c.y - 170, 470), target: world(c.x - 30, c.y - 45, 45), fov: 32 },
   };
 
   let step: BenchStep = options.initialStep ?? 'sketch';
@@ -857,13 +949,23 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
       }
     }
 
-    // The light: runs along the path in the simulate step, full elsewhere.
+    // The light: in the simulate step each path runs in turn (the emission
+    // sets off once the excitation has lit the sample); full elsewhere.
     if (step === 'simulate' && motion) {
-      const runMs = (sEnd / LIGHT_SPEED) * 1000;
-      const t = Math.max(0, now - stepStart) % (runMs + LIGHT_HOLD);
-      setFront((Math.min(t, runMs) / 1000) * LIGHT_SPEED);
+      const runs = beamModels.map((bm) => (bm.end / LIGHT_SPEED) * 1000);
+      const total = runs.reduce((sum, r) => sum + r, 0) + SAMPLE_PAUSE * (runs.length - 1);
+      const tt = Math.max(0, now - stepStart) % (total + LIGHT_HOLD);
+      let start = 0;
+      beamModels.forEach((bm, i) => {
+        const local = tt - start;
+        const lit = bm.def.light === 'emission' && local > -SAMPLE_PAUSE;
+        setFront(bm, local <= 0 ? 0 : (Math.min(local, runs[i]) / 1000) * LIGHT_SPEED, lit, now);
+        start += runs[i] + SAMPLE_PAUSE;
+      });
       moving = true;
-    } else setFront(sEnd);
+    } else {
+      for (const bm of beamModels) setFront(bm, bm.end, false);
+    }
 
     // Cubify keeps ticking until its last frame has settled.
     if (step === 'cubify' && now - stepStart < FRAME_MS * FRAMES.length) moving = true;
@@ -944,7 +1046,11 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     },
     setColors(next) {
       colors = next;
-      for (const m of [envMat, axisMat, imagingMat, glowMat]) m.color.set(next.beam);
+      for (const bm of beamModels) {
+        const color = beamColor(bm.def, next);
+        for (const m of [bm.envMat, bm.axisMat, bm.rayMat, bm.glowMat]) m.color.set(color);
+        (bm.sampleGlow?.material as MeshBasicMaterial | undefined)?.color.set(color);
+      }
       slabMat.color.set(next.plate);
       tileMat.color.set(next.tile);
       outlineMat.color.set(next.outline);

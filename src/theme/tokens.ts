@@ -136,6 +136,8 @@ export interface CanvasColors {
  */
 export interface BenchColors {
   beam: string;
+  /** The sample's fluorescence, seen through the CB565 emission filter (orange). */
+  beamEmission: string;
   plate: string;
   tile: string;
   outline: string;
@@ -147,17 +149,27 @@ export interface BenchColors {
   grid: string;
   gridMajor: string;
   /** Sketch glyphs per optic kind (optikit-v2 GLYPH_COLORS). */
-  glyphs: { source: string; lens: string; mirror: string; sample: string; detector: string; spacer: string };
+  glyphs: { source: string; lens: string; objective: string; mirror: string; dichroic: string; sample: string; detector: string; spacer: string };
   sensor: string;
   coating: string;
 }
 
 /** optikit-v2 schematic glyph colours (components/schematic/colors.ts). */
-const v2Glyphs = { source: '#E74C3C', lens: '#4AA3FF', mirror: '#B8C4CC', sample: '#7CC142', detector: '#546878', spacer: '#8A8F98' };
+const v2Glyphs = {
+  source: '#E74C3C',
+  lens: '#4AA3FF',
+  objective: '#2F6FD6',
+  mirror: '#B8C4CC',
+  dichroic: '#2EC4A5',
+  sample: '#7CC142',
+  detector: '#546878',
+  spacer: '#8A8F98',
+};
 
 export const benchColors: Record<'light' | 'dark', BenchColors> = {
   light: {
     beam: '#2FBF4A',
+    beamEmission: '#F2891F',
     plate: '#3A4047',
     tile: '#F4F4F1',
     outline: '#8C959E',
@@ -172,6 +184,7 @@ export const benchColors: Record<'light' | 'dark', BenchColors> = {
   },
   dark: {
     beam: '#4BE06A',
+    beamEmission: '#FFA24A',
     plate: '#2A3037',
     tile: '#C9CDD1',
     outline: '#6B747D',
@@ -339,8 +352,8 @@ export const layout = {
   /** Backdrop blur behind the top bar, spacing units (derived). */
   topbarBlur: 1.5,
   /** Height of the 3D bench stage on the landing page. */
-  benchStageHeight: 84,
-  benchStageHeightCompact: 60,
+  benchStageHeight: 108,
+  benchStageHeightCompact: 72,
   /** Height of the example stage on the signed-out landing page. */
   exampleStageHeight: 58,
   exampleStageHeightCompact: 36,

@@ -1,19 +1,21 @@
 /**
- * The laser microscope on the landing page's 3D bench, laid out so the optics
- * are real: the simulate step traces it paraxially and shows what it does.
+ * The epi-fluorescence microscope on the landing page's 3D bench, laid out so
+ * the optics are real: the simulate step traces both light paths paraxially.
  *
- *  - A Galilean beam expander: f −50 then f +100, 50 mm apart (f1 + f2), so a
- *    2.5 mm beam leaves collimated at 5 mm, twice as wide.
- *  - A 45° mirror folds the beam up the plate onto the sample.
- *  - 2f–2f imaging: sample, 100 mm to an f 50 lens, 100 mm to the camera.
- *    The illumination focuses in the empty cube between lens and camera, and
- *    the sample is imaged 1:1 (inverted) on the sensor.
+ *  Excitation (green, 520 nm): the laser beam is focused by an f 50 lens into
+ *  the objective's back focal plane, reflected up by the 532 nm dichroic, and
+ *  leaves the objective as an even, parallel beam over the sample.
+ *
+ *  Emission (orange): the sample answers with its own light. It goes back
+ *  through the objective (sample at its focal plane, so the light is parallel),
+ *  straight through the dichroic and its CB565 emission filter, and an f 100
+ *  tube lens images it onto the camera, 2× magnified.
  *
  * Modules are real openUC2 parts from the public OptiKit Store, loaded at run
  * time (not copied into this repo). Orientations use optikit-v2's convention:
  * where each module's local z (its optical axis) and local x point, world z up.
  */
-import type { BenchPart } from '../components/landing/bench3d/benchScene';
+import type { BenchBeam, BenchPart } from '../components/landing/bench3d/benchScene';
 
 const STORE = 'https://raw.githubusercontent.com/beniroquai/openUC2-OptiKit-Store/main/GLB/';
 const glb = (file: string) => STORE + encodeURIComponent(file);
@@ -30,96 +32,103 @@ export const benchParts: BenchPartInfo[] = [
     id: 'laser',
     label: 'Laser 520 nm',
     source: 'Q Box',
-    role: 'Sends a 2.5 mm green beam',
+    role: 'Excites the sample with green light',
     url: glb('ASS_-_2018_-_CUBLAS520_-_V04.glb'),
-    cell: [0, 0],
+    cell: [0, 3],
     axes: { z: '+z', x: '+y' },
     optic: { kind: 'source' },
   },
   {
-    id: 'l1',
-    label: 'Lens f = −50',
+    id: 'lex',
+    label: 'Lens f = 50',
     source: 'Core Box',
-    role: 'Spreads the beam',
-    url: glb('ASS_-_2023_-_CUBLEND43F-50_-_V04.glb'),
-    cell: [1, 0],
+    role: 'Focuses the laser into the objective, for even light on the sample',
+    url: glb('ASS_-_2021_-_CUBLEND40F50_-_V04.glb'),
+    cell: [1, 3],
     axes: { z: '+x', x: '+y' },
-    optic: { kind: 'lens', f: -50 },
+    optic: { kind: 'lens', f: 50 },
   },
   {
-    id: 'l2',
-    label: 'Lens f = 100',
-    source: 'Core Box',
-    role: 'Makes it parallel again, twice as wide',
-    url: glb('ASS_-_2022_-_CUBLEND40F100_-_V04.glb'),
-    cell: [2, 0],
-    axes: { z: '+x', x: '+y' },
-    optic: { kind: 'lens', f: 100 },
+    id: 'dichroic',
+    label: 'Dichroic 532 nm',
+    source: 'Fluor Box',
+    role: 'Reflects the green laser, lets the orange emission through its filter',
+    url: glb('ASS_-_2027_-_CUBDICSPL+EMIFIL_WLS532.glb'),
+    cell: [2, 3],
+    // Turned half a turn so the emission filter faces the camera.
+    axes: { z: '+z', x: '-x' },
+    optic: { kind: 'dichroic' },
   },
   {
-    id: 'mirror',
-    label: 'Mirror 45°',
+    id: 'objective',
+    label: 'Objective, f = 50',
     source: 'Core Box',
-    role: 'Folds the beam onto the sample',
-    url: glb('ASS_-_2020_-_CUBMIR45°TH2_-_V04.glb'),
-    cell: [3, 0],
-    optic: { kind: 'mirror' },
+    role: 'Lights the sample and collects its light',
+    url: glb('ASS_-_2021_-_CUBLEND40F50_-_V04.glb'),
+    cell: [2, 4],
+    axes: { z: '+y', x: '+x' },
+    optic: { kind: 'objective', f: 50 },
   },
   {
     id: 'sample',
-    label: 'Sample holder',
+    label: 'Sample',
     source: 'Core Box',
-    role: 'Holds the slide in the beam',
+    role: 'Glows orange where the green light hits it',
     url: glb('ASS_-_2024_-_CUBSAMHOL_-_V04.glb'),
-    cell: [3, 1],
+    cell: [2, 5],
     axes: { z: '+y', x: '+x' },
     optic: { kind: 'sample' },
   },
   {
-    id: 'spacer1',
-    label: 'Empty cube',
+    id: 'tube',
+    label: 'Tube lens f = 100',
     source: 'Core Box',
-    role: 'Keeps the sample 2f from the lens',
-    url: glb('ASS_-_2000_-_CUB_-_V04.glb'),
-    cell: [3, 2],
-    optic: { kind: 'spacer' },
-  },
-  {
-    id: 'objective',
-    label: 'Lens f = 50',
-    source: 'Core Box',
-    role: 'Images the sample 1:1',
-    url: glb('ASS_-_2021_-_CUBLEND40F50_-_V04.glb'),
-    cell: [3, 3],
+    role: 'Forms the image on the camera, 2× magnified',
+    url: glb('ASS_-_2022_-_CUBLEND40F100_-_V04.glb'),
+    cell: [2, 2],
     axes: { z: '+y', x: '+x' },
-    optic: { kind: 'lens', f: 50 },
+    optic: { kind: 'lens', f: 100 },
   },
   {
-    id: 'spacer2',
+    id: 'spacer',
     label: 'Empty cube',
     source: 'Core Box',
-    role: 'The beam focuses in here',
+    role: 'Keeps the camera one focal length behind the tube lens',
     url: glb('ASS_-_2000_-_CUB_-_V04.glb'),
-    cell: [3, 4],
+    cell: [2, 1],
     optic: { kind: 'spacer' },
   },
   {
     id: 'camera',
     label: 'Camera',
     source: 'Raspberry Pi Zero + camera v2.1',
-    role: 'Records the image, 2f behind the lens',
+    role: 'Records the fluorescence image',
     url: glb('ASS_-_2045_-_CUBCAM+RASPI0_-_V04.glb'),
-    cell: [3, 5],
-    axes: { z: '+y', x: '-x' },
+    cell: [2, 0],
+    axes: { z: '-y', x: '-x' },
     optic: { kind: 'detector' },
   },
 ];
 
-/** Beam path through cell centres: laser → expander → mirror → sample → lens → camera. */
-export const benchBeam: [number, number][] = [
-  [0, 0],
-  [3, 0],
-  [3, 5],
+/** Excitation first, then emission: the order the light travels them. */
+export const benchBeams: BenchBeam[] = [
+  {
+    id: 'excitation',
+    light: 'excitation',
+    cells: [
+      [0, 3],
+      [2, 3],
+      [2, 5],
+    ],
+  },
+  {
+    id: 'emission',
+    light: 'emission',
+    cells: [
+      [2, 5],
+      [2, 0],
+    ],
+  },
 ];
 
-export const benchPlate: [number, number] = [4, 6];
+export const benchPlate: [number, number] = [3, 6];

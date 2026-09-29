@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useColorScheme, type Theme } from '@mui/material/styles';
 import ThreeSixtyIcon from '@mui/icons-material/ThreeSixty';
-import { benchBeam, benchParts, benchPlate } from '../../demo/benchAssembly';
+import { benchBeams, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
 import { benchColors } from '../../theme/tokens';
 import { TagChip } from '../primitives/TagChip';
@@ -95,7 +95,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         if (cancelled || !canvasRef.current) return;
         sceneRef.current = createBenchScene(canvasRef.current, {
           parts: benchParts,
-          beam: benchBeam,
+          beams: benchBeams,
           plate: benchPlate,
           colors,
           initialStep: step,
@@ -150,7 +150,9 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         onPointerDown={() => setEngaged(true)}
         sx={(t) => ({
           position: 'relative',
-          height: { xs: t.spacing(t.layout.benchStageHeightCompact), md: t.spacing(t.layout.benchStageHeight) },
+          // On wide screens the stage bleeds a little past the text column.
+          mx: { lg: -4 },
+          height: { xs: t.spacing(t.layout.benchStageHeightCompact), md: `min(${t.spacing(t.layout.benchStageHeight)}, 88vh)` },
           borderRadius: stageRadius(t),
           // The notch covers this corner; squaring it keeps the notch's text from being clipped.
           borderTopLeftRadius: 0,
@@ -161,7 +163,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         <Box
           component="canvas"
           ref={canvasRef}
-          aria-label="3D preview of a small laser microscope: a beam expander, a fold mirror and 1:1 imaging onto a camera, built from openUC2 cubes. Drag to turn it."
+          aria-label="3D preview of a fluorescence microscope built from openUC2 cubes: a green laser excites the sample, and its orange light is imaged onto a camera. Drag to turn it."
           role="img"
           sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
         />
@@ -254,6 +256,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             top: 0,
             left: 0,
             width: { xs: '86%', sm: t.spacing(title ? 92 : 56) },
+            pl: { lg: 4 }, // line the title up with the page text despite the bleed
             pr: { xs: 2.5, md: 5 },
             pb: { xs: 2.5, md: 4 },
             bgcolor: 'background.default',
