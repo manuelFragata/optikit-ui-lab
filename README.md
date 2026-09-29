@@ -2,6 +2,8 @@
 
 A sandbox for trying out ideas for the Optikit UI revamp. It uses the same stack as the production app (Vite, React 19, strict TypeScript, MUI 7 with Emotion, `@mui/icons-material`), so components built here can be ported over. Storybook (React + Vite) is the main way to view them.
 
+**Live Storybook:** https://manuelfragata.github.io/optikit-ui-lab/
+
 ## Run it
 
 ```bash
