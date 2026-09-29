@@ -113,7 +113,7 @@ export function LandingPage({
         >
           <PageContainer>
             <Typography variant="display" component="h1" sx={{ mb: { xs: 4, md: 6 }, maxWidth: (t) => t.spacing(150) }}>
-              See? You can do it too, give it a try:
+              See? You can do it 2, give it a try:
             </Typography>
             <ExampleShowcase examples={exampleDesigns} autoAdvanceMs={autoAdvanceMs} onOpen={onOpenExample} onLocked={onSignUp} />
             <Box sx={{ mt: 2, textAlign: 'right' }}>

@@ -26,12 +26,8 @@ export interface BenchPreviewProps {
   title?: string;
 }
 
-const STEP_OF: Record<FeatureHighlight['id'], BenchStep> = {
-  schematic: 'sketch',
-  parts: 'mount',
-  assembly: 'assemble',
-  export: 'build',
-};
+/** How long each step stays up when advancing on its own, relative to `autoAdvanceMs`. */
+const DWELL: Record<BenchStep, number> = { sketch: 1, simulate: 1.3, cubify: 1.3, build: 1 };
 
 const stageRadius = (t: Theme) => `${t.radius.stage}px`;
 
@@ -78,7 +74,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
   const colors = benchColors[scheme];
 
   const feature = features[index];
-  const step = STEP_OF[feature.id];
+  const step: BenchStep = feature.id;
 
   // Watch visibility: start loading once near the viewport, pause rendering off screen.
   useEffect(() => {
@@ -128,9 +124,9 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
   // Step through on its own until the visitor touches the stage or the steps.
   useEffect(() => {
     if (engaged || !visible || autoAdvanceMs <= 0 || status !== 'ready') return;
-    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % features.length), autoAdvanceMs);
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % features.length), autoAdvanceMs * DWELL[step]);
     return () => window.clearTimeout(timer);
-  }, [engaged, visible, autoAdvanceMs, index, status, features.length]);
+  }, [engaged, visible, autoAdvanceMs, index, status, features.length, step]);
 
   const choose = (i: number) => {
     setEngaged(true);
@@ -165,14 +161,16 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         <Box
           component="canvas"
           ref={canvasRef}
-          aria-label="3D preview of a small laser microscope built from openUC2 cubes. Drag to turn it."
+          aria-label="3D preview of a small laser microscope: a beam expander, a fold mirror and 1:1 imaging onto a camera, built from openUC2 cubes. Drag to turn it."
           role="img"
           sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
         />
 
         {/* Hotspots on the parts. In the build step every part is labelled, like a parts list. */}
         <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          {pins
+          {/* While the light runs, the hotspots step aside so the beam reads clearly. */}
+          {step !== 'simulate' &&
+            pins
             .filter((p) => p.visible)
             .map((p) => {
               const part = benchParts.find((b) => b.id === p.id);
@@ -199,15 +197,16 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
                       },
                     })}
                   />
-                  {step === 'build' && part && !on && (
+                  {(step === 'build' || step === 'sketch') && part && part.optic.kind !== 'spacer' && !on && (
                     <Typography
                       variant="meta"
                       sx={{
                         position: 'absolute',
-                        left: '100%',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        ml: 1,
+                        // Centred above the dot, so neighbours on a row don't collide.
+                        left: '50%',
+                        bottom: '100%',
+                        transform: 'translateX(-50%)',
+                        mb: 0.75,
                         px: 1,
                         borderRadius: (t) => `${t.radius.pill}px`,
                         bgcolor: 'background.paper',
@@ -244,7 +243,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
               {info.role}
             </Typography>
-            <TagChip label="In a cube" tone="success" dot size="small" sx={{ mt: 1 }} />
+            {(step === 'cubify' || step === 'build') && <TagChip label="In a cube" tone="success" dot size="small" sx={{ mt: 1 }} />}
           </Paper>
         )}
 
@@ -343,7 +342,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
             {status === 'failed'
               ? 'The 3D preview needs WebGL, which this browser does not offer.'
               : status === 'ready' && allLoaded
-                ? `Real parts from the openUC2 library · ${benchParts.length} modules on a 4 × 4 plate`
+                ? `Real parts from the openUC2 library · ${benchParts.length} modules on a ${benchPlate[0]} × ${benchPlate[1]} plate`
                 : status === 'idle'
                   ? 'Real parts from the openUC2 library'
                   : `Loading real parts from the openUC2 library · ${loaded} of ${benchParts.length}`}

@@ -143,7 +143,17 @@ export interface BenchColors {
   /** Stage background, top to bottom. */
   stageTop: string;
   stageBottom: string;
+  /** Sketch grid: cell boundaries and every fifth line (optikit-v2 gridCell / gridSection). */
+  grid: string;
+  gridMajor: string;
+  /** Sketch glyphs per optic kind (optikit-v2 GLYPH_COLORS). */
+  glyphs: { source: string; lens: string; mirror: string; sample: string; detector: string; spacer: string };
+  sensor: string;
+  coating: string;
 }
+
+/** optikit-v2 schematic glyph colours (components/schematic/colors.ts). */
+const v2Glyphs = { source: '#E74C3C', lens: '#4AA3FF', mirror: '#B8C4CC', sample: '#7CC142', detector: '#546878', spacer: '#8A8F98' };
 
 export const benchColors: Record<'light' | 'dark', BenchColors> = {
   light: {
@@ -154,6 +164,11 @@ export const benchColors: Record<'light' | 'dark', BenchColors> = {
     selection: '#1A745D',
     stageTop: '#E9EDF1',
     stageBottom: '#D6DDE3',
+    grid: '#C9D2DD',
+    gridMajor: '#A4B4C6',
+    glyphs: v2Glyphs,
+    sensor: '#1C242B',
+    coating: '#EEF4F8',
   },
   dark: {
     beam: '#4BE06A',
@@ -163,6 +178,11 @@ export const benchColors: Record<'light' | 'dark', BenchColors> = {
     selection: '#5BB49D',
     stageTop: '#1C2329',
     stageBottom: '#12171B',
+    grid: '#3C4654',
+    gridMajor: '#55637A',
+    glyphs: v2Glyphs,
+    sensor: '#1C242B',
+    coating: '#EEF4F8',
   },
 };
 

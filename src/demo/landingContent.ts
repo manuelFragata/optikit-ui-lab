@@ -212,16 +212,20 @@ export const pricingPlans: PricingPlan[] = [
 ];
 
 export interface FeatureHighlight {
-  id: 'schematic' | 'parts' | 'assembly' | 'export';
+  id: 'sketch' | 'simulate' | 'cubify' | 'build';
   title: string;
   text: string;
 }
 
 export const featureHighlights: FeatureHighlight[] = [
-  { id: 'schematic', title: 'Sketch', text: 'Put lasers, lenses, mirrors and cameras on a grid. Each symbol is the real part, and the beam is traced as you move it.' },
-  { id: 'parts', title: 'Mount', text: 'Every optic ends up in a cube: swap it for an existing module, or freeze it and get a holder made for that spot.' },
-  { id: 'assembly', title: 'Assemble', text: 'See the cubes you will actually put on the baseplate, before you print anything.' },
-  { id: 'export', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },
+  { id: 'sketch', title: 'Sketch', text: 'Put the laser, lenses, mirror, sample and camera on the grid, the way Optikit draws them. Each symbol is a real part.' },
+  {
+    id: 'simulate',
+    title: 'Simulate',
+    text: 'The light follows the real optics: it doubles in width through the expander, turns at the mirror, focuses behind the lens and lands on the camera.',
+  },
+  { id: 'cubify', title: 'Cubify', text: 'Every part gets its cube: the optic, then the insert that holds it, then one half of the cube, then the other.' },
+  { id: 'build', title: 'Build', text: 'Take the parts list and STEP files to your printer, or order the cubes as a kit.' },
 ];
 
 /** Plain facts for the community section (placeholder numbers). */
