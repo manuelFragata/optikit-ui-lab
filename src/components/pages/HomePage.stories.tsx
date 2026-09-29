@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { linkTo } from '@storybook/addon-links';
+import { demoUser } from '../../demo/user';
 import { HomePage } from './HomePage';
 
 const meta = {
@@ -7,8 +8,7 @@ const meta = {
   component: HomePage,
   parameters: { layout: 'fullscreen' },
   args: {
-    signedIn: true,
-    userName: 'Manu',
+    user: demoUser,
     autoAdvanceMs: 7000,
     onOpenProject: linkTo('Pages/Editor', 'Working (palette + properties)'),
     onNewProject: linkTo('Pages/Editor', 'New project'),
@@ -17,7 +17,6 @@ const meta = {
     onSignUp: linkTo('Pages/Home', 'Signed in'),
   },
   argTypes: {
-    signedIn: { name: 'Signed in', control: 'boolean' },
     autoAdvanceMs: { name: 'Auto-advance (ms, 0 = off)', control: { type: 'number', min: 0, step: 1000 } },
     projects: { control: false },
   },
@@ -30,7 +29,7 @@ export const SignedIn: Story = { name: 'Signed in' };
 
 export const SignedOut: Story = {
   name: 'Signed out',
-  args: { signedIn: false },
+  args: { user: null },
 };
 
 export const NoProjects: Story = {

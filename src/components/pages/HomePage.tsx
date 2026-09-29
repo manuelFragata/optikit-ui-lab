@@ -33,10 +33,12 @@ import { StackedCards } from '../cards/StackedCards';
 import { SiteFooter } from '../compositions/SiteFooter';
 import { SiteHeader } from '../compositions/SiteHeader';
 import { TagChip } from '../primitives/TagChip';
+import { demoUser } from '../../demo/user';
+import type { AccountUser } from '../compositions/AccountMenu';
 
 export interface HomePageProps {
-  signedIn?: boolean;
-  userName?: string;
+  /** Signed-in account, or `null` when signed out. */
+  user?: AccountUser | null;
   /** Pass [] to see the empty state. */
   projects?: ProjectSummary[];
   /** Community stack auto-advance in ms; 0 turns it off. */
@@ -46,6 +48,10 @@ export interface HomePageProps {
   onLogIn?: () => void;
   onSignUp?: () => void;
   onHome?: () => void;
+  /** A gallery design was clicked. */
+  onOpenDesign?: (id: string) => void;
+  onAccount?: () => void;
+  onLogOut?: () => void;
 }
 
 const tileRadius = (theme: { radius: { tile: number } }) => `${theme.radius.tile}px`;
@@ -61,7 +67,7 @@ function ProjectsBody({
   onOpenProject,
   onNewProject,
   onLogIn,
-}: Pick<HomePageProps, 'signedIn' | 'onOpenProject' | 'onNewProject' | 'onLogIn'> & { projects: ProjectSummary[] }) {
+}: Pick<HomePageProps, 'onOpenProject' | 'onNewProject' | 'onLogIn'> & { signedIn: boolean; projects: ProjectSummary[] }) {
   return (
     <List sx={{ py: 1 }}>
       <ListItemButton onClick={onNewProject} sx={{ ...rowSx, gap: 1.5, py: 1.25, color: 'primary.main' }}>
@@ -120,9 +126,10 @@ const FILTERS: { value: GalleryFilter; label: string }[] = [
   { value: 'community', label: 'Community' },
 ];
 
-function GalleryTile({ item }: { item: GalleryItem }) {
+function GalleryTile({ item, onOpen }: { item: GalleryItem; onOpen?: () => void }) {
   return (
     <ButtonBase
+      onClick={onOpen}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -155,7 +162,7 @@ function GalleryTile({ item }: { item: GalleryItem }) {
   );
 }
 
-function GalleryBody() {
+function GalleryBody({ onOpenDesign }: { onOpenDesign?: (id: string) => void }) {
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const items = demoGallery.filter((item) => filter === 'all' || item.source === filter);
 
@@ -184,7 +191,7 @@ function GalleryBody() {
       </Stack>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', alignContent: 'start', flex: 1 }}>
         {items.map((item) => (
-          <GalleryTile key={item.id} item={item} />
+          <GalleryTile key={item.id} item={item} onOpen={() => onOpenDesign?.(item.id)} />
         ))}
       </Box>
       <Link href="#gallery" variant="body2" sx={{ alignSelf: 'flex-start' }}>
@@ -324,8 +331,7 @@ function ContributeCard() {
 
 /** Optikit landing page: projects, gallery, tutorials and a community card stack in three columns. */
 export function HomePage({
-  signedIn = true,
-  userName = 'Manu',
+  user = demoUser,
   projects = demoProjects,
   autoAdvanceMs = 7000,
   onOpenProject,
@@ -333,7 +339,11 @@ export function HomePage({
   onLogIn,
   onSignUp,
   onHome,
+  onOpenDesign,
+  onAccount,
+  onLogOut,
 }: HomePageProps) {
+  const signedIn = user !== null;
   return (
     <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <Stack
@@ -349,12 +359,13 @@ export function HomePage({
         }}
       >
         <SiteHeader
-          tagline={signedIn ? `Welcome back, ${userName}.` : 'Design optical instruments from openUC2 cubes.'}
-          signedIn={signedIn}
-          userInitials={userName.slice(0, 2).toLowerCase()}
+          tagline={user ? `Welcome back, ${user.name}.` : 'Design optical instruments from openUC2 cubes.'}
+          user={user}
           onHome={onHome}
           onLogIn={onLogIn}
           onSignUp={onSignUp}
+          onAccount={onAccount}
+          onLogOut={onLogOut}
         />
 
         <Box
@@ -391,7 +402,7 @@ export function HomePage({
 
           <Stack sx={{ minWidth: 0 }}>
             <DashboardCard title="Need inspiration?" grow>
-              <GalleryBody />
+              <GalleryBody onOpenDesign={onOpenDesign} />
             </DashboardCard>
           </Stack>
 

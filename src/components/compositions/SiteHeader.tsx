@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
@@ -13,19 +11,22 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import SearchIcon from '@mui/icons-material/Search';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { ColorSchemeToggle } from '../primitives/ColorSchemeToggle';
+import { AccountMenu, type AccountUser } from './AccountMenu';
 
 export interface SiteHeaderProps {
   /** Line under the wordmark: a greeting or the product pitch. */
   tagline?: ReactNode;
-  signedIn?: boolean;
-  /** Shown in the avatar when signed in. */
-  userInitials?: string;
+  /** Signed-in account, or `null` when signed out. */
+  user?: AccountUser | null;
   githubUrl?: string;
   helpUrl?: string;
   onHome?: () => void;
   onSearch?: () => void;
   onLogIn?: () => void;
   onSignUp?: () => void;
+  onProjects?: () => void;
+  onAccount?: () => void;
+  onLogOut?: () => void;
 }
 
 /** Round utility button used in the landing header (search, GitHub, help). */
@@ -68,14 +69,16 @@ const wordmarkSx = (theme: Theme) => ({
  */
 export function SiteHeader({
   tagline,
-  signedIn = false,
-  userInitials = 'ma',
+  user = null,
   githubUrl = 'https://github.com/openUC2',
   helpUrl = '#help',
   onHome,
   onSearch,
   onLogIn,
   onSignUp,
+  onProjects,
+  onAccount,
+  onLogOut,
 }: SiteHeaderProps) {
   return (
     <Box component="header" sx={{ flexShrink: 0 }}>
@@ -112,31 +115,17 @@ export function SiteHeader({
           <RoundButton label="Help" href={helpUrl}>
             <QuestionMarkIcon fontSize="small" />
           </RoundButton>
-          {signedIn ? (
-            <Avatar
-              sx={{
-                width: (theme) => theme.spacing(7),
-                height: (theme) => theme.spacing(7),
-                ml: 0.5,
-                typography: 'subtitle1',
-                bgcolor: 'background.sunken',
-                color: 'text.primary',
-                border: 1,
-                borderColor: 'divider',
-              }}
-            >
-              {userInitials}
-            </Avatar>
-          ) : (
-            <Stack direction="row" spacing={1} sx={{ pl: 0.5 }}>
-              <Button variant="outlined" onClick={onLogIn}>
-                Log in
-              </Button>
-              <Button variant="contained" onClick={onSignUp}>
-                Sign up
-              </Button>
-            </Stack>
-          )}
+          <Box sx={{ pl: 0.5 }}>
+            <AccountMenu
+              user={user}
+              size={7}
+              onLogIn={onLogIn}
+              onSignUp={onSignUp}
+              onProjects={onProjects}
+              onAccount={onAccount}
+              onLogOut={onLogOut}
+            />
+          </Box>
         </Stack>
       </Stack>
     </Box>

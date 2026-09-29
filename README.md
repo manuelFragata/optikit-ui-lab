@@ -3,13 +3,16 @@
 A sandbox for trying out ideas for the Optikit UI revamp. It uses the same stack as the production app (Vite, React 19, strict TypeScript, MUI 7 with Emotion, `@mui/icons-material`), so components built here can be ported over. Storybook (React + Vite) is the main way to view them.
 
 **Live Storybook:** https://manuelfragata.github.io/optikit-ui-lab/
+**Clickable prototype:** https://manuelfragata.github.io/optikit-ui-lab/app/
+
+The prototype links the pages together: Home, then Log in / Sign up (any details sign you in as the demo user Manu), then the Editor and the Account settings. Routes live in the URL hash (`#/`, `#/editor/<id>`, `#/account`, `#/login`, `#/signup`), so links and the back button work, and the session is remembered in the browser. The code is in `src/app/`, and the same app is the **Pages → Prototype** story.
 
 ## Run it
 
 ```bash
 npm install
 npm run storybook        # http://localhost:6006
-npm run dev              # the app: Home (#/) and Editor (#/editor)
+npm run dev              # the clickable prototype (Home, log in, Editor, Account)
 ```
 
 Other scripts:

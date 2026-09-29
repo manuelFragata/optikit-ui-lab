@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build-storybook
+      # The clickable prototype app, served next to Storybook at /app/.
+      - run: npx vite build --outDir storybook-static/app --emptyOutDir
       - uses: actions/upload-pages-artifact@v5
         with:
           path: storybook-static

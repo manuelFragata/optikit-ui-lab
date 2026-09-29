@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -26,6 +25,8 @@ import { SymbolPalettePanel } from '../editor/panels/SymbolPalettePanel';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { OverflowMenu } from '../panels/OverflowMenu';
 import { SidePanel, type SidePanelState } from '../panels/SidePanel';
+import { demoUser } from '../../demo/user';
+import { AccountMenu, type AccountUser } from './AccountMenu';
 import { AppHeader, type HeaderVariant } from './AppHeader';
 import { StatusBar } from './StatusBar';
 
@@ -36,7 +37,8 @@ export interface EditorShellProps {
   headerVariant?: HeaderVariant;
   projectName?: string;
   version?: string;
-  userInitials?: string;
+  /** Signed-in account, or `null` for a guest. */
+  user?: AccountUser | null;
   /** Initial design; edits are kept inside the shell. */
   schematic?: Schematic;
 
@@ -65,8 +67,11 @@ export interface EditorShellProps {
   defaultView?: EditorView;
   onViewChange?: (view: EditorView) => void;
 
-  /** Called when the brand mark is clicked. */
+  /** Called when the brand mark (or "Your projects") is clicked. */
   onHome?: () => void;
+  onLogIn?: () => void;
+  onAccount?: () => void;
+  onLogOut?: () => void;
   /** Extra header actions, placed before the built-in ones. */
   headerActions?: ReactNode;
 }
@@ -93,7 +98,7 @@ export function EditorShell({
   headerVariant = 'light',
   projectName = 'BF+Fluor FRAME Optical Core',
   version = '0.4.2',
-  userInitials = 'ma',
+  user = demoUser,
   schematic: initialSchematic = demoSchematic,
   leftState: leftStateProp,
   defaultLeftState = 'collapsed',
@@ -114,6 +119,9 @@ export function EditorShell({
   defaultView = 'schematic',
   onViewChange,
   onHome,
+  onLogIn,
+  onAccount,
+  onLogOut,
   headerActions,
 }: EditorShellProps) {
   const [leftState, setLeftState] = useControllable(leftStateProp, defaultLeftState, onLeftStateChange);
@@ -198,19 +206,14 @@ export function EditorShell({
                 { id: 'delete', label: 'Delete design', destructive: true, dividerBefore: true },
               ]}
             />
-            <Avatar
-              sx={{
-                width: (t) => t.spacing(4.5),
-                height: (t) => t.spacing(4.5),
-                typography: 'body2',
-                bgcolor: 'background.sunken',
-                color: 'text.primary',
-                border: 1,
-                borderColor: 'divider',
-              }}
-            >
-              {userInitials}
-            </Avatar>
+            <AccountMenu
+              user={user}
+              showSignUp={false}
+              onLogIn={onLogIn}
+              onProjects={onHome}
+              onAccount={onAccount}
+              onLogOut={onLogOut}
+            />
           </>
         }
       />

@@ -129,7 +129,7 @@ const preview: Preview = {
           'Editor',
           'Compositions',
           'Pages',
-          ['Home', 'Editor'],
+          ['Prototype', 'Home', 'Editor'],
         ],
       },
     },
