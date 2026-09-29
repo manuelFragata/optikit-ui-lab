@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { demoGallery } from '../../demo/homeContent';
 import { communityFacts, exampleDesigns, featureHighlights, pricingPlans } from '../../demo/landingContent';
@@ -11,8 +12,10 @@ import { SiteHeader } from '../compositions/SiteHeader';
 import { CommunitySection } from '../landing/CommunitySection';
 import { ExampleShowcase } from '../landing/ExampleShowcase';
 import { PricingSection } from '../landing/PricingSection';
+import { BenchPreview } from '../landing/BenchPreview';
+import { SectionHeading } from '../landing/SectionHeading';
 
-export type LandingSection = 'examples' | 'community' | 'pricing';
+export type LandingSection = 'examples' | 'community' | 'how-it-works' | 'pricing';
 
 export interface LandingPageProps {
   /** Example slideshow auto-advance in ms; 0 turns it off. */
@@ -36,6 +39,7 @@ export interface LandingPageProps {
 export const LANDING_SECTIONS: { id: LandingSection; label: string }[] = [
   { id: 'examples', label: 'Examples' },
   { id: 'community', label: 'Community' },
+  { id: 'how-it-works', label: 'How it works' },
   { id: 'pricing', label: 'Pricing' },
 ];
 
@@ -96,7 +100,15 @@ export function LandingPage({
           sx={{ scrollMarginTop: (t) => t.spacing(t.layout.topbarHeight), pt: { xs: 5, md: 8 }, pb: { xs: 6, md: 10 } }}
         >
           <PageContainer>
-            <Typography variant="display" component="h1" sx={{ mb: { xs: 3, md: 4 } }}>
+            <Stack direction="row" spacing={1.5} sx={{ mb: { xs: 2, md: 3 } }}>
+              <Typography variant="meta" color="text.meta">
+                01
+              </Typography>
+              <Typography variant="meta" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Examples · no account needed
+              </Typography>
+            </Stack>
+            <Typography variant="display" component="h1" sx={{ mb: { xs: 4, md: 6 }, maxWidth: (t) => t.spacing(150) }}>
               See? You can do it too, give it a try:
             </Typography>
             <ExampleShowcase examples={exampleDesigns} autoAdvanceMs={autoAdvanceMs} onOpen={onOpenExample} onLocked={onSignUp} />
@@ -108,8 +120,9 @@ export function LandingPage({
           </PageContainer>
         </Box>
 
-        <Band id="community" raised>
+        <Band id="community">
           <CommunitySection
+            index="02"
             items={[...demoGallery.filter((g) => g.source === 'community'), ...demoGallery.filter((g) => g.source === 'optikit')].slice(0, 4)}
             facts={communityFacts}
             onOpenDesign={onOpenDesign}
@@ -117,8 +130,17 @@ export function LandingPage({
           />
         </Band>
 
+        <Band id="how-it-works">
+          <Stack spacing={{ xs: 4, md: 6 }}>
+            <SectionHeading index="03" eyebrow="How it works" title="From a sketch to a box of parts">
+              Real openUC2 modules, in 3D. Drag the bench to turn it, click a part to see what it is.
+            </SectionHeading>
+            <BenchPreview features={featureHighlights} />
+          </Stack>
+        </Band>
+
         <Band id="pricing">
-          <PricingSection features={featureHighlights} plans={pricingPlans} onChoosePlan={onChoosePlan} />
+          <PricingSection index="04" plans={pricingPlans} onChoosePlan={onChoosePlan} />
         </Band>
       </Box>
 

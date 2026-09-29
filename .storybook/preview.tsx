@@ -128,7 +128,7 @@ const preview: Preview = {
           ['Dashboard Card', 'Design Card', 'Stacked Cards'],
           'Editor',
           'Landing',
-          ['Example Showcase', 'Community Section', 'Pricing Section'],
+          ['Example Showcase', 'Community Section', 'Bench Preview', 'Pricing Section'],
           'Compositions',
           'Pages',
           ['Prototype', 'Landing', 'Home', 'Editor'],

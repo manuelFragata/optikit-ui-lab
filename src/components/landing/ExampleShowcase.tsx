@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { SliderField } from '../primitives/SliderField';
+import { PillButton } from './PillButton';
 import type { ExampleDesign } from '../../demo/landingContent';
 
 export interface ExampleShowcaseProps {
@@ -145,7 +144,7 @@ export function ExampleShowcase({ examples, autoAdvanceMs = 9000, onOpen, onLock
         sx={(t) => ({
           display: 'grid',
           gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `minmax(0, 1fr) ${t.spacing(46)}` },
-          borderRadius: `${t.radius.card}px`,
+          borderRadius: `${t.radius.stage}px`,
           overflow: 'hidden',
         })}
       >
@@ -219,12 +218,12 @@ export function ExampleShowcase({ examples, autoAdvanceMs = 9000, onOpen, onLock
           <Box sx={{ flex: 1 }} />
 
           <Stack spacing={1}>
-            <Button variant="contained" size="large" endIcon={<ArrowForwardIcon />} onClick={() => onOpen?.(example.id, schematic)}>
+            <PillButton size="large" onClick={() => onOpen?.(example.id, schematic)} sx={{ justifyContent: 'space-between' }}>
               Open in the editor
-            </Button>
-            <Button variant="outlined" startIcon={<LockOutlinedIcon />} onClick={onLocked}>
+            </PillButton>
+            <PillButton tone="outline" arrow={false} startIcon={<LockOutlinedIcon />} onClick={onLocked}>
               Save a copy
-            </Button>
+            </PillButton>
             <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
               No account needed to play. Saving, sharing and STEP export need a free account.
             </Typography>

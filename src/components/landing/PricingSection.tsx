@@ -1,31 +1,26 @@
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CheckIcon from '@mui/icons-material/Check';
-import type { FeatureHighlight, PricingPlan } from '../../demo/landingContent';
-import { FeatureBench } from './FeatureBench';
+import type { PricingPlan } from '../../demo/landingContent';
+import { PillButton } from './PillButton';
 import { SectionHeading } from './SectionHeading';
 
 export interface PricingSectionProps {
-  features: FeatureHighlight[];
   plans: PricingPlan[];
   onChoosePlan?: (id: string) => void;
+  /** Section number in the page, e.g. "04". */
+  index?: string;
 }
 
-/** How it works (the feature bench), then the plans side by side. */
-export function PricingSection({ features, plans, onChoosePlan }: PricingSectionProps) {
+/** The plans side by side. */
+export function PricingSection({ plans, onChoosePlan, index }: PricingSectionProps) {
   return (
-    <Stack spacing={{ xs: 5, md: 7 }}>
-      <SectionHeading eyebrow="How it works" title="From a sketch to a box of parts" />
-      <FeatureBench features={features} />
-
-      <Box sx={{ pt: { xs: 2, md: 4 } }}>
-        <SectionHeading eyebrow="Pricing" title="Designing is free">
-          Pay when you need more private projects, or the files to print and order parts.
-        </SectionHeading>
-      </Box>
+    <Stack spacing={{ xs: 4, md: 6 }}>
+      <SectionHeading index={index} eyebrow="Pricing" title="Designing is free">
+        Pay when you need more private projects, or the files to print and order parts.
+      </SectionHeading>
 
       <Box
         sx={{
@@ -40,7 +35,7 @@ export function PricingSection({ features, plans, onChoosePlan }: PricingSection
             key={plan.id}
             variant="outlined"
             sx={[
-              { display: 'flex', flexDirection: 'column', gap: 2.5, p: 3, borderRadius: (t) => `${t.radius.card}px` },
+              { display: 'flex', flexDirection: 'column', gap: 2.5, p: 3, borderRadius: (t) => `${t.radius.stage}px` },
               // Highlighted plan: a double-weight accent outline.
               plan.highlighted
                 ? (t) => ({ borderColor: (t.vars ?? t).palette.primary.main, boxShadow: `inset 0 0 0 ${t.layout.hairline}px ${(t.vars ?? t).palette.primary.main}` })
@@ -75,9 +70,9 @@ export function PricingSection({ features, plans, onChoosePlan }: PricingSection
               ))}
             </Stack>
 
-            <Button variant={plan.highlighted ? 'contained' : 'outlined'} size="large" onClick={() => onChoosePlan?.(plan.id)}>
+            <PillButton tone={plan.highlighted ? 'solid' : 'outline'} size="large" onClick={() => onChoosePlan?.(plan.id)} sx={{ alignSelf: 'flex-start' }}>
               {plan.cta}
-            </Button>
+            </PillButton>
           </Paper>
         ))}
       </Box>

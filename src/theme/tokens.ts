@@ -130,6 +130,42 @@ export interface CanvasColors {
   selection: string;
 }
 
+/**
+ * The landing page's 3D bench (three.js reads plain hex, not CSS variables).
+ * The beam is the 520 nm laser's green, not a UI colour. (derived)
+ */
+export interface BenchColors {
+  beam: string;
+  plate: string;
+  tile: string;
+  outline: string;
+  selection: string;
+  /** Stage background, top to bottom. */
+  stageTop: string;
+  stageBottom: string;
+}
+
+export const benchColors: Record<'light' | 'dark', BenchColors> = {
+  light: {
+    beam: '#2FBF4A',
+    plate: '#3A4047',
+    tile: '#F4F4F1',
+    outline: '#8C959E',
+    selection: '#1A745D',
+    stageTop: '#E9EDF1',
+    stageBottom: '#D6DDE3',
+  },
+  dark: {
+    beam: '#4BE06A',
+    plate: '#2A3037',
+    tile: '#C9CDD1',
+    outline: '#6B747D',
+    selection: '#5BB49D',
+    stageTop: '#1C2329',
+    stageBottom: '#12171B',
+  },
+};
+
 export const canvasColors: Record<'light' | 'dark', CanvasColors> = {
   light: {
     ground: '#FFFFFF',
@@ -242,6 +278,10 @@ export const radius = {
   card: 16,
   /** Tiles and rows nested inside a card. */
   tile: 8,
+  /** Large landing-page stages (example slideshow, 3D bench). (derived) */
+  stage: 28,
+  /** Pills: landing CTAs, tag filters. */
+  pill: 999,
 } as const;
 
 export type RadiusTokens = typeof radius;
@@ -278,6 +318,9 @@ export const layout = {
   topbarTint: 78,
   /** Backdrop blur behind the top bar, spacing units (derived). */
   topbarBlur: 1.5,
+  /** Height of the 3D bench stage on the landing page. */
+  benchStageHeight: 84,
+  benchStageHeightCompact: 60,
   /** Height of the example stage on the signed-out landing page. */
   exampleStageHeight: 58,
   exampleStageHeightCompact: 36,
@@ -397,8 +440,8 @@ export const fontWeight = {
  */
 export const typeScale = {
   // Marketing sizes for the signed-out landing page only (derived; Bench stops at Display 24).
-  display: { fontSize: 'clamp(1.75rem, 4vw, 2.75rem)', lineHeight: 1.15, fontWeight: fontWeight.semibold, letterSpacing: '-0.02em' },
-  headline: { fontSize: 'clamp(1.375rem, 2.6vw, 1.875rem)', lineHeight: 1.2, fontWeight: fontWeight.semibold, letterSpacing: '-0.015em' },
+  display: { fontSize: 'clamp(2.25rem, 5.6vw, 4.5rem)', lineHeight: 1.02, fontWeight: fontWeight.regular, letterSpacing: '-0.04em' },
+  headline: { fontSize: 'clamp(1.625rem, 3.4vw, 2.75rem)', lineHeight: 1.08, fontWeight: fontWeight.regular, letterSpacing: '-0.035em' },
   h1: { fontSize: '1.5rem', lineHeight: 1.3, fontWeight: fontWeight.semibold, letterSpacing: '-0.01em' }, // Display 24
   h2: { fontSize: '1.0625rem', lineHeight: 1.4, fontWeight: fontWeight.semibold }, // Section 17
   h3: { fontSize: '1rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
