@@ -30,6 +30,7 @@ export const SignedIn: Story = { name: 'Signed in' };
 export const SignedOut: Story = {
   name: 'Signed out',
   args: { user: null },
+  parameters: { docs: { description: { story: 'Signed out, Home shows the landing page (see Pages/Landing).' } } },
 };
 
 export const NoProjects: Story = {

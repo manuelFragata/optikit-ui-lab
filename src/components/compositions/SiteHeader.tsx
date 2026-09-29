@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
@@ -12,12 +13,18 @@ import SearchIcon from '@mui/icons-material/Search';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { ColorSchemeToggle } from '../primitives/ColorSchemeToggle';
 import { AccountMenu, type AccountUser } from './AccountMenu';
+import { PageContainer } from './PageContainer';
+
+export interface SiteNavItem {
+  label: string;
+  onClick: () => void;
+}
 
 export interface SiteHeaderProps {
-  /** Line under the wordmark: a greeting or the product pitch. */
-  tagline?: ReactNode;
   /** Signed-in account, or `null` when signed out. */
   user?: AccountUser | null;
+  /** Section links in the middle of the bar (e.g. Examples, Community, Pricing). */
+  nav?: SiteNavItem[];
   githubUrl?: string;
   helpUrl?: string;
   onHome?: () => void;
@@ -29,7 +36,7 @@ export interface SiteHeaderProps {
   onLogOut?: () => void;
 }
 
-/** Round utility button used in the landing header (search, GitHub, help). */
+/** Round utility button used in the top bar (search, GitHub, help). */
 function RoundButton({ label, children, href, onClick }: { label: string; children: ReactNode; href?: string; onClick?: () => void }) {
   const external = href?.startsWith('http');
   return (
@@ -46,8 +53,8 @@ function RoundButton({ label, children, href, onClick }: { label: string; childr
           borderColor: 'divider',
           bgcolor: 'background.paper',
           color: 'text.primary',
-          width: (theme) => theme.spacing(5.5),
-          height: (theme) => theme.spacing(5.5),
+          width: (theme) => theme.spacing(4.5),
+          height: (theme) => theme.spacing(4.5),
           '&:hover': { bgcolor: 'background.sunken' },
         }}
       >
@@ -63,13 +70,20 @@ const wordmarkSx = (theme: Theme) => ({
   ...theme.applyStyles('light', { color: (theme.vars ?? theme).palette.brand.anchor }),
 });
 
+/** Translucent bar: the page shows through, blurred, so it reads as a layer above the content. */
+const barSx = (theme: Theme) => ({
+  backgroundColor: `color-mix(in srgb, ${(theme.vars ?? theme).palette.background.paper} ${theme.layout.topbarTint}%, transparent)`,
+  backdropFilter: `blur(${theme.spacing(theme.layout.topbarBlur)})`,
+});
+
 /**
- * Landing-page header: large wordmark with a tagline on the left, utilities
- * and account on the right. Sits on the page, not in a bar.
+ * Site top bar for document-style pages: wordmark on the left, optional
+ * section links, utilities and account on the right. Sticks to the top while
+ * the page scrolls under it.
  */
 export function SiteHeader({
-  tagline,
   user = null,
+  nav,
   githubUrl = 'https://github.com/openUC2',
   helpUrl = '#help',
   onHome,
@@ -81,44 +95,57 @@ export function SiteHeader({
   onLogOut,
 }: SiteHeaderProps) {
   return (
-    <Box component="header" sx={{ flexShrink: 0 }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}
-      >
-        <ButtonBase onClick={onHome} aria-label="Optikit home" sx={{ borderRadius: 1, textAlign: 'left', display: 'block' }}>
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-            <ViewInArOutlinedIcon sx={{ color: 'brand.lime', fontSize: (theme) => theme.spacing(4.5) }} />
-            <Typography component="span" sx={[{ typography: 'h1', fontSize: '2rem', lineHeight: 1 }, wordmarkSx]}>
+    <Box
+      component="header"
+      sx={[
+        { position: 'sticky', top: 0, zIndex: 'appBar', flexShrink: 0, borderBottom: 1, borderColor: 'divider' },
+        barSx,
+      ]}
+    >
+      <PageContainer sx={{ display: 'flex', alignItems: 'center', gap: 3, minHeight: (t) => t.spacing(t.layout.topbarHeight) }}>
+        <ButtonBase onClick={onHome} aria-label="Optikit home" sx={{ borderRadius: 1, flexShrink: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <ViewInArOutlinedIcon sx={{ color: 'brand.lime', fontSize: (theme) => theme.spacing(3.5) }} />
+            <Typography component="span" sx={[{ typography: 'h2', lineHeight: 1 }, wordmarkSx]}>
               Optikit
             </Typography>
-            <Typography variant="overline" component="span" color="text.secondary" sx={{ alignSelf: 'flex-end' }}>
+            <Typography variant="overline" component="span" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' }, alignSelf: 'flex-end', lineHeight: 1.4 }}>
               by openUC2
             </Typography>
           </Stack>
-          {tagline && (
-            <Typography variant="body1" color="text.secondary" component="div" sx={{ mt: 0.75 }}>
-              {tagline}
-            </Typography>
-          )}
         </ButtonBase>
 
+        {nav && nav.length > 0 && (
+          <Stack component="nav" aria-label="Page sections" direction="row" spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' } }}>
+            {nav.map((item) => (
+              <Button key={item.label} variant="text" onClick={item.onClick} sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>
+                {item.label}
+              </Button>
+            ))}
+          </Stack>
+        )}
+
+        <Box sx={{ flex: 1 }} />
+
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <ColorSchemeToggle variant="switch" />
-          <RoundButton label="Search" onClick={onSearch}>
-            <SearchIcon fontSize="small" />
-          </RoundButton>
-          <RoundButton label="Optikit on GitHub" href={githubUrl}>
-            <GitHubIcon fontSize="small" />
-          </RoundButton>
-          <RoundButton label="Help" href={helpUrl}>
-            <QuestionMarkIcon fontSize="small" />
-          </RoundButton>
-          <Box sx={{ pl: 0.5 }}>
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <ColorSchemeToggle variant="switch" />
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
+            <RoundButton label="Search" onClick={onSearch}>
+              <SearchIcon fontSize="small" />
+            </RoundButton>
+            <RoundButton label="Optikit on GitHub" href={githubUrl}>
+              <GitHubIcon fontSize="small" />
+            </RoundButton>
+            <RoundButton label="Help" href={helpUrl}>
+              <QuestionMarkIcon fontSize="small" />
+            </RoundButton>
+          </Stack>
+          <Box sx={{ pl: 1 }}>
             <AccountMenu
               user={user}
-              size={7}
+              size={5}
               onLogIn={onLogIn}
               onSignUp={onSignUp}
               onProjects={onProjects}
@@ -127,7 +154,7 @@ export function SiteHeader({
             />
           </Box>
         </Stack>
-      </Stack>
+      </PageContainer>
     </Box>
   );
 }

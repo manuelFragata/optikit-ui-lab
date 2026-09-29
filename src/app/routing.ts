@@ -6,14 +6,18 @@ import type { AccountUser } from '../components/compositions/AccountMenu';
  * a Storybook iframe) without server rewrites, and back/forward just work.
  */
 export type Route =
-  | { name: 'home' }
+  /** `section`: a part of the landing page to scroll to (#examples, #community, #pricing). */
+  | { name: 'home'; section?: string }
   | { name: 'login' }
   | { name: 'signup' }
   | { name: 'account' }
   | { name: 'editor'; id: string };
 
 export function parseHash(hash: string): Route {
-  const [, first, second] = hash.replace(/^#/, '').split('/');
+  const raw = hash.replace(/^#/, '');
+  // Plain anchors (#pricing) are sections of the home page; routes start with a slash.
+  if (raw && !raw.startsWith('/')) return { name: 'home', section: decodeURIComponent(raw) };
+  const [, first, second] = raw.split('/');
   switch (first) {
     case 'login':
     case 'signup':
@@ -27,7 +31,14 @@ export function parseHash(hash: string): Route {
 }
 
 export function routeToHash(route: Route): string {
-  return route.name === 'editor' ? `#/editor/${encodeURIComponent(route.id)}` : route.name === 'home' ? '#/' : `#/${route.name}`;
+  switch (route.name) {
+    case 'editor':
+      return `#/editor/${encodeURIComponent(route.id)}`;
+    case 'home':
+      return route.section ? `#${encodeURIComponent(route.section)}` : '#/';
+    default:
+      return `#/${route.name}`;
+  }
 }
 
 export type Navigate = (route: Route, options?: { replace?: boolean }) => void;

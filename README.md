@@ -5,6 +5,8 @@ A sandbox for trying out ideas for the Optikit UI revamp. It uses the same stack
 **Live Storybook:** https://manuelfragata.github.io/optikit-ui-lab/
 **Clickable prototype:** https://manuelfragata.github.io/optikit-ui-lab/app/
 
+Signed out, Home is the landing page: a translucent sticky top bar, a slideshow of live example designs a visitor can change without an account (and open in the editor, changes included), the community gallery, features and pricing, then the footer. Section links use plain anchors (`#examples`, `#community`, `#pricing`).
+
 The prototype links the pages together: Home, then Log in / Sign up (any details sign you in as the demo user Manu), then the Editor and the Account settings. Routes live in the URL hash (`#/`, `#/editor/<id>`, `#/account`, `#/login`, `#/signup`), so links and the back button work, and the session is remembered in the browser. The code is in `src/app/`, and the same app is the **Pages → Prototype** story.
 
 ## Run it

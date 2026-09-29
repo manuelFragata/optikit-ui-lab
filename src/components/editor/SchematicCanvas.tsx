@@ -17,6 +17,13 @@ export interface SchematicCanvasProps {
   options: Pick<ViewOptions, 'showRayLabels'>;
   /** Floating controls in the top-left corner (see CanvasToolbar). */
   toolbar?: ReactNode;
+  /**
+   * Fit the drawing into the frame (never zooming in past 100%) instead of the
+   * fixed editor zoom. For previews and small embeds.
+   */
+  fit?: boolean;
+  /** Bottom hint while nothing is selected; `false` hides it. */
+  hint?: string | false;
 }
 
 // Everything inside the SVG is in grid units: 1 unit = 1 cube. The zoom is
@@ -27,6 +34,18 @@ const PX_PER_UNIT = 32;
 const CENTER = { x: 10, y: -7.5 }; // drawing centre, screen coordinates (y down)
 const LABEL = 0.4; // label font size, grid units
 const PAD = 0.9; // group box padding around its symbols
+const FIT_MARGIN = 2.5; // grid units kept free around a fitted drawing
+
+/** Screen-space bounds (y down) of every symbol and ray point. */
+function drawingBounds({ symbols, rays }: Schematic) {
+  const boxes = symbols.map(symbolBounds);
+  const points = rays.flatMap((r) => rayPoints(r, symbols));
+  const xs = [...boxes.flatMap((b) => [b.x, b.x + b.w]), ...points.map((p) => p.x)];
+  const ys = [...boxes.flatMap((b) => [b.y, b.y + b.h + LABEL]), ...points.map((p) => p.y)];
+  if (xs.length === 0) return null;
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  return { x: x0 - FIT_MARGIN, y: y0 - FIT_MARGIN, w: x1 - x0 + 2 * FIT_MARGIN, h: y1 - y0 + 2 * FIT_MARGIN };
+}
 
 function gridPath(step: number) {
   let d = '';
@@ -60,7 +79,16 @@ function Selection({ s }: { s: SchematicSymbol }) {
 }
 
 /** Schematic editor surface: grid, groups, symbols, rays, selection and overlays. */
-export function SchematicCanvas({ schematic, selectedId, onSelect, view = 'schematic', options, toolbar }: SchematicCanvasProps) {
+export function SchematicCanvas({
+  schematic,
+  selectedId,
+  onSelect,
+  view = 'schematic',
+  options,
+  toolbar,
+  fit = false,
+  hint = 'Select a symbol to open its properties',
+}: SchematicCanvasProps) {
   const { symbols, groups, rays } = schematic;
   const selected = symbols.find((s) => s.id === selectedId) ?? null;
 
@@ -73,8 +101,11 @@ export function SchematicCanvas({ schematic, selectedId, onSelect, view = 'schem
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const vw = size.w / PX_PER_UNIT;
-  const vh = size.h / PX_PER_UNIT;
+  const bounds = fit ? drawingBounds(schematic) : null;
+  const scale = bounds ? Math.min(PX_PER_UNIT, size.w / bounds.w, size.h / bounds.h) : PX_PER_UNIT;
+  const center = bounds ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 } : CENTER;
+  const vw = size.w / scale;
+  const vh = size.h / scale;
 
   const groupBoxes = groups.flatMap((g) => {
     const members = symbols.filter((s) => s.group === g.id).map(symbolBounds);
@@ -101,7 +132,7 @@ export function SchematicCanvas({ schematic, selectedId, onSelect, view = 'schem
     >
       <Box
         component="svg"
-        viewBox={`${CENTER.x - vw / 2} ${CENTER.y - vh / 2} ${vw} ${vh}`}
+        viewBox={`${center.x - vw / 2} ${center.y - vh / 2} ${vw} ${vh}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
         aria-label="Optics schematic"
@@ -256,7 +287,7 @@ export function SchematicCanvas({ schematic, selectedId, onSelect, view = 'schem
       </Box>
 
       {/* hint */}
-      {view === 'schematic' && !selected && (
+      {view === 'schematic' && !selected && hint && (
         <Paper
           variant="outlined"
           sx={{
@@ -275,7 +306,7 @@ export function SchematicCanvas({ schematic, selectedId, onSelect, view = 'schem
           }}
         >
           <NearMeOutlinedIcon fontSize="small" sx={{ transform: 'scaleX(-1)', color: 'text.secondary' }} />
-          <Typography variant="body2">Select a symbol to open its properties</Typography>
+          <Typography variant="body2">{hint}</Typography>
         </Paper>
       )}
     </Box>

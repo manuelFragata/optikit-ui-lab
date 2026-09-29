@@ -2,22 +2,35 @@ import { useEffect, useState } from 'react';
 import Snackbar from '@mui/material/Snackbar';
 import { demoSchematic } from '../demo/editorContent';
 import { demoGallery, demoProjects } from '../demo/homeContent';
+import { exampleDesigns } from '../demo/landingContent';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
 import { EditorShell } from '../components/compositions/EditorShell';
 import { AccountPage } from '../components/pages/AccountPage';
 import { HomePage } from '../components/pages/HomePage';
+import type { Schematic } from '../components/editor/model';
+import { scrollToSection } from '../components/pages/LandingPage';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { useHashRoute, useSession, type Route } from './routing';
 
+const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
+
+/** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
+const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor' };
+
 /** Which design an editor route opens. */
-function findDesign(id: string) {
-  if (id === 'new') return { name: 'Untitled design', version: '0.0.1', empty: true };
+function findDesign(id: string): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
+  if (id === 'new') return { name: 'Untitled design', version: '0.0.1', schematic: emptySchematic, empty: true };
+  const example = exampleDesigns.find((e) => e.id === id);
+  if (example) return { name: example.title, version: '1.0.0', schematic: example.schematic, empty: false };
   const project = demoProjects.find((p) => p.id === id);
-  if (project) return { name: project.name, version: project.version, empty: false };
+  if (project) return { name: project.name, version: project.version, schematic: demoSchematic, empty: false };
   const shared = demoGallery.find((g) => g.id === id);
-  if (shared) return { name: shared.title, version: '1.0.0', empty: false };
+  if (shared) {
+    const drawing = exampleDesigns.find((e) => e.id === GALLERY_DRAWINGS[id]);
+    return { name: shared.title, version: '1.0.0', schematic: drawing?.schematic ?? demoSchematic, empty: false };
+  }
   return null;
 }
 
@@ -39,6 +52,8 @@ export function PrototypeApp() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [afterLogin, setAfterLogin] = useState<Route | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Examples the visitor changed on the landing page, so the editor opens with their changes.
+  const [played, setPlayed] = useState<Record<string, Schematic>>({});
 
   // #/login and #/signup are entry points: open the dialog over the home page.
   useEffect(() => {
@@ -55,6 +70,12 @@ export function PrototypeApp() {
 
   useEffect(() => {
     document.title = TITLES[route.name];
+    if (route.name === 'home' && route.section) {
+      // Wait a frame so the landing page is on screen before scrolling to the section.
+      const section = route.section;
+      const frame = window.requestAnimationFrame(() => scrollToSection(section));
+      return () => window.cancelAnimationFrame(frame);
+    }
     window.scrollTo(0, 0);
   }, [route]);
 
@@ -91,7 +112,7 @@ export function PrototypeApp() {
         key={route.id}
         projectName={design.name}
         version={design.version}
-        schematic={design.empty ? { ...demoSchematic, symbols: [], rays: [] } : demoSchematic}
+        schematic={played[route.id] ?? design.schematic}
         defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
         user={user}
         onHome={home}
@@ -128,6 +149,13 @@ export function PrototypeApp() {
           onSignUp={() => openAuth('signup')}
           onAccount={() => navigate({ name: 'account' })}
           onLogOut={logOut}
+          onOpenExample={(id, schematic) => {
+            setPlayed({ ...played, [id]: schematic });
+            openEditor(id);
+          }}
+          onSection={(section) => navigate({ name: 'home', section })}
+          onBrowseGallery={() => setToast('The full gallery is not part of the prototype yet.')}
+          onChoosePlan={(plan) => (plan === 'lab' ? setToast('On the real site this opens a contact form.') : openAuth('signup'))}
         />
       )}
 

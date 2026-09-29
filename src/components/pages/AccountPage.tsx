@@ -12,6 +12,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { demoUser } from '../../demo/user';
 import { DashboardCard } from '../cards/DashboardCard';
 import type { AccountUser } from '../compositions/AccountMenu';
+import { PageContainer } from '../compositions/PageContainer';
 import { SiteFooter } from '../compositions/SiteFooter';
 import { SiteHeader } from '../compositions/SiteHeader';
 
@@ -24,7 +25,7 @@ export interface AccountPageProps {
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: (t) => `${t.spacing(26)} 1fr` }, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+    <Box sx={(t) => ({ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: `${t.spacing(26)} 1fr` }, py: 2, borderBottom: 1, borderColor: 'divider' })}>
       <Box>
         <Typography variant="subtitle2">{label}</Typography>
         {hint && (
@@ -48,16 +49,16 @@ export function AccountPage({ user = demoUser, onSave, onHome, onLogOut }: Accou
 
   return (
     <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <Stack
-        spacing={{ xs: 4, md: 6 }}
-        sx={{ flex: 1, width: '100%', maxWidth: (t) => t.spacing(t.layout.pageMaxWidth), mx: 'auto', px: { xs: 2, md: 5 }, pt: { xs: 3, md: 5 }, pb: 3 }}
-      >
-        <SiteHeader tagline="Account settings" user={user} onHome={onHome} onProjects={onHome} onLogOut={onLogOut} />
+      <SiteHeader user={user} onHome={onHome} onProjects={onHome} onLogOut={onLogOut} />
 
-        <Box component="main" sx={{ flex: 1, width: '100%', maxWidth: (t) => t.spacing(110) }}>
-          <Link component="button" variant="body2" onClick={onHome} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mb: 3 }}>
+      <PageContainer component="main" sx={{ flex: 1, pt: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 } }}>
+        <Box sx={{ maxWidth: (t) => t.spacing(110) }}>
+          <Link component="button" variant="body2" onClick={onHome} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
             <ArrowBackIcon sx={{ fontSize: '1rem' }} /> Back to projects
           </Link>
+          <Typography variant="h1" sx={{ mb: 3 }}>
+            Account settings
+          </Typography>
 
           <Stack spacing={4}>
             <DashboardCard title="Profile">
@@ -116,9 +117,9 @@ export function AccountPage({ user = demoUser, onSave, onHome, onLogOut }: Accou
             </DashboardCard>
           </Stack>
         </Box>
+      </PageContainer>
 
-        <SiteFooter />
-      </Stack>
+      <SiteFooter />
     </Box>
   );
 }

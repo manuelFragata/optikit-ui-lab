@@ -23,25 +23,28 @@ import {
   demoReleaseNotes,
   demoShowcase,
   demoTutorials,
-  type GalleryItem,
   type ProjectSummary,
 } from '../../demo/homeContent';
 import { BenchIllustration } from '../cards/BenchIllustration';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
 import { DashboardCard } from '../cards/DashboardCard';
+import { GalleryTile } from '../cards/GalleryTile';
 import { StackedCards } from '../cards/StackedCards';
+import { PageContainer } from '../compositions/PageContainer';
 import { SiteFooter } from '../compositions/SiteFooter';
 import { SiteHeader } from '../compositions/SiteHeader';
+import { LandingPage, type LandingPageProps } from './LandingPage';
 import { TagChip } from '../primitives/TagChip';
 import { demoUser } from '../../demo/user';
 import type { AccountUser } from '../compositions/AccountMenu';
 
-export interface HomePageProps {
-  /** Signed-in account, or `null` when signed out. */
+export interface HomePageProps
+  extends Pick<LandingPageProps, 'onOpenExample' | 'onBrowseGallery' | 'onChoosePlan' | 'onSection'> {
+  /** Signed-in account, or `null` when signed out (shows the landing page). */
   user?: AccountUser | null;
   /** Pass [] to see the empty state. */
   projects?: ProjectSummary[];
-  /** Community stack auto-advance in ms; 0 turns it off. */
+  /** Community stack (and, signed out, example slideshow) auto-advance in ms; 0 turns it off. */
   autoAdvanceMs?: number;
   onOpenProject?: (id: string) => void;
   onNewProject?: () => void;
@@ -125,42 +128,6 @@ const FILTERS: { value: GalleryFilter; label: string }[] = [
   { value: 'optikit', label: 'Shipped with Optikit' },
   { value: 'community', label: 'Community' },
 ];
-
-function GalleryTile({ item, onOpen }: { item: GalleryItem; onOpen?: () => void }) {
-  return (
-    <ButtonBase
-      onClick={onOpen}
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        textAlign: 'left',
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: tileRadius,
-        overflow: 'hidden',
-        bgcolor: 'background.paper',
-        '&:hover': { borderColor: 'text.secondary' },
-      }}
-    >
-      <CubeThumbnail cubes={item.cubes} layout={item.kind === 'Collection' ? 'mosaic' : 'row'} size="tile" />
-      <Box sx={{ p: 1.25, minWidth: 0 }}>
-        <Typography variant="subtitle2" noWrap>
-          {item.title}
-        </Typography>
-        {item.source === 'optikit' ? (
-          <Typography variant="caption" color="primary">
-            Shipped with Optikit
-          </Typography>
-        ) : (
-          <Typography variant="mono" color="text.meta" noWrap component="div">
-            @{item.author}
-          </Typography>
-        )}
-      </Box>
-    </ButtonBase>
-  );
-}
 
 function GalleryBody({ onOpenDesign }: { onOpenDesign?: (id: string) => void }) {
   const [filter, setFilter] = useState<GalleryFilter>('all');
@@ -329,7 +296,10 @@ function ContributeCard() {
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
-/** Optikit landing page: projects, gallery, tutorials and a community card stack in three columns. */
+/**
+ * Optikit home. Signed in: projects, gallery, tutorials and a community card
+ * stack in three columns. Signed out: the landing page.
+ */
 export function HomePage({
   user = demoUser,
   projects = demoProjects,
@@ -342,36 +312,38 @@ export function HomePage({
   onOpenDesign,
   onAccount,
   onLogOut,
+  onOpenExample,
+  onBrowseGallery,
+  onChoosePlan,
+  onSection,
 }: HomePageProps) {
-  const signedIn = user !== null;
+  if (user === null) {
+    return (
+      <LandingPage
+        autoAdvanceMs={autoAdvanceMs}
+        onHome={onHome}
+        onLogIn={onLogIn}
+        onSignUp={onSignUp}
+        onOpenExample={onOpenExample}
+        onOpenDesign={onOpenDesign}
+        onNewProject={onNewProject}
+        onBrowseGallery={onBrowseGallery}
+        onChoosePlan={onChoosePlan}
+        onSection={onSection}
+      />
+    );
+  }
+
   return (
     <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <Stack
-        spacing={{ xs: 4, md: 6 }}
-        sx={{
-          flex: 1,
-          width: '100%',
-          maxWidth: (theme) => theme.spacing(theme.layout.pageMaxWidth),
-          mx: 'auto',
-          px: { xs: 2, md: 5 },
-          pt: { xs: 3, md: 5 },
-          pb: 3,
-        }}
-      >
-        <SiteHeader
-          tagline={user ? `Welcome back, ${user.name}.` : 'Design optical instruments from openUC2 cubes.'}
-          user={user}
-          onHome={onHome}
-          onLogIn={onLogIn}
-          onSignUp={onSignUp}
-          onAccount={onAccount}
-          onLogOut={onLogOut}
-        />
+      <SiteHeader user={user} onHome={onHome} onLogIn={onLogIn} onSignUp={onSignUp} onProjects={onHome} onAccount={onAccount} onLogOut={onLogOut} />
 
+      <PageContainer component="main" sx={{ flex: 1, pt: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 } }}>
+        <Typography variant="h1" sx={{ mb: { xs: 3, md: 4 } }}>
+          Welcome back, {user.name}.
+        </Typography>
         <Box
-          component="main"
           sx={{
-            flex: 1,
             display: 'grid',
             gap: { xs: 4, lg: 5 },
             gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
@@ -382,15 +354,13 @@ export function HomePage({
               title="Your projects"
               flush
               action={
-                signedIn && (
-                  <Link href="#projects" variant="body2">
-                    View all
-                  </Link>
-                )
+                <Link href="#projects" variant="body2">
+                  View all
+                </Link>
               }
             >
               <ProjectsBody
-                signedIn={signedIn}
+                signedIn
                 projects={projects}
                 onOpenProject={onOpenProject}
                 onNewProject={onNewProject}
@@ -424,9 +394,9 @@ export function HomePage({
             </DashboardCard>
           </Stack>
         </Box>
+      </PageContainer>
 
-        <SiteFooter />
-      </Stack>
+      <SiteFooter />
     </Box>
   );
 }

@@ -272,6 +272,15 @@ export const layout = {
   thumbnailHeight: 20,
   /** Stacked-card content height, so switching cards never shifts the layout. */
   stackedCardHeight: 34,
+  /** Site top bar (landing, home, account): height, and the tint of the page behind it. */
+  topbarHeight: 8,
+  /** Percent of the page colour kept in the translucent top bar (derived). */
+  topbarTint: 78,
+  /** Backdrop blur behind the top bar, spacing units (derived). */
+  topbarBlur: 1.5,
+  /** Height of the example stage on the signed-out landing page. */
+  exampleStageHeight: 58,
+  exampleStageHeightCompact: 36,
   hairline,
 } as const;
 
@@ -385,6 +394,9 @@ export const fontWeight = {
  * Label 10/500, Mono 12/400. The remaining MUI variants sit between them.
  */
 export const typeScale = {
+  // Marketing sizes for the signed-out landing page only (derived; Bench stops at Display 24).
+  display: { fontSize: 'clamp(1.75rem, 4vw, 2.75rem)', lineHeight: 1.15, fontWeight: fontWeight.semibold, letterSpacing: '-0.02em' },
+  headline: { fontSize: 'clamp(1.375rem, 2.6vw, 1.875rem)', lineHeight: 1.2, fontWeight: fontWeight.semibold, letterSpacing: '-0.015em' },
   h1: { fontSize: '1.5rem', lineHeight: 1.3, fontWeight: fontWeight.semibold, letterSpacing: '-0.01em' }, // Display 24
   h2: { fontSize: '1.0625rem', lineHeight: 1.4, fontWeight: fontWeight.semibold }, // Section 17
   h3: { fontSize: '1rem', lineHeight: 1.4, fontWeight: fontWeight.semibold },
