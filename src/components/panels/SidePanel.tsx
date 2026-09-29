@@ -5,7 +5,9 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import type { Theme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 
@@ -18,9 +20,14 @@ export type SidePanelState = 'collapsed' | 'expanded' | 'pinned';
 
 export interface SidePanelItem {
   id: string;
+  /** Rail tooltip, and the panel title unless `title` is given. */
   label: string;
   icon: ReactNode;
   content: ReactNode;
+  /** Panel title when it should differ from the rail label (e.g. the selected symbol's name). */
+  title?: ReactNode;
+  /** Pinned to the bottom of the panel, outside the scroll area (e.g. "+ Add symbol"). */
+  footer?: ReactNode;
 }
 
 export interface SidePanelProps {
@@ -35,10 +42,12 @@ export interface SidePanelProps {
   onActiveChange?: (id: string) => void;
   /** Rendered at the bottom of the rail (e.g. settings). */
   railFooter?: ReactNode;
+  /** Which edge the panel sits on; the rail is always on the outside. */
+  side?: 'left' | 'right';
   'aria-label'?: string;
 }
 
-/** Collapsible left side panel: icon rail plus an expandable or pinnable panel. */
+/** Collapsible side panel: icon rail plus an expandable or pinnable panel, on either edge. */
 export function SidePanel({
   items,
   state: stateProp,
@@ -48,8 +57,11 @@ export function SidePanel({
   defaultActiveId,
   onActiveChange,
   railFooter,
+  side = 'left',
   'aria-label': ariaLabel = 'Side panel',
 }: SidePanelProps) {
+  const left = side === 'left';
+  const inner = left ? 'borderRight' : 'borderLeft'; // border between rail/panel and the content
   const [innerState, setInnerState] = useState(defaultState);
   const [innerActiveId, setInnerActiveId] = useState(defaultActiveId ?? items[0]?.id);
   const state = stateProp ?? innerState;
@@ -82,7 +94,11 @@ export function SidePanel({
   };
 
   return (
-    <Box component="aside" aria-label={ariaLabel} sx={{ position: 'relative', display: 'flex', height: '100%', flexShrink: 0 }}>
+    <Box
+      component="aside"
+      aria-label={ariaLabel}
+      sx={{ position: 'relative', display: 'flex', flexDirection: left ? 'row' : 'row-reverse', height: '100%', flexShrink: 0 }}
+    >
       <Stack
         component="nav"
         sx={{
@@ -91,14 +107,14 @@ export function SidePanel({
           gap: 0.5,
           py: 1,
           bgcolor: 'background.paper',
-          borderRight: 1,
+          [inner]: 1,
           borderColor: 'divider',
         }}
       >
         {items.map((item) => {
           const selected = open && item.id === active?.id;
           return (
-            <Tooltip key={item.id} title={item.label} placement="right">
+            <Tooltip key={item.id} title={item.label} placement={left ? 'right' : 'left'}>
               <IconButton
                 aria-label={item.label}
                 aria-pressed={selected}
@@ -127,12 +143,12 @@ export function SidePanel({
             position: pinned ? 'relative' : 'absolute',
             top: 0,
             bottom: 0,
-            left: pinned ? undefined : (theme) => theme.spacing(theme.layout.railWidth),
+            [left ? 'left' : 'right']: pinned ? undefined : (theme: Theme) => theme.spacing(theme.layout.railWidth),
             zIndex: (theme) => theme.zIndex.drawer,
             width: (theme) => theme.spacing(theme.layout.sidePanelWidth),
             display: 'flex',
             flexDirection: 'column',
-            borderRight: 1,
+            [inner]: 1,
             borderColor: 'divider',
           }}
         >
@@ -148,7 +164,7 @@ export function SidePanel({
             }}
           >
             <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
-              {active.label}
+              {active.title ?? active.label}
             </Typography>
             <Tooltip title={pinned ? 'Unpin panel' : 'Pin panel'}>
               <IconButton
@@ -162,11 +178,12 @@ export function SidePanel({
             </Tooltip>
             <Tooltip title="Collapse">
               <IconButton aria-label="Collapse panel" onClick={() => setState('collapsed')}>
-                <ChevronLeftIcon fontSize="small" />
+                {left ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
           </Stack>
           <Box sx={{ flex: 1, overflow: 'auto' }}>{active.content}</Box>
+          {active.footer && <Box sx={{ borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>{active.footer}</Box>}
         </Paper>
       )}
     </Box>

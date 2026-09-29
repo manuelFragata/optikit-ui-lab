@@ -39,12 +39,22 @@ Values marked `(derived)` are not on the Bench sheet: some dark-mode greys and r
 
 Components never import `tokens.ts`. They read from the theme (`sx={{ bgcolor: 'background.paper' }}`, `theme.spacing(theme.layout.railWidth)`), so changing a token updates every story. The token stories are the only exception, because they exist to show the raw values.
 
+## Changing fonts
+
+Font candidates live in `src/theme/tokens.ts`:
+
+- `uiFonts` and `monoFonts` list the candidates. Each has a CSS family stack and its Google Fonts query.
+- `defaultFonts` names the pair the app and Storybook start with.
+
+To compare fonts, open **Tokens → Typography → Font candidates**, which shows every UI font side by side. To try one across all stories, pick it in the **Font** and **Mono** menus in the Storybook toolbar. To make it permanent, change `defaultFonts`. To add a new candidate, add an entry to `uiFonts` or `monoFonts` and it appears in the toolbar. Fonts load at runtime from these tokens (`src/theme/fonts.ts`), so no HTML file needs editing.
+
 ## Storybook
 
-The toolbar has two switches:
+The toolbar has four switches:
 
 - **Scheme**: light or dark. Sets the MUI colour scheme through `useColorScheme().setMode`.
 - **Density**: comfortable or compact. Rebuilds the theme with the other density.
+- **Font** and **Mono**: the UI and monospace typefaces (see "Changing fonts").
 
 Stories are grouped as follows:
 
@@ -67,6 +77,7 @@ src/
   components/
     primitives/        NumberInput, SliderField, TagChip, SelectField, Vec3Field, BrandMark, ColorSchemeToggle
     panels/            SidePanel, DisclosureSection, OverflowMenu, InspectorPanel
+    editor/            SchematicCanvas, CanvasToolbar, SymbolGlyph, model; panels/ for the sidebars
     cards/             BenchIllustration, CubeThumbnail, DashboardCard, DesignCard, StackedCards
     compositions/      AppHeader, SiteHeader, SiteFooter, CanvasPlaceholder, StatusBar, EditorShell
     pages/             HomePage (+ Home and Editor page stories)

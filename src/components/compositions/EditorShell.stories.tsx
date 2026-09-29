@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useArgs } from 'storybook/preview-api';
 import Box from '@mui/material/Box';
-import { demoPanelItems } from '../../demo/panelContent';
 import type { DensityName } from '../../theme';
 import { EditorShell, type EditorShellProps } from './EditorShell';
 
 /** `density` is read by the global theme decorator in .storybook/preview.tsx. */
 type ShellArgs = EditorShellProps & { density: DensityName };
+
+const PANEL_STATES = ['collapsed', 'expanded', 'pinned'];
 
 const meta = {
   title: 'Compositions/Editor Shell',
@@ -14,19 +15,25 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     headerVariant: 'light',
-    railState: 'collapsed',
-    activePanel: 'palette',
-    inspectorOpen: true,
+    leftState: 'collapsed',
+    leftPanel: 'palette',
+    rightState: 'collapsed',
+    rightPanel: 'properties',
+    selectedId: null,
+    view: 'schematic',
     density: 'comfortable',
-    projectName: 'Double Gauss 50 mm f/2',
   },
   argTypes: {
-    railState: { name: 'Rail', control: 'inline-radio', options: ['collapsed', 'expanded', 'pinned'] },
-    activePanel: { name: 'Active panel', control: 'inline-radio', options: demoPanelItems.map((i) => i.id) },
-    inspectorOpen: { name: 'Inspector open', control: 'boolean' },
+    leftState: { name: 'Left panel', control: 'inline-radio', options: PANEL_STATES },
+    leftPanel: { name: 'Left panel shows', control: 'inline-radio', options: ['palette', 'layers', 'parts', 'files'] },
+    rightState: { name: 'Right panel', control: 'inline-radio', options: PANEL_STATES },
+    rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'history', 'info'] },
+    selectedId: { name: 'Selected symbol', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
+    view: { name: 'Canvas view', control: 'inline-radio', options: ['schematic', 'parts', 'assembly'] },
     headerVariant: { name: 'Header style', control: 'inline-radio', options: ['navy', 'light'] },
     density: { name: 'Density', control: 'inline-radio', options: ['comfortable', 'compact'] },
     headerActions: { control: false },
+    schematic: { control: false },
   },
   decorators: [
     (Story) => (
@@ -40,9 +47,12 @@ const meta = {
     return (
       <EditorShell
         {...args}
-        onRailStateChange={(railState) => updateArgs({ railState })}
-        onActivePanelChange={(activePanel) => updateArgs({ activePanel })}
-        onInspectorOpenChange={(inspectorOpen) => updateArgs({ inspectorOpen })}
+        onLeftStateChange={(leftState) => updateArgs({ leftState })}
+        onLeftPanelChange={(leftPanel) => updateArgs({ leftPanel })}
+        onRightStateChange={(rightState) => updateArgs({ rightState })}
+        onRightPanelChange={(rightPanel) => updateArgs({ rightPanel })}
+        onSelectedIdChange={(selectedId) => updateArgs({ selectedId })}
+        onViewChange={(view) => updateArgs({ view })}
       />
     );
   },
@@ -51,13 +61,21 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  name: 'Everything collapsed',
+};
 
-export const EverythingCollapsed: Story = {
-  args: { railState: 'collapsed', inspectorOpen: false },
+export const SymbolSelected: Story = {
+  name: 'Symbol selected',
+  args: { selectedId: 'S3', rightState: 'expanded' },
 };
 
 export const Working: Story = {
-  name: 'Working (palette + inspector open)',
-  args: { railState: 'pinned', activePanel: 'palette', inspectorOpen: true },
+  name: 'Working (palette + properties pinned)',
+  args: { leftState: 'pinned', rightState: 'pinned', selectedId: 'S3' },
+};
+
+export const AssemblyView: Story = {
+  name: 'Assembly view',
+  args: { view: 'assembly', rightState: 'pinned', rightPanel: 'info' },
 };

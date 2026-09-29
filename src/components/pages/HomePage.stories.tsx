@@ -10,7 +10,7 @@ const meta = {
     signedIn: true,
     userName: 'Manu',
     autoAdvanceMs: 7000,
-    onOpenProject: linkTo('Pages/Editor', 'Working'),
+    onOpenProject: linkTo('Pages/Editor', 'Working (palette + properties)'),
     onNewProject: linkTo('Pages/Editor', 'New project'),
     onHome: linkTo('Pages/Home', 'Signed in'),
     onLogIn: linkTo('Pages/Home', 'Signed in'),

@@ -264,8 +264,8 @@ export const layout = {
   sidePanelWidth: 40,
   inspectorWidth: 44,
   panelHeaderHeight: 6,
-  canvasGridMinor: 2,
-  canvasGridMajor: 10,
+  canvasGridMinor: 4,
+  canvasGridMajor: 20,
   /** Max content width of document-style pages (home, browse). */
   pageMaxWidth: 184,
   /** Height of design-card thumbnails. */
@@ -281,10 +281,97 @@ export type LayoutTokens = typeof layout;
 /* Typography                                                          */
 /* ------------------------------------------------------------------ */
 
-export const fontFamily = {
-  ui: '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif',
-  mono: '"IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace',
-} as const;
+export interface FontOption {
+  label: string;
+  /** CSS font-family stack. */
+  family: string;
+  /** Google Fonts `family=` query, loaded at runtime by theme/fonts.ts. */
+  google: string;
+  note: string;
+}
+
+const SANS_FALLBACK = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+const MONO_FALLBACK = 'ui-monospace, "SFMono-Regular", Consolas, monospace';
+
+/**
+ * UI typeface candidates. Switch between them live with the Storybook
+ * toolbar ("Font"); make one the default with `defaultFonts` below.
+ */
+export const uiFonts = {
+  plex: {
+    label: 'IBM Plex Sans',
+    family: `"IBM Plex Sans", ${SANS_FALLBACK}`,
+    google: 'IBM+Plex+Sans:wght@400;500;600;700',
+    note: 'Humanist, soft curves. The original choice.',
+  },
+  instrument: {
+    label: 'Instrument Sans',
+    family: `"Instrument Sans", ${SANS_FALLBACK}`,
+    google: 'Instrument+Sans:wght@400;500;600;700',
+    note: 'Compact grotesque, flat terminals. Close to the Bench mockups.',
+  },
+  interTight: {
+    label: 'Inter Tight',
+    family: `"Inter Tight", ${SANS_FALLBACK}`,
+    google: 'Inter+Tight:wght@400;500;600;700',
+    note: 'Neutral UI grotesque, tighter spacing than Inter.',
+  },
+  archivo: {
+    label: 'Archivo',
+    family: `"Archivo", ${SANS_FALLBACK}`,
+    google: 'Archivo:wght@400;500;600;700',
+    note: 'Sturdy engineering grotesque, squarer curves.',
+  },
+  barlow: {
+    label: 'Barlow',
+    family: `"Barlow", ${SANS_FALLBACK}`,
+    google: 'Barlow:wght@400;500;600;700',
+    note: 'DIN-like, technical signage feel. Narrow.',
+  },
+  publicSans: {
+    label: 'Public Sans',
+    family: `"Public Sans", ${SANS_FALLBACK}`,
+    google: 'Public+Sans:wght@400;500;600;700',
+    note: 'Plain government-style neo-grotesque.',
+  },
+} satisfies Record<string, FontOption>;
+
+/** Monospace candidates for labels, values and coordinates ("Mono" in the toolbar). */
+export const monoFonts = {
+  plexMono: {
+    label: 'IBM Plex Mono',
+    family: `"IBM Plex Mono", ${MONO_FALLBACK}`,
+    google: 'IBM+Plex+Mono:wght@400;500',
+    note: 'Slab-ish, typewriter feel.',
+  },
+  jetbrains: {
+    label: 'JetBrains Mono',
+    family: `"JetBrains Mono", ${MONO_FALLBACK}`,
+    google: 'JetBrains+Mono:wght@400;500',
+    note: 'Tall x-height, very legible numbers.',
+  },
+  robotoMono: {
+    label: 'Roboto Mono',
+    family: `"Roboto Mono", ${MONO_FALLBACK}`,
+    google: 'Roboto+Mono:wght@400;500',
+    note: 'Neutral and narrow.',
+  },
+  sourceCode: {
+    label: 'Source Code Pro',
+    family: `"Source Code Pro", ${MONO_FALLBACK}`,
+    google: 'Source+Code+Pro:wght@400;500',
+    note: 'Light, open, classic code face.',
+  },
+} satisfies Record<string, FontOption>;
+
+export type UiFontName = keyof typeof uiFonts;
+export type MonoFontName = keyof typeof monoFonts;
+
+/** The fonts the app and Storybook start with. Change these two names to switch for good. */
+export const defaultFonts: { ui: UiFontName; mono: MonoFontName } = {
+  ui: 'instrument',
+  mono: 'jetbrains',
+};
 
 export const fontWeight = {
   regular: 400,
@@ -318,7 +405,8 @@ export const typeScale = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
   },
-  mono: { fontFamily: fontFamily.mono, fontSize: '0.75rem', lineHeight: 1.5, fontWeight: fontWeight.regular }, // Mono 12
+  // fontFamily comes from the selected mono font (see createAppTheme).
+  mono: { fontSize: '0.75rem', lineHeight: 1.5, fontWeight: fontWeight.regular }, // Mono 12
 } as const;
 
 export type TypeScaleVariant = keyof typeof typeScale;

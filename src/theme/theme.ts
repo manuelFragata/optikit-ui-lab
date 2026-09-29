@@ -2,15 +2,19 @@ import type { CSSProperties } from 'react';
 import { createTheme, type Theme } from '@mui/material/styles';
 import {
   colorRoles,
+  defaultFonts,
   density as densityTokens,
-  fontFamily,
   layout,
+  monoFonts,
   radius,
   typeScale,
+  uiFonts,
   type ColorRoles,
   type DensityName,
   type LayoutTokens,
+  type MonoFontName,
   type RadiusTokens,
+  type UiFontName,
 } from './tokens';
 
 /* ------------------------------------------------------------------ */
@@ -23,11 +27,13 @@ declare module '@mui/material/styles' {
     density: DensityName;
     /** Radii in px; `shape.borderRadius` equals `radius.base`. */
     radius: RadiusTokens;
+    fonts: { ui: UiFontName; mono: MonoFontName };
   }
   interface ThemeOptions {
     layout?: LayoutTokens;
     density?: DensityName;
     radius?: RadiusTokens;
+    fonts?: { ui: UiFontName; mono: MonoFontName };
   }
   interface Palette {
     header: ColorRoles['header'];
@@ -76,7 +82,17 @@ declare module '@mui/material/Typography' {
 /* Theme factory                                                       */
 /* ------------------------------------------------------------------ */
 
-export function createAppTheme(densityName: DensityName = 'comfortable'): Theme {
+export interface AppThemeOptions {
+  density?: DensityName;
+  uiFont?: UiFontName;
+  monoFont?: MonoFontName;
+}
+
+export function createAppTheme({
+  density: densityName = 'comfortable',
+  uiFont = defaultFonts.ui,
+  monoFont = defaultFonts.mono,
+}: AppThemeOptions = {}): Theme {
   const d = densityTokens[densityName];
   const size = d.controlSize;
   const dense = densityName === 'compact';
@@ -92,12 +108,14 @@ export function createAppTheme(densityName: DensityName = 'comfortable'): Theme 
     spacing: d.spacing,
     shape: { borderRadius: radius.base },
     typography: {
-      fontFamily: fontFamily.ui,
+      fontFamily: uiFonts[uiFont].family,
       ...typeScale,
+      mono: { ...typeScale.mono, fontFamily: monoFonts[monoFont].family },
     },
     layout,
     radius,
     density: densityName,
+    fonts: { ui: uiFont, mono: monoFont },
     components: {
       MuiButton: {
         defaultProps: { size, disableElevation: true },

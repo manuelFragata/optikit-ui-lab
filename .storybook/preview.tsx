@@ -2,7 +2,16 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, useColorScheme } from '@mui/material/styles';
-import { createAppTheme, type DensityName } from '../src/theme';
+import {
+  createAppTheme,
+  defaultFonts,
+  loadFonts,
+  monoFonts,
+  uiFonts,
+  type DensityName,
+  type MonoFontName,
+  type UiFontName,
+} from '../src/theme';
 
 type Scheme = 'light' | 'dark';
 
@@ -16,13 +25,18 @@ function SchemeSync({ scheme }: { scheme: Scheme }) {
 function ThemeWrapper({
   scheme,
   density,
+  uiFont,
+  monoFont,
   children,
 }: {
   scheme: Scheme;
   density: DensityName;
+  uiFont: UiFontName;
+  monoFont: MonoFontName;
   children: ReactNode;
 }) {
-  const theme = useMemo(() => createAppTheme(density), [density]);
+  useEffect(() => loadFonts(uiFont, monoFont), [uiFont, monoFont]);
+  const theme = useMemo(() => createAppTheme({ density, uiFont, monoFont }), [density, uiFont, monoFont]);
   return (
     <ThemeProvider theme={theme} defaultMode={scheme} storageManager={null} disableTransitionOnChange>
       <CssBaseline enableColorScheme />
@@ -38,6 +52,8 @@ const withMuiTheme: Decorator = (Story, context) => (
   <ThemeWrapper
     scheme={(context.globals.scheme ?? 'light') as Scheme}
     density={(context.args.density ?? context.globals.density ?? 'comfortable') as DensityName}
+    uiFont={(context.globals.uiFont ?? defaultFonts.ui) as UiFontName}
+    monoFont={(context.globals.monoFont ?? defaultFonts.mono) as MonoFontName}
   >
     <Story />
   </ThemeWrapper>
@@ -70,10 +86,31 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    // Font candidates come from tokens.ts; add one there and it shows up here.
+    uiFont: {
+      description: 'UI typeface',
+      toolbar: {
+        title: 'Font',
+        icon: 'paragraph',
+        items: Object.entries(uiFonts).map(([value, f]) => ({ value, title: f.label })),
+        dynamicTitle: true,
+      },
+    },
+    monoFont: {
+      description: 'Monospace typeface',
+      toolbar: {
+        title: 'Mono',
+        icon: 'markup',
+        items: Object.entries(monoFonts).map(([value, f]) => ({ value, title: f.label })),
+        dynamicTitle: true,
+      },
+    },
   },
   initialGlobals: {
     scheme: 'light',
     density: 'comfortable',
+    uiFont: defaultFonts.ui,
+    monoFont: defaultFonts.mono,
   },
   parameters: {
     layout: 'padded',
@@ -89,6 +126,7 @@ const preview: Preview = {
           ['Side Panel', 'Disclosure Section', 'Overflow Menu', 'Inspector Panel'],
           'Cards',
           ['Dashboard Card', 'Design Card', 'Stacked Cards'],
+          'Editor',
           'Compositions',
           'Pages',
           ['Home', 'Editor'],
