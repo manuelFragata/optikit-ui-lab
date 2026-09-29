@@ -22,6 +22,8 @@ export interface BenchPreviewProps {
   autoAdvanceMs?: number;
   /** The pill that straddles the stage's bottom edge ("Start your own bench"). */
   onStart?: () => void;
+  /** Section title, set large in the stage's notch. */
+  title?: string;
 }
 
 const STEP_OF: Record<FeatureHighlight['id'], BenchStep> = {
@@ -59,7 +61,7 @@ function InvertedCorner({ sx }: { sx: object }) {
  * an exploded build view). Drag to turn it; click a part to see what it is.
  * three.js loads only when the stage comes near the viewport.
  */
-export function BenchPreview({ features, autoAdvanceMs = 6500, onStart }: BenchPreviewProps) {
+export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }: BenchPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<BenchScene | null>(null);
@@ -246,25 +248,30 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart }: BenchP
           </Paper>
         )}
 
-        {/* The notch: the step's title sits in a cut-out of the stage's top-left corner. */}
+        {/* The notch: the section's title and the current step sit in a cut-out of the stage's top-left corner. */}
         <Box
           sx={(t) => ({
             position: 'absolute',
             top: 0,
             left: 0,
-            width: { xs: '72%', sm: t.spacing(56) },
-            pr: { xs: 2.5, md: 4 },
-            pb: { xs: 2, md: 3 },
+            width: { xs: '86%', sm: t.spacing(title ? 92 : 56) },
+            pr: { xs: 2.5, md: 5 },
+            pb: { xs: 2.5, md: 4 },
             bgcolor: 'background.default',
             borderBottomRightRadius: stageRadius(t),
           })}
         >
+          {title && (
+            <Typography variant="headline" component="h2" sx={{ pt: 0.5, mb: { xs: 2, md: 3 } }}>
+              {title}
+            </Typography>
+          )}
           <Fade in key={feature.id} timeout={reducedMotion ? 0 : 300}>
-            <Box sx={{ pt: 0.5 }}>
-              <Typography variant="headline" component="h3">
+            <Box sx={(t) => ({ pt: title ? 0 : 0.5, minHeight: { md: t.spacing(12) } })}>
+              <Typography variant={title ? 'h1' : 'headline'} component="h3">
                 {feature.title}
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: (t) => t.spacing(48) }}>
+              <Typography variant="body1" color="text.secondary" sx={{ mt: title ? 0.5 : 1, maxWidth: (t) => t.spacing(56) }}>
                 {feature.text}
               </Typography>
             </Box>

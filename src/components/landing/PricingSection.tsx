@@ -57,7 +57,7 @@ function FeatureTags({ features, inverted }: { features: string[]; inverted: boo
 export function PricingSection({ plans, kits = [], onChoosePlan, onChooseKit }: PricingSectionProps) {
   return (
     <Stack spacing={{ xs: 4, md: 5 }}>
-      <SectionHeading eyebrow="Pricing" title="Designing is free">
+      <SectionHeading title="Designing is free">
         Pay when you need more private projects, or the files to print and order parts.
       </SectionHeading>
 

@@ -12,7 +12,6 @@ import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
 import { PillButton } from './PillButton';
-import { SectionHeading } from './SectionHeading';
 
 export interface CommunitySectionProps {
   items: GalleryItem[];
@@ -89,8 +88,12 @@ function CornerArrow({ inverted }: { inverted?: boolean }) {
 
 const byline = (item: GalleryItem) => (item.source === 'optikit' ? 'Shipped with Optikit' : `@${item.author}`);
 
-/** The big card: the design's own drawing, live, with its name laid over it. */
-function FeaturedTile({ item, drawing, onOpen }: { item: GalleryItem; drawing?: Schematic; onOpen?: () => void }) {
+/**
+ * The section opens on a wide panel: this week's featured design, drawn live,
+ * with the section's title written over it (the title is part of the picture,
+ * not a header above it).
+ */
+function FeaturedPanel({ item, drawing, title, lead, onOpen }: { item: GalleryItem; drawing?: Schematic; title: string; lead: string; onOpen?: () => void }) {
   return (
     <ButtonBase
       onClick={onOpen}
@@ -98,18 +101,17 @@ function FeaturedTile({ item, drawing, onOpen }: { item: GalleryItem; drawing?: 
       sx={(t) => ({
         position: 'relative',
         display: 'block',
+        width: '100%',
         textAlign: 'left',
-        minHeight: t.spacing(64),
-        height: '100%',
+        height: { xs: t.spacing(72), md: t.spacing(84) },
         borderRadius: tileRadius(t),
         overflow: 'hidden',
         bgcolor: 'canvas.ground',
-        border: `${t.layout.hairline}px solid ${(t.vars ?? t).palette.divider}`,
         '&:hover .corner-arrow': { transform: 'rotate(45deg)' },
       })}
     >
-      {/* The drawing keeps to the top; the title block sits below it on the fade. */}
-      <Box sx={(t) => ({ position: 'absolute', top: t.spacing(6), left: 0, right: 0, bottom: t.spacing(20), display: 'flex', pointerEvents: 'none' })}>
+      {/* The drawing keeps to the upper part; the words sit below it on a fade. */}
+      <Box sx={(t) => ({ position: 'absolute', top: t.spacing(4), left: '18%', right: 0, bottom: { xs: t.spacing(30), md: t.spacing(26) }, display: 'flex', pointerEvents: 'none' })}>
         {drawing ? (
           <SchematicCanvas fit schematic={drawing} selectedId={null} onSelect={() => undefined} options={{ showRayLabels: false }} hint={false} />
         ) : (
@@ -118,34 +120,47 @@ function FeaturedTile({ item, drawing, onOpen }: { item: GalleryItem; drawing?: 
           </Box>
         )}
       </Box>
-      <Stack direction="row" spacing={0.75} sx={{ position: 'absolute', top: (t) => t.spacing(2), left: (t) => t.spacing(2) }}>
-        <Pill overlay>Build of the week</Pill>
-        <Pill overlay>{item.kind}</Pill>
-      </Stack>
+
+      <Box sx={{ position: 'absolute', top: (t) => t.spacing(3.5), left: (t) => t.spacing(4) }}>
+        <Typography variant="meta" color="text.secondary" component="div">
+          Build of the week
+        </Typography>
+        <Typography variant="subtitle1">{item.title}</Typography>
+        <Typography variant="meta" color="text.meta" component="div">
+          {byline(item)} · {item.cubes} cubes{item.forks ? ` · ${item.forks} people built their own` : ''}
+        </Typography>
+      </Box>
       <CornerArrow inverted />
-      {/* Title block on a fade so it reads over the drawing. */}
+
       <Box
         sx={(t) => ({
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
-          p: { xs: 2.5, md: 3.5 },
-          pt: 10,
-          background: `linear-gradient(180deg, transparent, ${(t.vars ?? t).palette.background.paper} 45%)`,
+          px: { xs: 3, md: 5 },
+          pb: { xs: 3, md: 5 },
+          pt: 14,
+          background: `linear-gradient(180deg, transparent, ${(t.vars ?? t).palette.canvas.ground} 42%)`,
+          display: 'grid',
+          gap: { xs: 2, md: 6 },
+          alignItems: 'end',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 3fr) minmax(0, 2fr)' },
         })}
       >
-        <Typography variant="headline" component="h3">
-          {item.title}
+        <Typography variant="display" component="h2">
+          {title}
         </Typography>
-        {item.blurb && (
-          <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: (t) => t.spacing(64) }}>
-            {item.blurb}
+        <Box>
+          {item.blurb && (
+            <Typography variant="body1" sx={{ mb: 1.5 }}>
+              {item.title}: {item.blurb}
+            </Typography>
+          )}
+          <Typography variant="body1" color="text.secondary">
+            {lead}
           </Typography>
-        )}
-        <Typography variant="meta" color="text.meta" component="div" sx={{ mt: 1.5 }}>
-          {byline(item)} · {item.cubes} cubes{item.forks ? ` · ${item.forks} people built their own` : ''}
-        </Typography>
+        </Box>
       </Box>
     </ButtonBase>
   );
@@ -186,43 +201,55 @@ function SmallTile({ item, onOpen }: { item: GalleryItem; onOpen?: () => void })
 }
 
 /**
- * The community gallery: filter pills, a featured design shown with its live
- * drawing, smaller tiles beside it, and a strip of makers with the numbers.
+ * The community gallery: a wide panel with this week's design and the
+ * section's title over it, a row of the latest designs with filter pills,
+ * and a strip of makers with the numbers.
  */
 export function CommunitySection({ items, drawings = {}, facts, makers = [], onOpenDesign, onBrowseGallery, forumUrl = '#forum' }: CommunitySectionProps) {
   const [filter, setFilter] = useState<Filter>('all');
-  const shown = items.filter((i) => filter === 'all' || i.kind === filter);
-  const featured = shown.find((i) => i.source === 'community' && drawings[i.id]) ?? shown.find((i) => drawings[i.id]) ?? shown[0];
-  const rest = shown.filter((i) => i !== featured).slice(0, 4);
+  // The spotlight stays put; the filters act on the row below it.
+  const spotlight = items.find((i) => i.source === 'community' && drawings[i.id]) ?? items[0];
+  const latest = items.filter((i) => i !== spotlight && (filter === 'all' || i.kind === filter)).slice(0, 4);
 
   return (
-    <Stack spacing={{ xs: 4, md: 5 }}>
-      <SectionHeading eyebrow="Community gallery" title="Start from someone else's microscope">
-        Every design in the gallery is open. Open one, change the parts that don't fit your bench, and share your version back.
-      </SectionHeading>
+    <Stack spacing={{ xs: 5, md: 7 }}>
+      {spotlight && (
+        <FeaturedPanel
+          item={spotlight}
+          drawing={drawings[spotlight.id]}
+          title="Start from someone else's microscope"
+          lead="Every design in the gallery is open. Open one, change the parts that don't fit your bench, and share your version back."
+          onOpen={() => onOpenDesign?.(spotlight.id)}
+        />
+      )}
 
-      <Stack direction="row" useFlexGap spacing={0.75} sx={{ flexWrap: 'wrap' }} role="group" aria-label="Filter the gallery">
-        {FILTERS.map((f) => (
-          <Pill key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
-            {f.label}
-          </Pill>
-        ))}
-      </Stack>
+      <Stack spacing={3}>
+        {/* The row's title shares the line with its controls, as in a catalogue. */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { xs: 'flex-start', sm: 'flex-end' }, justifyContent: 'space-between' }}>
+          <Typography variant="headline" component="h3">
+            Latest from the gallery
+          </Typography>
+          <Stack direction="row" useFlexGap spacing={0.75} sx={{ flexWrap: 'wrap' }} role="group" aria-label="Filter the gallery">
+            {FILTERS.map((f) => (
+              <Pill key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
+                {f.label}
+              </Pill>
+            ))}
+          </Stack>
+        </Stack>
 
-      {featured ? (
-        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 7fr) minmax(0, 5fr)' } }}>
-          <FeaturedTile item={featured} drawing={drawings[featured.id]} onOpen={() => onOpenDesign?.(featured.id)} />
-          <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', alignContent: 'start' }}>
-            {rest.map((item) => (
+        {latest.length > 0 ? (
+          <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' } }}>
+            {latest.map((item) => (
               <SmallTile key={item.id} item={item} onOpen={() => onOpenDesign?.(item.id)} />
             ))}
           </Box>
-        </Box>
-      ) : (
-        <Typography variant="body1" color="text.secondary">
-          Nothing in this group yet.
-        </Typography>
-      )}
+        ) : (
+          <Typography variant="body1" color="text.secondary">
+            Nothing in this group yet.
+          </Typography>
+        )}
+      </Stack>
 
       {/* Who is behind it: a stack of makers, the numbers, the way in. */}
       <Stack
