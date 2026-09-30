@@ -7,6 +7,7 @@ import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { PricingPlan } from '../../demo/landingContent';
 import { PillButton } from './PillButton';
 import { SectionHeading } from './SectionHeading';
+import { useStaggerIn } from './motion';
 
 export interface KitOffer {
   id: string;
@@ -55,6 +56,8 @@ function FeatureTags({ features, inverted }: { features: string[]; inverted: boo
  * would rather not print.
  */
 export function PricingSection({ plans, kits = [], onChoosePlan, onChooseKit }: PricingSectionProps) {
+  const plansRef = useStaggerIn<HTMLDivElement>();
+  const kitsRef = useStaggerIn<HTMLDivElement>({ y: 16, stagger: 0.08 });
   return (
     <Stack spacing={{ xs: 4, md: 5 }}>
       <SectionHeading title="Designing is free">
@@ -62,6 +65,7 @@ export function PricingSection({ plans, kits = [], onChoosePlan, onChooseKit }: 
       </SectionHeading>
 
       <Box
+        ref={plansRef}
         sx={(t) => ({
           display: 'grid',
           gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `repeat(${plans.length}, minmax(0, 1fr))` },
@@ -125,6 +129,7 @@ export function PricingSection({ plans, kits = [], onChoosePlan, onChooseKit }: 
 
       {kits.length > 0 && (
         <Box
+          ref={kitsRef}
           sx={(t) => ({
             display: 'grid',
             gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `minmax(0, 1fr) repeat(${kits.length}, minmax(0, 1fr))` },

@@ -14,6 +14,22 @@ import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
 import { PillButton } from './PillButton';
+import { useCountUp, useRiseIn } from './motion';
+
+/** One of the community's numbers; it counts up as it comes into view. */
+function Fact({ value, label }: { value: string; label: string }) {
+  const ref = useCountUp<HTMLSpanElement>();
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+      <Typography ref={ref} variant="headline" component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </Typography>
+      <Typography variant="meta" color="text.meta">
+        {label}
+      </Typography>
+    </Stack>
+  );
+}
 
 export interface CommunitySectionProps {
   items: GalleryItem[];
@@ -112,6 +128,7 @@ function FeaturedPanel({
   lead: string;
   onOpen?: () => void;
 }) {
+  const titleRef = useRiseIn<HTMLHeadingElement>();
   return (
     <ButtonBase
       onClick={onOpen}
@@ -176,7 +193,7 @@ function FeaturedPanel({
           gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 3fr) minmax(0, 2fr)' },
         })}
       >
-        <Typography variant="display" component="h2">
+        <Typography ref={titleRef} variant="display" component="h2">
           {title}
         </Typography>
         <Box>
@@ -308,14 +325,7 @@ export function CommunitySection({ items, drawings = {}, assemblies = {}, facts,
         )}
         <Stack direction="row" useFlexGap spacing={4} sx={{ flexWrap: 'wrap', flex: 1 }}>
           {facts.map((fact) => (
-            <Stack key={fact.label} direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-              <Typography variant="headline" component="span">
-                {fact.value}
-              </Typography>
-              <Typography variant="meta" color="text.meta">
-                {fact.label}
-              </Typography>
-            </Stack>
+            <Fact key={fact.label} value={fact.value} label={fact.label} />
           ))}
         </Stack>
         <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center' }}>

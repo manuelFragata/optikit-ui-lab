@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import { useRiseIn } from './motion';
 
 export interface SectionHeadingProps {
   title: ReactNode;
@@ -14,6 +15,7 @@ export interface SectionHeadingProps {
  * separating.
  */
 export function SectionHeading({ title, children }: SectionHeadingProps) {
+  const titleRef = useRiseIn<HTMLHeadingElement>();
   return (
     <Box
       sx={{
@@ -23,7 +25,7 @@ export function SectionHeading({ title, children }: SectionHeadingProps) {
         gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: children ? 'minmax(0, 3fr) minmax(0, 2fr)' : 'minmax(0, 1fr)' },
       }}
     >
-      <Typography variant="headline" component="h2">
+      <Typography ref={titleRef} variant="headline" component="h2">
         {title}
       </Typography>
       {children && (

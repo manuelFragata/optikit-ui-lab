@@ -176,7 +176,7 @@ export function SchematicCanvas({
               const prev = pts[Math.max(0, Math.min(ray.labelAt, pts.length - 1) - 1)];
               const endsRight = lp.x >= prev.x;
               return (
-                <Box component="g" key={ray.id} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                <Box component="g" key={ray.id} className="schematic-ray" sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
                   <path d="M-0.2 -0.14 L0.2 0 L-0.2 0.14 Z" fill="currentColor" transform={`translate(${mid.x} ${mid.y}) rotate(${angle})`} />
                   {options.showRayLabels && (

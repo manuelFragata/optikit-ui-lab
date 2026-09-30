@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Button, { type ButtonProps } from '@mui/material/Button';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
+import { pressDown, pressUp } from './motion';
 
 export interface PillButtonProps extends Omit<ButtonProps, 'variant' | 'endIcon'> {
   /** `solid`: brand-blue fill, for the one main action. `outline`: hairline. `paper`: for use on a blue or ink surface. */
@@ -24,12 +25,24 @@ const LEAD = 2.25;
  * end. The label starts close to the pill's start; the arrow keeps the room it
  * needs at the other end.
  */
-export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest }: PillButtonProps) {
+export function PillButton({ tone = 'solid', arrow = true, children, sx, onPointerDown, onPointerUp, onPointerLeave, ...rest }: PillButtonProps) {
   const solid = tone === 'solid';
   const paper = tone === 'paper';
   return (
     <Button
       {...rest}
+      onPointerDown={(e) => {
+        pressDown(e.currentTarget);
+        onPointerDown?.(e);
+      }}
+      onPointerUp={(e) => {
+        pressUp(e.currentTarget);
+        onPointerUp?.(e);
+      }}
+      onPointerLeave={(e) => {
+        pressUp(e.currentTarget);
+        onPointerLeave?.(e);
+      }}
       variant={solid || paper ? 'contained' : 'outlined'}
       sx={[
         (t) => ({
@@ -39,6 +52,8 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
           pr: arrow ? ARROW + ARROW_INSET + ARROW_GAP : LEAD,
           py: 0.75,
           minHeight: arrow ? t.spacing(ARROW + 2 * ARROW_INSET) : undefined,
+          '& .pill-arrow svg': { transition: 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' },
+          '&:hover .pill-arrow svg, &:focus-visible .pill-arrow svg': { transform: 'translate(1.5px, -1.5px)' },
           ...(solid
             ? { bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }
             : paper
@@ -52,6 +67,7 @@ export function PillButton({ tone = 'solid', arrow = true, children, sx, ...rest
       {arrow && (
         <Box
           component="span"
+          className="pill-arrow"
           aria-hidden
           sx={(t) => ({
             position: 'absolute',

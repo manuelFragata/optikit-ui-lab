@@ -13,6 +13,7 @@ import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { SliderField } from '../primitives/SliderField';
 import { ArrowDemo } from './ArrowDemo';
 import { AssemblyView } from './AssemblyView';
+import { drawRays } from './motion';
 import { PillButton } from './PillButton';
 import type { ExampleDesign } from '../../demo/landingContent';
 import { exampleAssemblies } from '../../demo/assemblies';
@@ -448,6 +449,9 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
     if (next === 'assembly') setPlayKey((k) => k + 1);
   };
 
+  // The front card's light paths draw themselves in each time it comes up.
+  useEffect(() => (stageRef.current ? drawRays(stageRef.current) : undefined), [front.id]);
+
   // Fetch the front card's parts soon after it comes up, so its assembly is ready when asked for.
   useEffect(() => {
     const timer = window.setTimeout(() => setPreload((p) => ({ ...p, [front.id]: true })), PRELOAD_MS);
@@ -570,7 +574,14 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
               <Box
                 inert={!isFront}
                 aria-hidden={isFront ? undefined : true}
-                sx={(t) => ({ height: '100%', overflow: 'hidden', borderRadius: `${t.radius.stage}px` })}
+                sx={(t) => ({
+                  height: '100%',
+                  overflow: 'hidden',
+                  borderRadius: `${t.radius.stage}px`,
+                  // Out of focus behind the front card, as if at a shallower depth of field.
+                  filter: isFront || reducedMotion ? 'none' : `blur(${depth * 1.5}px)`,
+                  transition: reducedMotion ? 'none' : `filter 700ms ${EASE}`,
+                })}
               >
                 <ExampleCard
                   example={example}

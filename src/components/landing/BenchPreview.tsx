@@ -14,6 +14,7 @@ import { benchColors } from '../../theme/tokens';
 import { OpenUC2Mark } from '../primitives/OpenUC2Mark';
 import { TagChip } from '../primitives/TagChip';
 import { PillButton } from './PillButton';
+import { useRiseIn } from './motion';
 import type { BenchControlState, BenchPin, BenchScene, BenchStep } from './bench3d/benchScene';
 
 export interface BenchPreviewProps {
@@ -215,6 +216,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
   const [pins, setPins] = useState<BenchPin[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const titleRef = useRiseIn<HTMLHeadingElement>();
   const { mode, systemMode } = useColorScheme();
   const scheme = (mode === 'system' ? systemMode : mode) === 'dark' ? 'dark' : 'light';
   const colors = benchColors[scheme];
@@ -465,7 +467,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
           })}
         >
           {title && (
-            <Typography variant="headline" component="h2" sx={{ pt: 0.5, mb: { xs: 2, md: 3 } }}>
+            <Typography ref={titleRef} variant="headline" component="h2" sx={{ pt: 0.5, mb: { xs: 2, md: 3 } }}>
               {title}
             </Typography>
           )}

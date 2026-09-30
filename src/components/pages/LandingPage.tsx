@@ -12,6 +12,7 @@ import { CommunitySection } from '../landing/CommunitySection';
 import { ExampleShowcase } from '../landing/ExampleShowcase';
 import { PricingSection } from '../landing/PricingSection';
 import { BenchPreview } from '../landing/BenchPreview';
+import { useRiseIn } from '../landing/motion';
 import { featuredBuild } from '../../demo/assemblies';
 
 export type LandingSection = 'examples' | 'community' | 'how-it-works' | 'pricing';
@@ -81,6 +82,16 @@ function Band({ id, children }: { id?: string; children: ReactNode }) {
  * What a signed-out visitor sees: a top bar, playable examples, the community
  * gallery, features and pricing, and the footer. Nothing else.
  */
+/** The page's title: its words rise into place as the page opens. */
+function HeroTitle({ children }: { children: ReactNode }) {
+  const ref = useRiseIn<HTMLHeadingElement>({ immediate: true, delay: 0.15 });
+  return (
+    <Typography ref={ref} variant="display" component="h1" sx={{ maxWidth: (t) => t.spacing(150) }}>
+      {children}
+    </Typography>
+  );
+}
+
 export function LandingPage({
   autoAdvanceMs = 9000,
   onHome,
@@ -119,11 +130,7 @@ export function LandingPage({
               autoAdvanceMs={autoAdvanceMs}
               onOpen={onOpenExample}
               onLocked={onSignUp}
-              heading={
-                <Typography variant="display" component="h1" sx={{ maxWidth: (t) => t.spacing(150) }}>
-                  See? You can do it 2, give it a try:
-                </Typography>
-              }
+              heading={<HeroTitle>See? You can do it 2, give it a try:</HeroTitle>}
               callout={{ title: 'Not just another ray tracer…', text: 'Every part you draw is a real openUC2 cube. Switch to the assembly to see them.' }}
             />
             <Box sx={{ mt: 2, textAlign: 'right' }}>

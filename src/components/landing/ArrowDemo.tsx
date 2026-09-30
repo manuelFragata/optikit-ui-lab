@@ -1,14 +1,16 @@
 import { useEffect, useId, useRef, type RefObject } from 'react';
 import Box from '@mui/material/Box';
+import { gsap } from './motion';
 
 type Point = { x: number; y: number };
 
 /**
- * The beats, in seconds from the start of a card's turn: the arrow draws out
+ * The beats, in seconds from the start of a card's turn (after the title and
+ * the card's light paths have come in): the arrow draws out
  * to the callout, the words come up, the arrow reels back into the card and
  * its head becomes the cursor, which clicks "Assembly".
  */
-const BEAT = { draw: 0.5, drawFor: 1.25, reveal: 1.35, collapse: 3.1, collapseFor: 0.95, morphFor: 0.4, moveFor: 0.7, press: 0.14, leave: 0.8 };
+const BEAT = { draw: 1.4, drawFor: 1.25, reveal: 2.25, collapse: 3.9, collapseFor: 0.95, morphFor: 0.4, moveFor: 0.7, press: 0.14, leave: 0.8 };
 
 /** Arrowhead, tip at the origin, pointing along +x. */
 const HEAD = 'M0 0 L-13 -6.5 L-9.5 0 L-13 6.5 Z';
@@ -86,15 +88,9 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
     const done = { reveal: false, click: false };
 
     (async () => {
-      const [{ gsap }, { DrawSVGPlugin }, { MorphSVGPlugin }] = await Promise.all([
-        import('gsap'),
-        import('gsap/DrawSVGPlugin'),
-        import('gsap/MorphSVGPlugin'),
-      ]);
       // Measure with the page's own fonts in place, or the title moves after.
       await document.fonts.ready;
       if (cancelled) return;
-      gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin);
 
       const build = () => {
         const svg = svgRef.current;
