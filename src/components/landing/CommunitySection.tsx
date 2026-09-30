@@ -21,7 +21,7 @@ function Fact({ value, label }: { value: string; label: string }) {
   const ref = useCountUp<HTMLSpanElement>();
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-      <Typography ref={ref} variant="headline" component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Typography ref={ref} variant="headline" component="span" sx={{ display: 'inline-block', fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Typography>
       <Typography variant="meta" color="text.meta">
@@ -315,7 +315,9 @@ export function CommunitySection({ items, drawings = {}, assemblies = {}, facts,
                   typography: 'subtitle2',
                   bgcolor: 'background.sunken',
                   color: 'text.primary',
-                  border: `${t.layout.hairline * 2}px solid ${(t.vars ?? t).palette.background.default}`,
+                  // A green ring, and outside it a gap in the page colour that cuts cleanly into the avatar beneath.
+                  border: `${t.layout.hairline * 2}px solid ${(t.vars ?? t).palette.brand.lime}`,
+                  boxShadow: `0 0 0 ${t.layout.hairline * 2}px ${(t.vars ?? t).palette.background.default}`,
                 })}
               >
                 {m}

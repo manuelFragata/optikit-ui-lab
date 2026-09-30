@@ -240,7 +240,6 @@ export const featureHighlights: FeatureHighlight[] = [
 export const communityFacts = [
   { value: '214', label: 'shared designs' },
   { value: '31', label: 'countries' },
-  { value: 'CC BY-SA', label: 'by default' },
 ];
 
 /** A few of the people sharing designs (initials for the avatar stack). */

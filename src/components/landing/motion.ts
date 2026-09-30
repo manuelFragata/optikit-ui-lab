@@ -73,7 +73,8 @@ export function useStaggerIn<T extends HTMLElement>({ y = 32, stagger = 0.12 }: 
 /**
  * A number that counts up from zero when it scrolls into view. The element
  * holds the final text (so it reads right without motion); text that is not
- * a whole number is left alone.
+ * a whole number is left alone. It keeps one width throughout, so what
+ * follows it doesn't move while it counts.
  */
 export function useCountUp<T extends HTMLElement>(): RefObject<T | null> {
   const ref = useRef<T>(null);
@@ -88,6 +89,20 @@ export function useCountUp<T extends HTMLElement>(): RefObject<T | null> {
         duration: 1.6,
         ease: 'power2.out',
         scrollTrigger: inView(el),
+        // Room for as many of the widest digit as the final number has (this
+        // face's digits are not all one width), measured now that the page's
+        // fonts are in.
+        onStart: () => {
+          let widest = 0;
+          for (let d = 0; d <= 9; d++) {
+            el.textContent = String(d).repeat(text.length);
+            widest = Math.max(widest, el.getBoundingClientRect().width);
+          }
+          el.style.minWidth = `${widest}px`;
+          // Spare room goes in front, so the number ends where its label starts.
+          el.style.textAlign = 'right';
+          el.textContent = '0';
+        },
         onUpdate: () => {
           el.textContent = String(Math.round(counter.value));
         },
@@ -97,6 +112,8 @@ export function useCountUp<T extends HTMLElement>(): RefObject<T | null> {
     return () => {
       ctx.revert();
       el.textContent = text;
+      el.style.minWidth = '';
+      el.style.textAlign = '';
     };
   }, []);
   return ref;

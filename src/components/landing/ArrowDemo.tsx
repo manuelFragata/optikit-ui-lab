@@ -10,6 +10,8 @@ type Point = { x: number; y: number };
  * to the callout, the words come up, the arrow reels back into the card and
  * its head becomes the cursor, which clicks "Assembly".
  */
+/** How long a card takes to slide to the front, s: nothing is measured before. */
+const SETTLE = 0.8;
 const BEAT = { draw: 1.4, drawFor: 1.25, reveal: 2.25, collapse: 3.9, collapseFor: 0.95, morphFor: 0.4, moveFor: 0.7, press: 0.14, leave: 0.8 };
 
 /** Arrowhead, tip at the origin, pointing along +x. */
@@ -88,8 +90,9 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
     const done = { reveal: false, click: false };
 
     (async () => {
-      // Measure with the page's own fonts in place, or the title moves after.
-      await document.fonts.ready;
+      // Measure with the page's own fonts in place, or the title moves after,
+      // and once the card has finished sliding to the front.
+      await Promise.all([document.fonts.ready, new Promise((r) => setTimeout(r, SETTLE * 1000))]);
       if (cancelled) return;
 
       const build = () => {
@@ -98,13 +101,19 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
         const button = fromRef.current?.getBoundingClientRect();
         const title = toRef.current?.getBoundingClientRect();
         if (!svg || !root || !button || !title) return;
-        const at = tl?.time() ?? 0;
+        const at = tl?.time() ?? SETTLE;
         tl?.kill();
 
         const s = { x: button.right - root.left + 16, y: button.top - root.top + button.height / 2 };
         const e = { x: title.left - root.left - 22, y: title.top - root.top + Math.min(title.height / 2, 24) };
-        // The middle of the word "Assembly".
-        const target = { x: button.left - root.left + button.width / 2, y: button.top - root.top + button.height / 2 };
+        // The middle of the word "Assembly", measured again on every frame in case anything has moved.
+        const target = { x: 0, y: 0 };
+        const aim = () => {
+          const r = rootRef.current?.getBoundingClientRect();
+          const b = fromRef.current?.getBoundingClientRect();
+          if (r && b) Object.assign(target, { x: b.left - r.left + b.width / 2, y: b.top - r.top + b.height / 2 });
+        };
+        aim();
         const d = arrowPath(s, e);
 
         const line = svg.querySelector<SVGPathElement>('.arrow-line')!;
@@ -122,6 +131,7 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
         // pointer, how far it has moved on to the button, and its press.
         const head = { along: 0, back: 0, upright: 0, move: 0, scale: 1, opacity: 0 };
         const draw = () => {
+          if (head.move > 0) aim();
           const len = head.along * total;
           const tip = line.getPointAtLength(len);
           const a = line.getPointAtLength(Math.max(0, len - 6));
@@ -169,7 +179,7 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
           .to(head, { opacity: 0, duration: 0.3 }, pressAt + BEAT.leave);
         tl = t;
         // Rebuilt after a layout change: carry on from where it was.
-        if (at > 0) t.time(at, true);
+        t.time(at, true);
       };
 
       build();
