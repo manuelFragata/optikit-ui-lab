@@ -11,6 +11,7 @@ import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { SliderField } from '../primitives/SliderField';
+import { ArrowDemo } from './ArrowDemo';
 import { AssemblyView } from './AssemblyView';
 import { PillButton } from './PillButton';
 import type { ExampleDesign } from '../../demo/landingContent';
@@ -52,12 +53,6 @@ const DEMO = { enter: 2600, move: 2700, click: 3900, leave: 4800 };
 const MIN_TURN_MS = 11000;
 /** Start fetching the 3D parts this long after a card comes to the front. */
 const PRELOAD_MS = 600;
-/**
- * The same demo when the callout is there, ms into the turn: the arrow draws
- * out to the callout, the words come up, the arrow pulls back into the card
- * and turns into the cursor, which clicks "Assembly".
- */
-const ARROW = { draw: [500, 1700], reveal: 1350, collapse: [3100, 4000], morph: 3750, move: [4150, 4850], click: 5050, leave: 5900 } as const;
 
 function setParam(schematic: Schematic, symbolId: string, value: number): Schematic {
   return {
@@ -165,139 +160,6 @@ function DemoCursor({ x, y, visible, clicking }: { x: number; y: number; visible
         sx={{ display: 'block', width: 24, height: 24, transform: clicking ? 'scale(0.86)' : 'none', transformOrigin: '4px 3px', transition: 'transform 120ms ease', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}
       >
         <path d={POINTER} fill="#fff" stroke="#111" strokeWidth="1.4" strokeLinejoin="round" />
-      </Box>
-    </Box>
-  );
-}
-
-type Point = { x: number; y: number };
-
-/**
- * A hand-drawn arrow from `s` to `e`, as if drawn in a single stroke: low
- * along the card's top edge (under the title), one loop, then up to `e`.
- */
-function arrowPath(s: Point, e: Point): string {
-  const dx = e.x - s.x;
-  const dy = e.y - s.y;
-  const a = { x: s.x + 0.6 * dx, y: s.y + 0.3 * dy };
-  const b = { x: a.x + 40, y: a.y - 6 };
-  const n = (v: number) => Math.round(v * 10) / 10;
-  const p = (x: number, y: number) => `${n(x)} ${n(y)}`;
-  return [
-    `M ${p(s.x, s.y)}`,
-    `C ${p(s.x + 0.16 * dx, s.y - 30)}, ${p(a.x - 0.26 * dx, a.y + 4)}, ${p(a.x, a.y)}`,
-    // The loop: on past its end, up and back over, and down through itself.
-    `C ${p(a.x + 72, a.y - 12)}, ${p(b.x - 92, b.y - 78)}, ${p(b.x, b.y)}`,
-    `C ${p(b.x + 46, b.y + 40)}, ${p(e.x - 0.3 * (e.x - b.x), e.y + 34)}, ${p(e.x, e.y)}`,
-  ].join(' ');
-}
-
-const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const span = ([a, b]: readonly [number, number], t: number) => clamp01((t - a) / (b - a));
-
-/**
- * One turn of the arrow demo (see ARROW). It draws straight into the DOM on
- * each frame; mounting starts it, unmounting stops it.
- */
-function ArrowDemo({
-  rootRef,
-  fromRef,
-  toRef,
-  onReveal,
-  onClick,
-}: {
-  rootRef: RefObject<HTMLElement | null>;
-  /** The "Assembly" button. */
-  fromRef: RefObject<HTMLElement | null>;
-  /** The callout's title. */
-  toRef: RefObject<HTMLElement | null>;
-  onReveal: () => void;
-  onClick: () => void;
-}) {
-  const pathRef = useRef<SVGPathElement>(null);
-  const headRef = useRef<SVGGElement>(null);
-  const cursorRef = useRef<HTMLDivElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const [geo, setGeo] = useState<{ d: string; w: number; h: number; target: Point } | null>(null);
-  const handlers = useRef({ onReveal, onClick });
-  handlers.current = { onReveal, onClick };
-
-  // After commit: the root's ref is attached only after this, its child, has run its layout effects.
-  useEffect(() => {
-    const root = rootRef.current?.getBoundingClientRect();
-    const button = fromRef.current?.getBoundingClientRect();
-    const title = toRef.current?.getBoundingClientRect();
-    if (!root || !button || !title) return;
-    // Out of the card just right of the switch; in to the callout's first line.
-    const s = { x: button.right - root.left + 18, y: button.top - root.top + button.height / 2 };
-    const e = { x: title.left - root.left - 22, y: title.top - root.top + Math.min(title.height / 2, 26) };
-    const target = { x: button.left - root.left + button.width * 0.45, y: button.top - root.top + button.height * 0.6 };
-    setGeo({ d: arrowPath(s, e), w: root.width, h: root.height, target });
-  }, [rootRef, fromRef, toRef]);
-
-  useEffect(() => {
-    const path = pathRef.current;
-    const head = headRef.current;
-    const cursor = cursorRef.current;
-    const ring = ringRef.current;
-    if (!geo || !path || !head || !cursor || !ring) return;
-    const total = path.getTotalLength();
-    const start = performance.now();
-    let revealed = false;
-    let clicked = false;
-    let raf = 0;
-    const frame = (now: number) => {
-      const t = now - start;
-      // How much of the line shows: drawn out, held, reeled back in.
-      const len = total * (t < ARROW.collapse[0] ? easeInOut(span(ARROW.draw, t)) : 1 - easeInOut(span(ARROW.collapse, t)));
-      path.style.strokeDasharray = `${len} ${total + 1}`;
-      path.style.opacity = t < ARROW.draw[0] ? '0' : '1';
-      // The head rides the tip, facing the way it moves.
-      const tip = path.getPointAtLength(len);
-      const back = path.getPointAtLength(Math.max(0, len - 3));
-      const ahead = path.getPointAtLength(Math.min(total, len + 3));
-      const out = t < ARROW.collapse[0];
-      const angle = (Math.atan2(ahead.y - back.y, ahead.x - back.x) * 180) / Math.PI + (out ? 0 : 180);
-      head.setAttribute('transform', `translate(${tip.x} ${tip.y}) rotate(${angle})`);
-      const morph = clamp01((t - ARROW.morph) / 300);
-      head.style.opacity = t < ARROW.draw[0] ? '0' : String(1 - morph);
-      // Then the cursor: where the head went in, over to the button, click, gone.
-      const m = easeInOut(span(ARROW.move, t));
-      const x = tip.x + (geo.target.x - tip.x) * m;
-      const y = tip.y + (geo.target.y - tip.y) * m;
-      const pressed = t >= ARROW.click && t < ARROW.click + 140;
-      cursor.style.transform = `translate(${x - 4}px, ${y - 3}px) scale(${(0.55 + 0.45 * morph) * (pressed ? 0.86 : 1)})`;
-      cursor.style.opacity = String(t < ARROW.leave ? morph : 1 - clamp01((t - ARROW.leave) / 300));
-      if (!revealed && t >= ARROW.reveal) {
-        revealed = true;
-        handlers.current.onReveal();
-      }
-      if (!clicked && t >= ARROW.click) {
-        clicked = true;
-        ring.style.animation = 'demoClick 600ms ease-out forwards';
-        handlers.current.onClick();
-      }
-      if (t < ARROW.leave + 400) raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, [geo]);
-
-  if (!geo) return null;
-  return (
-    <Box aria-hidden sx={{ position: 'absolute', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
-      <Box component="svg" sx={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', color: 'text.primary' }} width={geo.w} height={geo.h}>
-        <path ref={pathRef} d={geo.d} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0 }} />
-        <g ref={headRef} style={{ opacity: 0 }}>
-          <path d="M -13 -7.5 L 0 0 L -13 7.5" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
-        </g>
-      </Box>
-      <Box ref={cursorRef} sx={{ position: 'absolute', left: 0, top: 0, opacity: 0, transformOrigin: '4px 3px', willChange: 'transform' }}>
-        <Box ref={ringRef} sx={[clickRing, { left: -10, top: -11 }]} />
-        <Box component="svg" viewBox="0 0 24 24" sx={{ display: 'block', width: 24, height: 24, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-          <path d={POINTER} fill="#fff" stroke="#111" strokeWidth="1.4" strokeLinejoin="round" />
-        </Box>
       </Box>
     </Box>
   );
