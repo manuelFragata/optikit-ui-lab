@@ -6,7 +6,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useColorScheme, type Theme } from '@mui/material/styles';
+import { useColorScheme, useTheme, type Theme } from '@mui/material/styles';
 import ThreeSixtyIcon from '@mui/icons-material/ThreeSixty';
 import { benchBeams, benchController, benchLevels, benchParts, benchPlate } from '../../demo/benchAssembly';
 import type { FeatureHighlight } from '../../demo/landingContent';
@@ -216,6 +216,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
   const [pins, setPins] = useState<BenchPin[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const theme = useTheme();
   const titleRef = useRiseIn<HTMLHeadingElement>();
   const { mode, systemMode } = useColorScheme();
   const scheme = (mode === 'system' ? systemMode : mode) === 'dark' ? 'dark' : 'light';
@@ -348,10 +349,10 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
                     key={p.id}
                     aria-pressed={on}
                     onClick={() => pick(on ? null : p.id)}
+                    // Positions change every frame: inline, never through sx.
+                    style={{ left: p.x, top: p.y }}
                     sx={(t) => ({
                       position: 'absolute',
-                      left: p.x,
-                      top: p.y,
                       transform: 'translateX(-50%)',
                       mt: 3.5,
                       px: 1,
@@ -367,7 +368,7 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
                 ) : null;
               }
               return (
-                <Box key={p.id} sx={{ position: 'absolute', left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}>
+                <Box key={p.id} style={{ left: p.x, top: p.y }} sx={{ position: 'absolute', transform: 'translate(-50%, -50%)' }}>
                   <ButtonBase
                     aria-label={part?.label}
                     aria-pressed={on}
@@ -397,11 +398,13 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
         {info && selectedPin && (
           <Paper
             variant="outlined"
+            // Beside the pin, kept inside the stage (inline: it follows the pin every frame).
+            style={{
+              left: `min(${selectedPin.x}px + ${theme.spacing(3)}, 100% - ${theme.spacing(38)})`,
+              top: `max(${selectedPin.y}px - ${theme.spacing(6)}, ${theme.spacing(2)})`,
+            }}
             sx={(t) => ({
               position: 'absolute',
-              // Beside the pin, kept inside the stage.
-              left: `min(${selectedPin.x}px + ${t.spacing(3)}, 100% - ${t.spacing(38)})`,
-              top: `max(${selectedPin.y}px - ${t.spacing(6)}, ${t.spacing(2)})`,
               width: t.spacing(34),
               p: 1.75,
               borderRadius: `${t.radius.tile * 2}px`,

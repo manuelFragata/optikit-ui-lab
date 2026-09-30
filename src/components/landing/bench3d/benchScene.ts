@@ -1296,9 +1296,14 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     }
   }
 
+  // The canvas size, kept by the ResizeObserver below: reading it every frame
+  // would make the browser lay the page out again mid-frame.
+  let canvasW = canvas.clientWidth;
+  let canvasH = canvas.clientHeight;
+
   function resize() {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
+    const w = canvasW;
+    const h = canvasH;
     if (!w || !h) return;
     renderer.getSize(size);
     if (size.x !== w || size.y !== h) {
@@ -1309,19 +1314,23 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     }
   }
 
+  let lastPins: BenchPin[] = [];
   function emitPins() {
     if (!options.onPins) return;
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    options.onPins(
-      states.map((s) => {
-        root.localToWorld(tmp.copy(s.anchor));
-        tmp.project(camera);
-        const x = ((tmp.x + 1) / 2) * w;
-        const y = ((1 - tmp.y) / 2) * h;
-        return { id: s.part.id, x, y, visible: tmp.z < 1 && x >= 0 && x <= w && y >= 0 && y <= h };
-      }),
-    );
+    const w = canvasW;
+    const h = canvasH;
+    const pins = states.map((s) => {
+      root.localToWorld(tmp.copy(s.anchor));
+      tmp.project(camera);
+      const x = Math.round(((tmp.x + 1) / 2) * w * 2) / 2;
+      const y = Math.round(((1 - tmp.y) / 2) * h * 2) / 2;
+      return { id: s.part.id, x, y, visible: tmp.z < 1 && x >= 0 && x <= w && y >= 0 && y <= h };
+    });
+    // Only when something moved (by half a pixel or more), so a still picture costs nothing.
+    const same = pins.length === lastPins.length && pins.every((p, i) => p.x === lastPins[i].x && p.y === lastPins[i].y && p.visible === lastPins[i].visible);
+    if (same) return;
+    lastPins = pins;
+    options.onPins(pins);
   }
 
   /** The control step: cables, focus, the galvo's raster and the light following it. */
@@ -1494,7 +1503,11 @@ export function createBenchScene(canvas: HTMLCanvasElement, options: BenchSceneO
     requestRender();
   }
 
-  const resizeObserver = new ResizeObserver(() => requestRender());
+  const resizeObserver = new ResizeObserver(([entry]) => {
+    canvasW = entry.contentRect.width;
+    canvasH = entry.contentRect.height;
+    requestRender();
+  });
   resizeObserver.observe(canvas);
 
   applyTargets();

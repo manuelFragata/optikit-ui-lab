@@ -144,10 +144,10 @@ function DemoCursor({ x, y, visible, clicking }: { x: number; y: number; visible
   return (
     <Box
       aria-hidden
+      // Inline: through sx, each new position would add a CSS rule.
+      style={{ left: x, top: y }}
       sx={{
         position: 'absolute',
-        left: x,
-        top: y,
         zIndex: 3,
         pointerEvents: 'none',
         opacity: visible ? 1 : 0,
@@ -432,8 +432,18 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
   const rootRef = useRef<HTMLDivElement>(null);
   const calloutRef = useRef<HTMLSpanElement>(null);
 
+  // Off screen, the deck rests: its demo and card changes would only take time from what the visitor is watching.
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   const count = examples.length;
-  const running = autoAdvanceMs > 0 && !engaged && count > 1;
+  const running = autoAdvanceMs > 0 && !engaged && count > 1 && onScreen;
   const front = examples[index];
 
   const go = (next: number) => {
@@ -454,9 +464,10 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
 
   // Fetch the front card's parts soon after it comes up, so its assembly is ready when asked for.
   useEffect(() => {
+    if (!onScreen) return;
     const timer = window.setTimeout(() => setPreload((p) => ({ ...p, [front.id]: true })), PRELOAD_MS);
     return () => window.clearTimeout(timer);
-  }, [front.id]);
+  }, [front.id, onScreen]);
 
   // The turn: the demo cursor, then the next card.
   useEffect(() => {
