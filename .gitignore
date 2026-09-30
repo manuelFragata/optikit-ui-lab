@@ -4,3 +4,6 @@ storybook-static
 *.tsbuildinfo
 *.log
 .DS_Store
+
+# Reference material, not part of the repo
+*.pdf

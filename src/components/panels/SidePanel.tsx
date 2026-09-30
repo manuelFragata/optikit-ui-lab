@@ -5,7 +5,6 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PushPinIcon from '@mui/icons-material/PushPin';
@@ -136,20 +135,38 @@ export function SidePanel({
 
       {open && active && (
         <Paper
-          square
-          elevation={pinned ? 0 : 8}
+          elevation={0}
           onKeyDown={handleKeyDown}
-          sx={{
-            position: pinned ? 'relative' : 'absolute',
-            top: 0,
-            bottom: 0,
-            [left ? 'left' : 'right']: pinned ? undefined : (theme: Theme) => theme.spacing(theme.layout.railWidth),
-            zIndex: (theme) => theme.zIndex.drawer,
-            width: (theme) => theme.spacing(theme.layout.sidePanelWidth),
-            display: 'flex',
-            flexDirection: 'column',
-            [inner]: 1,
-            borderColor: 'divider',
+          sx={(theme) => {
+            const v = theme.vars ?? theme;
+            const gap = theme.spacing(1);
+            return {
+              // A card set a little apart from the rail and the window edges.
+              position: pinned ? 'relative' : 'absolute',
+              top: pinned ? undefined : gap,
+              bottom: pinned ? undefined : gap,
+              [left ? 'left' : 'right']: pinned ? undefined : `calc(${theme.spacing(theme.layout.railWidth)} + ${gap})`,
+              m: pinned ? 1 : 0,
+              zIndex: theme.zIndex.drawer,
+              width: theme.spacing(theme.layout.sidePanelWidth),
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              borderRadius: `${theme.radius.card}px`,
+              border: `${theme.layout.hairline}px solid ${v.palette.divider}`,
+              // Floating: the canvas shows faintly through, softened.
+              bgcolor: pinned ? 'background.paper' : `color-mix(in srgb, ${v.palette.background.paper} 86%, transparent)`,
+              backdropFilter: pinned ? 'none' : 'blur(18px) saturate(1.4)',
+              boxShadow: pinned
+                ? `0 1px 3px color-mix(in srgb, ${v.palette.text.primary} 8%, transparent)`
+                : `0 24px 48px -16px color-mix(in srgb, ${v.palette.text.primary} 30%, transparent), 0 2px 8px color-mix(in srgb, ${v.palette.text.primary} 8%, transparent)`,
+              animation: 'panelIn 260ms cubic-bezier(0.22, 1, 0.36, 1)',
+              '@keyframes panelIn': {
+                from: { opacity: 0, transform: `translateX(${left ? -8 : 8}px) scale(0.985)` },
+                to: { opacity: 1, transform: 'none' },
+              },
+              '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+            };
           }}
         >
           <Stack
@@ -182,7 +199,17 @@ export function SidePanel({
               </IconButton>
             </Tooltip>
           </Stack>
-          <Box sx={{ flex: 1, overflow: 'auto' }}>{active.content}</Box>
+          <Box
+            sx={(theme) => ({
+              flex: 1,
+              overflow: 'auto',
+              // A thin scrollbar that sits quietly inside the card.
+              scrollbarWidth: 'thin',
+              scrollbarColor: `color-mix(in srgb, ${(theme.vars ?? theme).palette.text.primary} 22%, transparent) transparent`,
+            })}
+          >
+            {active.content}
+          </Box>
           {active.footer && <Box sx={{ borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>{active.footer}</Box>}
         </Paper>
       )}
