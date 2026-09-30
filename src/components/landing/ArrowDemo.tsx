@@ -86,16 +86,15 @@ export function ArrowDemo({ rootRef, fromRef, toRef, onReveal, onClick }: ArrowD
     const done = { reveal: false, click: false };
 
     (async () => {
-      const [{ gsap }, { DrawSVGPlugin }, { MotionPathPlugin }, { MorphSVGPlugin }] = await Promise.all([
+      const [{ gsap }, { DrawSVGPlugin }, { MorphSVGPlugin }] = await Promise.all([
         import('gsap'),
         import('gsap/DrawSVGPlugin'),
-        import('gsap/MotionPathPlugin'),
         import('gsap/MorphSVGPlugin'),
       ]);
       // Measure with the page's own fonts in place, or the title moves after.
       await document.fonts.ready;
       if (cancelled) return;
-      gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin, MorphSVGPlugin);
+      gsap.registerPlugin(DrawSVGPlugin, MorphSVGPlugin);
 
       const build = () => {
         const svg = svgRef.current;
