@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import Snackbar from '@mui/material/Snackbar';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { demoSchematic } from '../demo/editorContent';
 import { demoGallery, demoProjects } from '../demo/homeContent';
 import { exampleDesigns } from '../demo/landingContent';
@@ -7,6 +9,8 @@ import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
 import { EditorShell } from '../components/compositions/EditorShell';
+import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
+import { WorkspaceShell } from '../components/compositions/WorkspaceShell';
 import { AccountPage } from '../components/pages/AccountPage';
 import { HomePage } from '../components/pages/HomePage';
 import type { Schematic } from '../components/editor/model';
@@ -40,7 +44,26 @@ const TITLES: Record<Route['name'], string> = {
   signup: 'Sign up · Optikit',
   account: 'Account · Optikit',
   editor: 'Editor · Optikit',
+  workspace: 'Optikit',
 };
+
+/** What each view will hold; shown until it is built. */
+const UPCOMING: Record<WorkspaceTab, string> = {
+  explore: 'The gallery by kind, with a tag filter and a page per design.',
+  projects: 'Your designs: pinned, recent, shared with you, and New project.',
+  file: 'Save, version history, import, export and share.',
+  view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
+  simulate: 'The beam table, checks and results, then the optimizer round trip.',
+};
+
+function UpcomingView({ tab }: { tab: WorkspaceTab }) {
+  return (
+    <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', height: '100%', p: 4, textAlign: 'center' }}>
+      <Typography variant="h5">{TAB_LABELS[tab]}</Typography>
+      <Typography color="text.secondary">{UPCOMING[tab]}</Typography>
+    </Stack>
+  );
+}
 
 /**
  * The clickable prototype: home, log in / sign up, editor and account pages
@@ -60,6 +83,9 @@ export function PrototypeApp() {
     if (route.name === 'login' || route.name === 'signup') {
       setAuthMode(user ? null : route.name);
       navigate({ name: 'home' }, { replace: true });
+    } else if (route.name === 'editor') {
+      // The editor now lives in the workspace's View tab.
+      navigate({ name: 'workspace', tab: 'view', id: route.id }, { replace: true });
     } else if (route.name === 'account' && !user) {
       // Account needs a session: ask to log in, then come back here.
       setAfterLogin(route);
@@ -102,26 +128,38 @@ export function PrototypeApp() {
   };
 
   const home = () => navigate({ name: 'home' });
-  const openEditor = (id: string) => navigate({ name: 'editor', id });
+  const openEditor = (id: string) => navigate({ name: 'workspace', tab: 'view', id });
 
   let page;
-  if (route.name === 'editor') {
-    const design = findDesign(route.id);
-    page = design ? (
-      <EditorShell
-        key={route.id}
-        projectName={design.name}
-        version={design.version}
-        schematic={played[route.id] ?? design.schematic}
-        defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+  if (route.name === 'workspace') {
+    const { id } = route;
+    const design = id ? findDesign(id) : null;
+    // An unknown design: its tabs are hidden, so show Projects.
+    const tab = design || !DESIGN_TABS.includes(route.tab) ? route.tab : 'projects';
+    page = (
+      <WorkspaceShell
+        tab={tab}
+        onTabChange={(next) => navigate({ name: 'workspace', tab: next, id })}
+        design={design}
         user={user}
         onHome={home}
         onLogIn={() => openAuth('login')}
         onAccount={() => navigate({ name: 'account' })}
         onLogOut={logOut}
         headerActions={<ColorSchemeToggle />}
-      />
-    ) : null;
+      >
+        {tab === 'view' && design && id ? (
+          <EditorShell
+            key={id}
+            showHeader={false}
+            schematic={played[id] ?? design.schematic}
+            defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+          />
+        ) : (
+          <UpcomingView tab={tab} />
+        )}
+      </WorkspaceShell>
+    );
   } else if (route.name === 'account' && user) {
     page = (
       <AccountPage

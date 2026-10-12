@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountUser } from '../components/compositions/AccountMenu';
+import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
 
 /**
  * Hash routes, so the prototype works from any static host (GitHub Pages,
@@ -11,7 +12,11 @@ export type Route =
   | { name: 'login' }
   | { name: 'signup' }
   | { name: 'account' }
-  | { name: 'editor'; id: string };
+  | { name: 'editor'; id: string }
+  /** A workspace view (#/explore, #/projects, #/view/<id>); `id` is the open design. */
+  | { name: 'workspace'; tab: WorkspaceTab; id?: string };
+
+const isTab = (s: string): s is WorkspaceTab => Object.hasOwn(TAB_LABELS, s);
 
 export function parseHash(hash: string): Route {
   const raw = hash.replace(/^#/, '');
@@ -26,6 +31,11 @@ export function parseHash(hash: string): Route {
     case 'editor':
       return second ? { name: 'editor', id: decodeURIComponent(second) } : { name: 'editor', id: 'new' };
     default:
+      if (isTab(first)) {
+        const id = second ? decodeURIComponent(second) : undefined;
+        // A design tab with no design falls back to Projects.
+        return DESIGN_TABS.includes(first) && !id ? { name: 'workspace', tab: 'projects' } : { name: 'workspace', tab: first, id };
+      }
       return { name: 'home' };
   }
 }
@@ -34,6 +44,8 @@ export function routeToHash(route: Route): string {
   switch (route.name) {
     case 'editor':
       return `#/editor/${encodeURIComponent(route.id)}`;
+    case 'workspace':
+      return route.id ? `#/${route.tab}/${encodeURIComponent(route.id)}` : `#/${route.tab}`;
     case 'home':
       return route.section ? `#${encodeURIComponent(route.section)}` : '#/';
     default:

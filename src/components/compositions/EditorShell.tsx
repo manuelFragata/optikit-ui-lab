@@ -35,6 +35,8 @@ export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'files';
 export type RightPanelId = 'properties' | 'history' | 'info';
 
 export interface EditorShellProps {
+  /** Off inside the workspace, which has its own header. */
+  showHeader?: boolean;
   headerVariant?: HeaderVariant;
   projectName?: string;
   version?: string;
@@ -96,6 +98,7 @@ function useControllable<T>(value: T | undefined, initial: T, onChange?: (next: 
  * opens its properties; clicking empty canvas closes them unless pinned.
  */
 export function EditorShell({
+  showHeader = true,
   headerVariant = 'light',
   projectName = 'BF+Fluor FRAME Optical Core',
   version = '0.4.2',
@@ -180,45 +183,47 @@ export function EditorShell({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
-      <AppHeader
-        variant={headerVariant}
-        projectName={projectName}
-        version={version}
-        onHome={onHome}
-        projectMenu={[
-          { id: 'rename', label: 'Rename…' },
-          { id: 'duplicate', label: 'Duplicate design' },
-          { id: 'versions', label: 'Version history', onSelect: () => openRight('history') },
-          { id: 'info', label: 'Design info', onSelect: () => openRight('info') },
-        ]}
-        actions={
-          <>
-            {headerActions}
-            <Button variant="outlined" color="inherit" startIcon={<IosShareIcon />}>
-              Share…
-            </Button>
-            <OverflowMenu
-              label="Design actions"
-              items={[
-                { id: 'export', label: 'Export…', shortcut: 'STEP, STL, SVG' },
-                { id: 'bom', label: 'Export BOM…', shortcut: 'CSV' },
-                { id: 'duplicate', label: 'Duplicate design' },
-                { id: 'link', label: 'Copy link' },
-                { id: 'instructions', label: 'Assembly instructions' },
-                { id: 'delete', label: 'Delete design', destructive: true, dividerBefore: true },
-              ]}
-            />
-            <AccountMenu
-              user={user}
-              showSignUp={false}
-              onLogIn={onLogIn}
-              onProjects={onHome}
-              onAccount={onAccount}
-              onLogOut={onLogOut}
-            />
-          </>
-        }
-      />
+      {showHeader && (
+        <AppHeader
+          variant={headerVariant}
+          projectName={projectName}
+          version={version}
+          onHome={onHome}
+          projectMenu={[
+            { id: 'rename', label: 'Rename…' },
+            { id: 'duplicate', label: 'Duplicate design' },
+            { id: 'versions', label: 'Version history', onSelect: () => openRight('history') },
+            { id: 'info', label: 'Design info', onSelect: () => openRight('info') },
+          ]}
+          actions={
+            <>
+              {headerActions}
+              <Button variant="outlined" color="inherit" startIcon={<IosShareIcon />}>
+                Share…
+              </Button>
+              <OverflowMenu
+                label="Design actions"
+                items={[
+                  { id: 'export', label: 'Export…', shortcut: 'STEP, STL, SVG' },
+                  { id: 'bom', label: 'Export BOM…', shortcut: 'CSV' },
+                  { id: 'duplicate', label: 'Duplicate design' },
+                  { id: 'link', label: 'Copy link' },
+                  { id: 'instructions', label: 'Assembly instructions' },
+                  { id: 'delete', label: 'Delete design', destructive: true, dividerBefore: true },
+                ]}
+              />
+              <AccountMenu
+                user={user}
+                showSignUp={false}
+                onLogIn={onLogIn}
+                onProjects={onHome}
+                onAccount={onAccount}
+                onLogOut={onLogOut}
+              />
+            </>
+          }
+        />
+      )}
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <SidePanel

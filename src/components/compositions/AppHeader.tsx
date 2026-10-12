@@ -23,12 +23,14 @@ export interface AppHeaderProps {
   projectMenu?: { id: string; label: string; onSelect?: () => void }[];
   /** Makes the brand mark a link back to the home page. */
   onHome?: () => void;
+  /** Navigation after the project name, e.g. the workspace's view tabs. */
+  nav?: ReactNode;
   /** Right-hand actions. Icon buttons should use `color="inherit"`. */
   actions?: ReactNode;
 }
 
 /** Top application bar, either a solid navy bar or a light surface bar. */
-export function AppHeader({ variant = 'light', title = 'Optikit', projectName, version, projectMenu, onHome, actions }: AppHeaderProps) {
+export function AppHeader({ variant = 'light', title = 'Optikit', projectName, version, projectMenu, onHome, nav, actions }: AppHeaderProps) {
   const navy = variant === 'navy';
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
@@ -93,6 +95,12 @@ export function AppHeader({ variant = 'light', title = 'Optikit', projectName, v
                 ))}
               </Menu>
             )}
+          </>
+        )}
+        {nav && (
+          <>
+            <Divider orientation="vertical" flexItem sx={{ borderColor: 'currentColor', opacity: 0.3, my: 2 }} />
+            {nav}
           </>
         )}
         <Box sx={{ flex: 1 }} />

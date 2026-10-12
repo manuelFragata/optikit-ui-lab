@@ -1,0 +1,79 @@
+import type { ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import { AccountMenu, type AccountUser } from './AccountMenu';
+import { AppHeader } from './AppHeader';
+import { DESIGN_TABS, Ribbon, TAB_LABELS, type WorkspaceTab } from './Ribbon';
+
+export interface WorkspaceShellProps {
+  tab: WorkspaceTab;
+  onTabChange: (tab: WorkspaceTab) => void;
+  /** The open design, if any. Without one, only Home and Projects are shown. */
+  design?: { name: string; version: string } | null;
+  /** `null` when signed out. */
+  user: AccountUser | null;
+  /** The active view's commands, shown under the tabs. */
+  commands?: ReactNode;
+  /** Usually a `StatusBar`; the View tab shows the unmounted count there. */
+  statusBar?: ReactNode;
+  onHome?: () => void;
+  onLogIn?: () => void;
+  onAccount?: () => void;
+  onLogOut?: () => void;
+  /** Extra header actions, before the account menu. */
+  headerActions?: ReactNode;
+  /** The active view. */
+  children: ReactNode;
+}
+
+/**
+ * The app frame: a header with one tab per view, the active view's commands
+ * (if any), the view, and an optional status bar. One design is open at a
+ * time (UI-V4 §1.1).
+ */
+export function WorkspaceShell({
+  tab,
+  onTabChange,
+  design,
+  user,
+  commands,
+  statusBar,
+  onHome,
+  onLogIn,
+  onAccount,
+  onLogOut,
+  headerActions,
+  children,
+}: WorkspaceShellProps) {
+  const tabs = (Object.keys(TAB_LABELS) as WorkspaceTab[]).filter((t) => design || !DESIGN_TABS.includes(t));
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
+      <AppHeader
+        projectName={design?.name}
+        version={design?.version}
+        onHome={onHome}
+        nav={<Ribbon tabs={tabs} value={tab} onChange={onTabChange} />}
+        actions={
+          <>
+            {headerActions}
+            <AccountMenu user={user} onLogIn={onLogIn} onProjects={() => onTabChange('projects')} onAccount={onAccount} onLogOut={onLogOut} />
+          </>
+        }
+      />
+      {commands && (
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ flexShrink: 0, alignItems: 'center', px: 2, py: 0.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', overflowX: 'auto' }}
+        >
+          {commands}
+        </Stack>
+      )}
+      <Box component="main" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {children}
+      </Box>
+      {statusBar}
+    </Box>
+  );
+}
