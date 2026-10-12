@@ -126,3 +126,20 @@ export interface ProjectSummary extends DesignSummary {
   /** Parts not mounted yet; 0 means buildable. */
   unmounted: number;
 }
+
+/* Starting points for a new project: templates are designs to copy; boxes are kits (planned on the service). */
+
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  cubes: number;
+}
+
+export interface KitBox {
+  id: string;
+  name: string;
+  price: string;
+  /** What is in the box, as a parts list. */
+  contents: { qty: number; name: string }[];
+}

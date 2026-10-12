@@ -18,7 +18,7 @@ export interface DesignTileProps {
 }
 
 /** The picture of a design: its schematic drawing, or its cubes. Also used on the back cards of a deck. */
-export function DesignPicture({ design, drawing }: Pick<DesignTileProps, 'design' | 'drawing'>) {
+export function DesignPicture({ design, drawing }: { design: Pick<DesignSummary, 'cubes' | 'kind'>; drawing?: Schematic }) {
   return (
     <Box sx={{ position: 'absolute', inset: 0, display: 'flex', bgcolor: 'canvas.ground', pointerEvents: 'none' }}>
       {drawing ? (

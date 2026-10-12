@@ -7,6 +7,7 @@ import { demoGallery, demoProjects } from '../demo/homeContent';
 import { exampleDesigns } from '../demo/landingContent';
 import { exploreDesigns } from '../demo/exploreContent';
 import { demoDrawerProjects } from '../demo/projectsContent';
+import { kitBoxes, projectTemplates } from '../demo/newProjectContent';
 import { exampleAssemblies } from '../demo/assemblies';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
@@ -21,7 +22,9 @@ import { SchematicCanvas } from '../components/editor/SchematicCanvas';
 import { DesignPage } from '../components/views/DesignPage';
 import { ExploreView } from '../components/views/ExploreView';
 import { ProjectsView } from '../components/views/ProjectsView';
+import { NewProjectDialog, type ProjectStart } from '../components/views/projects/NewProjectDialog';
 import type { Schematic } from '../components/editor/model';
+import type { ProjectSummary } from '../api/types';
 import { scrollToSection } from '../components/pages/LandingPage';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { useHashRoute, useSession, type Route } from './routing';
@@ -56,7 +59,21 @@ function designPreview(id: string) {
 const DETAILS = Object.fromEntries(exploreDesigns.map((d) => [d.id, d]));
 
 /** Which design an editor route opens. */
-function findDesign(id: string): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
+/** A project made with New project in this session. */
+interface CreatedProject {
+  summary: ProjectSummary;
+  schematic: Schematic;
+}
+
+/** A new project's first drawing: the template's, or an empty grid. */
+function startingSchematic(start: ProjectStart): Schematic {
+  if (start.kind !== 'template') return emptySchematic;
+  return DRAWINGS[start.id] ?? demoSchematic;
+}
+
+function findDesign(id: string, created: CreatedProject[] = []): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
+  const made = created.find((c) => c.summary.id === id);
+  if (made) return { name: made.summary.name, version: made.summary.version, schematic: made.schematic, empty: made.schematic.symbols.length === 0 };
   if (id === 'new') return { name: 'Untitled design', version: '0.0.1', schematic: emptySchematic, empty: true };
   const example = exampleDesigns.find((e) => e.id === id);
   if (example) return { name: example.title, version: '1.0.0', schematic: example.schematic, empty: false };
@@ -114,6 +131,9 @@ export function PrototypeApp() {
   const [played, setPlayed] = useState<Record<string, Schematic>>({});
   // The design open in the workspace, kept while the visitor looks at Home or Projects.
   const [lastOpenId, setLastOpenId] = useState<string>();
+  const [created, setCreated] = useState<CreatedProject[]>([]);
+  // A fresh key each time, so the dialog opens on its defaults.
+  const [newProjectKey, setNewProjectKey] = useState<number | null>(null);
 
   useEffect(() => {
     if (route.name === 'workspace' && DESIGN_TABS.includes(route.tab) && route.id) setLastOpenId(route.id);
@@ -169,6 +189,30 @@ export function PrototypeApp() {
   };
 
   const home = () => navigate({ name: 'home' });
+  const newProject = () => setNewProjectKey(Date.now());
+
+  const createProject = ({ name, start }: { name: string; start: ProjectStart }) => {
+    const id = `p-${Date.now().toString(36)}`;
+    const template = start.kind === 'template' ? projectTemplates.find((t) => t.id === start.id) : undefined;
+    const summary: ProjectSummary = {
+      id,
+      name,
+      kind: 'instrument',
+      version: '0.0.1',
+      description: '',
+      tags: start.kind === 'box' ? [start.id] : [],
+      maintainer: user?.name.toLowerCase() ?? 'you',
+      updated: 'just now',
+      cubes: template?.cubes ?? 0,
+      status: 'draft',
+      pinned: false,
+      unmounted: 0,
+    };
+    setCreated([{ summary, schematic: startingSchematic(start) }, ...created]);
+    setNewProjectKey(null);
+    setToast(`${name} created.`);
+    navigate({ name: 'workspace', tab: 'view', id });
+  };
   const openEditor = (id: string) => navigate({ name: 'workspace', tab: 'view', id });
 
   // A gallery design opens its page in Explore when it has one, else straight in the editor.
@@ -182,7 +226,7 @@ export function PrototypeApp() {
     const routeTab: WorkspaceTab = route.name === 'workspace' ? route.tab : 'home';
     const onDesignTab = DESIGN_TABS.includes(routeTab);
     const openId = route.name === 'workspace' && onDesignTab ? route.id : lastOpenId;
-    const design = openId ? findDesign(openId) : null;
+    const design = openId ? findDesign(openId, created) : null;
     // An unknown design: its tabs are hidden, so show Projects.
     const tab = design || !onDesignTab ? routeTab : 'projects';
 
@@ -207,7 +251,7 @@ export function PrototypeApp() {
         <HomeDashboard
           user={user}
           onOpenProject={openEditor}
-          onNewProject={() => openEditor('new')}
+          onNewProject={newProject}
           onOpenDesign={openDesign}
           onBrowseGallery={() => navigate({ name: 'explore' })}
         />
@@ -216,14 +260,14 @@ export function PrototypeApp() {
       view = (
         <ProjectsView
           owner={user.name}
-          projects={demoDrawerProjects}
-          drawings={DRAWINGS}
+          projects={[...created.map((c) => c.summary), ...demoDrawerProjects]}
+          drawings={{ ...DRAWINGS, ...Object.fromEntries(created.filter((c) => c.schematic.symbols.length > 0).map((c) => [c.summary.id, c.schematic])) }}
           details={DETAILS}
           renderPreview={designPreview}
           onOpen={openEditor}
           onExport={() => setToast('Export (STEP, STL, BOM) comes with the File tab.')}
           onShare={() => setToast('Sharing comes with the File tab.')}
-          onNewProject={() => openEditor('new')}
+          onNewProject={newProject}
         />
       );
     } else if (tab === 'view' && design && openId) {
@@ -297,6 +341,18 @@ export function PrototypeApp() {
           onBrowseGallery={() => navigate({ name: 'explore' })}
           onChooseKit={() => setToast('On the real site this opens the openUC2 shop.')}
           onChoosePlan={(plan) => (plan === 'lab' ? setToast('On the real site this opens a contact form.') : openAuth('signup'))}
+        />
+      )}
+
+      {newProjectKey !== null && (
+        <NewProjectDialog
+          key={newProjectKey}
+          open
+          templates={projectTemplates}
+          boxes={kitBoxes}
+          drawings={DRAWINGS}
+          onClose={() => setNewProjectKey(null)}
+          onCreate={createProject}
         />
       )}
 

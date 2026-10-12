@@ -131,7 +131,7 @@ const preview: Preview = {
           ['Example Showcase', 'Community Section', 'Bench Preview', 'Pricing Section'],
           'Compositions',
           'Views',
-          ['Explore', 'Design Page', 'Projects'],
+          ['Explore', 'Design Page', 'Projects', 'New Project'],
           'Pages',
           ['Prototype', 'Landing', 'Home', 'Editor'],
         ],
