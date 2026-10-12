@@ -5,7 +5,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useColorScheme, type Theme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { Schematic } from '../editor/model';
@@ -17,11 +17,10 @@ import { drawRays } from './motion';
 import { PillButton } from './PillButton';
 import type { ExampleDesign } from '../../demo/landingContent';
 import { exampleAssemblies } from '../../demo/assemblies';
-import { benchColors } from '../../theme/tokens';
 
 export interface ExampleShowcaseProps {
   examples: ExampleDesign[];
-  /** Each card's turn in ms (one lap of the laser round its edge) until the visitor first interacts; 0 turns it off. */
+  /** Each card's turn in ms until the visitor first interacts; 0 turns it off. */
   autoAdvanceMs?: number;
   /** Open the example, with the visitor's changes, in the full editor. */
   onOpen?: (id: string, schematic: Schematic) => void;
@@ -189,67 +188,6 @@ function RisingWords({ text, shown, delayMs = 0, still }: { text: string; shown:
   );
 }
 
-/**
- * The turn timer: a laser spot running once round the card's edge, with a
- * fading tail, in the bench's laser green. One lap is one turn.
- */
-function LaserTimer({ target, durationMs, color, radius }: { target: RefObject<HTMLElement | null>; durationMs: number; color: string; radius: number }) {
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  // After commit (not in layout): the card's ref is only attached after its children's layout effects.
-  useEffect(() => {
-    const el = target.current;
-    if (!el) return;
-    const measure = () => setSize({ w: el.offsetWidth, h: el.offsetHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [target]);
-  if (!size) return null;
-  const inset = 1;
-  // Head, glow and tail share their leading edge, so the spot drags its trail.
-  const segments = [
-    { len: 260, width: 2, opacity: 0.2 },
-    { len: 90, width: 3, opacity: 0.55 },
-    { len: 16, width: 4.5, opacity: 1, glow: true },
-  ];
-  return (
-    <Box
-      component="svg"
-      aria-hidden
-      width={size.w}
-      height={size.h}
-      sx={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none', overflow: 'visible' }}
-    >
-      {segments.map((s) => (
-        // A plain rect: on Box, width and height would be read as styles.
-        <rect
-          key={s.len}
-          x={inset}
-          y={inset}
-          width={size.w - 2 * inset}
-          height={size.h - 2 * inset}
-          rx={radius - inset}
-          pathLength={1000}
-          fill="none"
-          stroke={color}
-          strokeWidth={s.width}
-          strokeLinecap="round"
-          strokeOpacity={s.opacity}
-          strokeDasharray={`${s.len} ${1000 - s.len}`}
-          strokeDashoffset={s.len}
-          style={{
-            filter: s.glow ? `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 12px ${color})` : undefined,
-            animation: `laserLap${s.len} ${durationMs}ms linear forwards`,
-          }}
-        />
-      ))}
-      {/* Each segment starts shifted by its own length, so all their leading edges meet. */}
-      <style>{segments.map((s) => `@keyframes laserLap${s.len} { from { stroke-dashoffset: ${s.len}; } to { stroke-dashoffset: ${s.len - 1000}; } }`).join('\n')}</style>
-    </Box>
-  );
-}
-
 interface CardProps {
   example: ExampleDesign;
   schematic: Schematic;
@@ -404,9 +342,9 @@ function ExampleCard(props: CardProps) {
  * carry on in the editor. The others stand behind it and stick out to the
  * left, each with its title on the spine; picking one slides it forward.
  *
- * Until the visitor clicks or types inside it, it runs on its own: a laser
- * spot runs once round the front card's edge (that is the timer), a cursor
- * switches the card to its assembly on the way, and the next card comes up.
+ * Until the visitor clicks or types inside it, it runs on its own: a cursor
+ * switches the front card to its assembly, and after its turn the next card
+ * comes up.
  */
 export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, onOpen, onLocked, heading, callout }: ExampleShowcaseProps) {
   // A turn has to leave time for the demo and a look at the assembly.
@@ -424,9 +362,6 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
   const wide = useMediaQuery((t: Theme) => t.breakpoints.up('lg'));
   const withCallout = Boolean(callout) && wide;
   const [revealed, setRevealed] = useState(false);
-  const { mode, systemMode } = useColorScheme();
-  const laserColor = benchColors[(mode === 'system' ? systemMode : mode) === 'dark' ? 'dark' : 'light'].beam;
-  const frontRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const assemblyRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -563,7 +498,6 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
           return (
             <Paper
               key={example.id}
-              ref={isFront ? frontRef : undefined}
               variant="outlined"
               role="group"
               aria-roledescription="slide"
@@ -572,8 +506,6 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
                 gridArea: '1 / 1',
                 position: 'relative',
                 zIndex: count - depth,
-                // The laser runs just outside the clipped content, so the card itself doesn't clip.
-                overflow: 'visible',
                 borderRadius: `${t.radius.stage}px`,
                 transformOrigin: 'left center',
                 transform: peek(t, depth),
@@ -615,10 +547,6 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
                   cursor={isFront ? cursor : null}
                 />
               </Box>
-
-              {isFront && running && !reducedMotion && (
-                <LaserTimer key={index} target={frontRef} durationMs={autoAdvanceMs} color={laserColor} radius={28} />
-              )}
 
               {/* Behind: dimmed, and the whole card is the button that brings it forward. */}
               {!isFront && (
