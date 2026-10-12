@@ -409,8 +409,8 @@ export const layout = {
   panelHeaderHeight: 6,
   canvasGridMinor: 4,
   canvasGridMajor: 20,
-  /** Max content width of document-style pages (home, browse). */
-  pageMaxWidth: 184,
+  /** Max content width of document-style pages (landing, home, Explore, Projects): wide enough that a 2560 px screen isn't mostly margin. */
+  pageMaxWidth: 320,
   /** Height of design-card thumbnails. */
   thumbnailHeight: 20,
   /** Stacked-card content height, so switching cards never shifts the layout. */

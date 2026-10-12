@@ -64,5 +64,5 @@ export const NoDesign: Story = {
 
 /** Signed out: Home is browsable, the header offers Log in. */
 export const SignedOut: Story = {
-  args: { tab: 'explore', design: null, user: null },
+  args: { tab: 'home', design: null, user: null },
 };

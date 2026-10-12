@@ -5,6 +5,9 @@ import Typography from '@mui/material/Typography';
 import { demoSchematic } from '../demo/editorContent';
 import { demoGallery, demoProjects } from '../demo/homeContent';
 import { exampleDesigns } from '../demo/landingContent';
+import { exploreDesigns } from '../demo/exploreContent';
+import { demoDrawerProjects } from '../demo/projectsContent';
+import { exampleAssemblies } from '../demo/assemblies';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
@@ -12,7 +15,12 @@ import { EditorShell } from '../components/compositions/EditorShell';
 import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
 import { WorkspaceShell } from '../components/compositions/WorkspaceShell';
 import { AccountPage } from '../components/pages/AccountPage';
-import { HomePage } from '../components/pages/HomePage';
+import { HomeDashboard, HomePage } from '../components/pages/HomePage';
+import { AssemblyView } from '../components/landing/AssemblyView';
+import { SchematicCanvas } from '../components/editor/SchematicCanvas';
+import { DesignPage } from '../components/views/DesignPage';
+import { ExploreView } from '../components/views/ExploreView';
+import { ProjectsView } from '../components/views/ProjectsView';
 import type { Schematic } from '../components/editor/model';
 import { scrollToSection } from '../components/pages/LandingPage';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
@@ -22,6 +30,30 @@ const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], gro
 
 /** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
 const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield', g7: 'ex-fluor' };
+
+/** Schematic drawings by design id, for the pictures in Explore and Projects. */
+const DRAWINGS: Record<string, Schematic> = {
+  ...Object.fromEntries(exampleDesigns.map((e) => [e.id, e.schematic])),
+  ...Object.fromEntries(
+    Object.entries(GALLERY_DRAWINGS).flatMap(([id, exampleId]) => {
+      const example = exampleDesigns.find((e) => e.id === exampleId);
+      return example ? [[id, example.schematic]] : [];
+    }),
+  ),
+  'bf-fluor': demoSchematic,
+};
+
+/** A design's picture on its page: the 3D assembly when it has one, else its schematic drawing. */
+function designPreview(id: string) {
+  const assembly = exampleAssemblies[id];
+  if (assembly) return <AssemblyView assembly={assembly} turntable label="3D view of the design" sx={{ width: '100%', height: '100%' }} />;
+  const drawing = DRAWINGS[id];
+  if (drawing) return <SchematicCanvas fit schematic={drawing} selectedId={null} onSelect={() => undefined} options={{ showRayLabels: false }} hint={false} />;
+  return undefined;
+}
+
+/** Parts and versions by design id, for the project documents. */
+const DETAILS = Object.fromEntries(exploreDesigns.map((d) => [d.id, d]));
 
 /** Which design an editor route opens. */
 function findDesign(id: string): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
@@ -35,6 +67,8 @@ function findDesign(id: string): { name: string; version: string; schematic: Sch
     const drawing = exampleDesigns.find((e) => e.id === GALLERY_DRAWINGS[id]);
     return { name: shared.title, version: '1.0.0', schematic: drawing?.schematic ?? demoSchematic, empty: false };
   }
+  const explored = exploreDesigns.find((d) => d.id === id);
+  if (explored) return { name: explored.name, version: explored.version, schematic: demoSchematic, empty: false };
   return null;
 }
 
@@ -45,11 +79,12 @@ const TITLES: Record<Route['name'], string> = {
   account: 'Account · Optikit',
   editor: 'Editor · Optikit',
   workspace: 'Optikit',
+  explore: 'Explore · Optikit',
 };
 
 /** What each view will hold; shown until it is built. */
 const UPCOMING: Record<WorkspaceTab, string> = {
-  explore: 'The gallery by kind, with a tag filter and a page per design.',
+  home: 'Your projects, inspiration and help.',
   projects: 'Your designs: pinned, recent, shared with you, and New project.',
   file: 'Save, version history, import, export and share.',
   view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
@@ -77,6 +112,12 @@ export function PrototypeApp() {
   const [toast, setToast] = useState<string | null>(null);
   // Examples the visitor changed on the landing page, so the editor opens with their changes.
   const [played, setPlayed] = useState<Record<string, Schematic>>({});
+  // The design open in the workspace, kept while the visitor looks at Home or Projects.
+  const [lastOpenId, setLastOpenId] = useState<string>();
+
+  useEffect(() => {
+    if (route.name === 'workspace' && DESIGN_TABS.includes(route.tab) && route.id) setLastOpenId(route.id);
+  }, [route]);
 
   // #/login and #/signup are entry points: open the dialog over the home page.
   useEffect(() => {
@@ -130,17 +171,87 @@ export function PrototypeApp() {
   const home = () => navigate({ name: 'home' });
   const openEditor = (id: string) => navigate({ name: 'workspace', tab: 'view', id });
 
+  // A gallery design opens its page in Explore when it has one, else straight in the editor.
+  const openDesign = (id: string) =>
+    exploreDesigns.some((d) => d.id === id) ? navigate({ name: 'explore', id }) : openEditor(id);
+
   let page;
-  if (route.name === 'workspace') {
-    const { id } = route;
-    const design = id ? findDesign(id) : null;
+  // Signed in, Home is the dashboard inside the workspace; signed out, it is the landing page.
+  if (route.name === 'workspace' || route.name === 'explore' || (route.name === 'home' && user)) {
+    // Explore belongs to Home, so Home stays the selected tab there.
+    const routeTab: WorkspaceTab = route.name === 'workspace' ? route.tab : 'home';
+    const onDesignTab = DESIGN_TABS.includes(routeTab);
+    const openId = route.name === 'workspace' && onDesignTab ? route.id : lastOpenId;
+    const design = openId ? findDesign(openId) : null;
     // An unknown design: its tabs are hidden, so show Projects.
-    const tab = design || !DESIGN_TABS.includes(route.tab) ? route.tab : 'projects';
+    const tab = design || !onDesignTab ? routeTab : 'projects';
+
+    let view;
+    if (route.name === 'explore') {
+      const browsed = route.id ? exploreDesigns.find((d) => d.id === route.id) : undefined;
+      view = browsed ? (
+        <DesignPage
+          key={browsed.id}
+          design={browsed}
+          preview={designPreview(browsed.id)}
+          onBack={() => navigate({ name: 'explore' })}
+          onEdit={() => openEditor(browsed.id)}
+          onExport={() => setToast('Export (STEP, STL, BOM) comes with the File tab.')}
+          onShare={() => setToast('Sharing comes with the File tab.')}
+        />
+      ) : (
+        <ExploreView designs={exploreDesigns} drawings={DRAWINGS} onOpen={(id) => navigate({ name: 'explore', id })} onBack={user ? home : undefined} />
+      );
+    } else if (tab === 'home' && user) {
+      view = (
+        <HomeDashboard
+          user={user}
+          onOpenProject={openEditor}
+          onNewProject={() => openEditor('new')}
+          onOpenDesign={openDesign}
+          onBrowseGallery={() => navigate({ name: 'explore' })}
+        />
+      );
+    } else if (tab === 'projects' && user) {
+      view = (
+        <ProjectsView
+          owner={user.name}
+          projects={demoDrawerProjects}
+          drawings={DRAWINGS}
+          details={DETAILS}
+          renderPreview={designPreview}
+          onOpen={openEditor}
+          onExport={() => setToast('Export (STEP, STL, BOM) comes with the File tab.')}
+          onShare={() => setToast('Sharing comes with the File tab.')}
+          onNewProject={() => openEditor('new')}
+        />
+      );
+    } else if (tab === 'view' && design && openId) {
+      view = (
+        <EditorShell
+          key={openId}
+          showHeader={false}
+          schematic={played[openId] ?? design.schematic}
+          defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+        />
+      );
+    } else {
+      view = <UpcomingView tab={tab} />;
+    }
+
     page = (
       <WorkspaceShell
         tab={tab}
-        onTabChange={(next) => navigate({ name: 'workspace', tab: next, id })}
+        onTabChange={(next) =>
+          next === 'home' ? home() : navigate({ name: 'workspace', tab: next, id: DESIGN_TABS.includes(next) ? openId : undefined })
+        }
         design={design}
+        onShowDesign={() => openId && openEditor(openId)}
+        onCloseDesign={() => {
+          setLastOpenId(undefined);
+          // Its tabs go away with it; from one of them, land on Projects.
+          if (onDesignTab) navigate({ name: 'workspace', tab: 'projects' });
+        }}
         user={user}
         onHome={home}
         onLogIn={() => openAuth('login')}
@@ -148,16 +259,7 @@ export function PrototypeApp() {
         onLogOut={logOut}
         headerActions={<ColorSchemeToggle />}
       >
-        {tab === 'view' && design && id ? (
-          <EditorShell
-            key={id}
-            showHeader={false}
-            schematic={played[id] ?? design.schematic}
-            defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
-          />
-        ) : (
-          <UpcomingView tab={tab} />
-        )}
+        {view}
       </WorkspaceShell>
     );
   } else if (route.name === 'account' && user) {
@@ -181,7 +283,7 @@ export function PrototypeApp() {
           user={user}
           onHome={home}
           onOpenProject={openEditor}
-          onOpenDesign={openEditor}
+          onOpenDesign={openDesign}
           onNewProject={() => openEditor('new')}
           onLogIn={() => openAuth('login')}
           onSignUp={() => openAuth('signup')}
@@ -192,7 +294,7 @@ export function PrototypeApp() {
             openEditor(id);
           }}
           onSection={(section) => navigate({ name: 'home', section })}
-          onBrowseGallery={() => setToast('The full gallery is not part of the prototype yet.')}
+          onBrowseGallery={() => navigate({ name: 'explore' })}
           onChooseKit={() => setToast('On the real site this opens the openUC2 shop.')}
           onChoosePlan={(plan) => (plan === 'lab' ? setToast('On the real site this opens a contact form.') : openAuth('signup'))}
         />

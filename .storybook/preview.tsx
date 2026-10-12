@@ -130,6 +130,8 @@ const preview: Preview = {
           'Landing',
           ['Example Showcase', 'Community Section', 'Bench Preview', 'Pricing Section'],
           'Compositions',
+          'Views',
+          ['Explore', 'Design Page', 'Projects'],
           'Pages',
           ['Prototype', 'Landing', 'Home', 'Editor'],
         ],

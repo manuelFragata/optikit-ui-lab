@@ -3,7 +3,7 @@ import CardActionArea from '@mui/material/CardActionArea';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { TagChip } from '../primitives/TagChip';
+import { Pill } from '../primitives/Pill';
 import { CubeThumbnail } from './CubeThumbnail';
 
 export type DesignKind = 'Part' | 'Assembly' | 'Instrument' | 'Collection';
@@ -67,7 +67,7 @@ export function DesignCard({
           {tags.length > 0 && (
             <Stack direction="row" useFlexGap spacing={0.5} sx={{ flexWrap: 'wrap' }}>
               {tags.map((tag) => (
-                <TagChip key={tag} label={tag} />
+                <Pill key={tag}>#{tag}</Pill>
               ))}
             </Stack>
           )}

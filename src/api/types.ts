@@ -79,6 +79,43 @@ export interface DesignSummary {
   tags: string[];
   maintainer: string;
   updated: string;
+  cubes: number;
+}
+
+/** A design input shown as a slider (from the design's `inputs:` and its current value). */
+export interface DesignInputValue {
+  name: string;
+  label: string;
+  units: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+}
+
+/** One line of the parts list. */
+export interface PartLine {
+  name: string;
+  qty: number;
+  /** Where it comes from: a box, a vendor, or "printed". */
+  source: string;
+}
+
+export interface DesignVersion {
+  version?: string;
+  hash: string;
+  message: string;
+  when: string;
+  author: string;
+}
+
+/** Everything the design page shows. */
+export interface DesignDetail extends DesignSummary {
+  inputs: DesignInputValue[];
+  parts: PartLine[];
+  versions: DesignVersion[];
+  /** Names of designs that use this one. */
+  usedIn: string[];
 }
 
 export interface ProjectSummary extends DesignSummary {

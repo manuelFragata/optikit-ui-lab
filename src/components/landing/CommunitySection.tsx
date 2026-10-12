@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -6,13 +6,14 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
-import NorthEastIcon from '@mui/icons-material/NorthEast';
 import type { GalleryItem } from '../../demo/homeContent';
 import type { Assembly } from '../../demo/assemblies';
 import { AssemblyView } from './AssemblyView';
 import type { Schematic } from '../editor/model';
 import { SchematicCanvas } from '../editor/SchematicCanvas';
 import { CubeThumbnail } from '../cards/CubeThumbnail';
+import { CornerArrow } from '../primitives/CornerArrow';
+import { Pill } from '../primitives/Pill';
 import { PillButton } from './PillButton';
 import { useCountUp, useRiseIn } from './motion';
 
@@ -55,56 +56,6 @@ const FILTERS: { value: Filter; label: string }[] = [
 ];
 
 const tileRadius = (t: Theme) => `${t.radius.stage}px`;
-
-/** Outlined pill used for filters and the tags laid over tiles. */
-function Pill({ children, active, onClick, overlay }: { children: ReactNode; active?: boolean; onClick?: () => void; overlay?: boolean }) {
-  return (
-    <ButtonBase
-      component={onClick ? 'button' : 'span'}
-      onClick={onClick}
-      aria-pressed={onClick ? active : undefined}
-      sx={(t) => ({
-        px: 1.5,
-        py: 0.5,
-        borderRadius: `${t.radius.pill}px`,
-        border: `${t.layout.hairline}px solid`,
-        borderColor: active ? 'text.primary' : overlay ? 'transparent' : 'divider',
-        bgcolor: active ? 'text.primary' : overlay ? 'background.paper' : 'transparent',
-        color: active ? 'background.paper' : 'text.primary',
-        typography: 'meta',
-        pointerEvents: onClick ? 'auto' : 'none',
-        whiteSpace: 'nowrap',
-      })}
-    >
-      {children}
-    </ButtonBase>
-  );
-}
-
-/** The round ↗ in a tile's corner; it turns when the tile is hovered. */
-function CornerArrow({ inverted }: { inverted?: boolean }) {
-  return (
-    <Box
-      aria-hidden
-      className="corner-arrow"
-      sx={(t) => ({
-        position: 'absolute',
-        top: t.spacing(1.5),
-        right: t.spacing(1.5),
-        display: 'grid',
-        placeItems: 'center',
-        width: t.spacing(5),
-        height: t.spacing(5),
-        borderRadius: '50%',
-        bgcolor: inverted ? 'text.primary' : 'background.paper',
-        color: inverted ? 'background.paper' : 'text.primary',
-        transition: t.transitions.create('transform', { duration: t.transitions.duration.shorter }),
-      })}
-    >
-      <NorthEastIcon fontSize="small" />
-    </Box>
-  );
-}
 
 const byline = (item: GalleryItem) => (item.source === 'optikit' ? 'Shipped with Optikit' : `@${item.author}`);
 

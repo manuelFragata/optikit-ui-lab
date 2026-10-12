@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import { AccountMenu, type AccountUser } from './AccountMenu';
 import { AppHeader } from './AppHeader';
+import { OpenProject } from './OpenProject';
 import { DESIGN_TABS, Ribbon, TAB_LABELS, type WorkspaceTab } from './Ribbon';
 
 export interface WorkspaceShellProps {
@@ -10,6 +12,10 @@ export interface WorkspaceShellProps {
   onTabChange: (tab: WorkspaceTab) => void;
   /** The open design, if any. Without one, only Home and Projects are shown. */
   design?: { name: string; version: string } | null;
+  /** Back to the open design in the editor. */
+  onShowDesign?: () => void;
+  /** Close the open design. */
+  onCloseDesign?: () => void;
   /** `null` when signed out. */
   user: AccountUser | null;
   /** The active view's commands, shown under the tabs. */
@@ -35,6 +41,8 @@ export function WorkspaceShell({
   tab,
   onTabChange,
   design,
+  onShowDesign,
+  onCloseDesign,
   user,
   commands,
   statusBar,
@@ -50,10 +58,18 @@ export function WorkspaceShell({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
       <AppHeader
-        projectName={design?.name}
-        version={design?.version}
         onHome={onHome}
-        nav={<Ribbon tabs={tabs} value={tab} onChange={onTabChange} />}
+        nav={
+          <>
+            {design && (
+              <>
+                <OpenProject name={design.name} version={design.version} onShow={onShowDesign} onClose={onCloseDesign} />
+                <Divider orientation="vertical" flexItem sx={{ borderColor: 'currentColor', opacity: 0.3, my: 2 }} />
+              </>
+            )}
+            <Ribbon tabs={tabs} value={tab} onChange={onTabChange} />
+          </>
+        }
         actions={
           <>
             {headerActions}

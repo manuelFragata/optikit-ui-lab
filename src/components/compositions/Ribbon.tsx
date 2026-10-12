@@ -5,10 +5,10 @@ import Tabs from '@mui/material/Tabs';
  * The views of the workspace, one tab each (UI-V4 §2). Home and Projects
  * work without a design; the others act on the open design.
  */
-export type WorkspaceTab = 'explore' | 'projects' | 'file' | 'view' | 'simulate';
+export type WorkspaceTab = 'home' | 'projects' | 'file' | 'view' | 'simulate';
 
 export const TAB_LABELS: Record<WorkspaceTab, string> = {
-  explore: 'Home',
+  home: 'Home',
   projects: 'Projects',
   file: 'File',
   view: 'View',

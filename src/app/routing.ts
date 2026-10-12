@@ -13,8 +13,10 @@ export type Route =
   | { name: 'signup' }
   | { name: 'account' }
   | { name: 'editor'; id: string }
-  /** A workspace view (#/explore, #/projects, #/view/<id>); `id` is the open design. */
-  | { name: 'workspace'; tab: WorkspaceTab; id?: string };
+  /** A workspace view (#/projects, #/view/<id>); `id` is the open design. The Home tab is the `home` route. */
+  | { name: 'workspace'; tab: WorkspaceTab; id?: string }
+  /** The gallery (#/explore), or one design's page in it (#/explore/<id>). */
+  | { name: 'explore'; id?: string };
 
 const isTab = (s: string): s is WorkspaceTab => Object.hasOwn(TAB_LABELS, s);
 
@@ -30,8 +32,10 @@ export function parseHash(hash: string): Route {
       return { name: first };
     case 'editor':
       return second ? { name: 'editor', id: decodeURIComponent(second) } : { name: 'editor', id: 'new' };
+    case 'explore':
+      return { name: 'explore', id: second ? decodeURIComponent(second) : undefined };
     default:
-      if (isTab(first)) {
+      if (isTab(first) && first !== 'home') {
         const id = second ? decodeURIComponent(second) : undefined;
         // A design tab with no design falls back to Projects.
         return DESIGN_TABS.includes(first) && !id ? { name: 'workspace', tab: 'projects' } : { name: 'workspace', tab: first, id };
@@ -46,6 +50,8 @@ export function routeToHash(route: Route): string {
       return `#/editor/${encodeURIComponent(route.id)}`;
     case 'workspace':
       return route.id ? `#/${route.tab}/${encodeURIComponent(route.id)}` : `#/${route.tab}`;
+    case 'explore':
+      return route.id ? `#/explore/${encodeURIComponent(route.id)}` : '#/explore';
     case 'home':
       return route.section ? `#${encodeURIComponent(route.section)}` : '#/';
     default:

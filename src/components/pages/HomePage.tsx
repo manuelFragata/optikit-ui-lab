@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
-import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -34,6 +33,7 @@ import { PageContainer } from '../compositions/PageContainer';
 import { SiteFooter } from '../compositions/SiteFooter';
 import { SiteHeader } from '../compositions/SiteHeader';
 import { LandingPage, type LandingPageProps } from './LandingPage';
+import { Pill } from '../primitives/Pill';
 import { TagChip } from '../primitives/TagChip';
 import { demoUser } from '../../demo/user';
 import type { AccountUser } from '../compositions/AccountMenu';
@@ -129,7 +129,7 @@ const FILTERS: { value: GalleryFilter; label: string }[] = [
   { value: 'community', label: 'Community' },
 ];
 
-function GalleryBody({ onOpenDesign }: { onOpenDesign?: (id: string) => void }) {
+function GalleryBody({ onOpenDesign, onBrowseGallery }: { onOpenDesign?: (id: string) => void; onBrowseGallery?: () => void }) {
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const items = demoGallery.filter((item) => filter === 'all' || item.source === filter);
 
@@ -139,29 +139,18 @@ function GalleryBody({ onOpenDesign }: { onOpenDesign?: (id: string) => void }) 
         Ready-made systems that ship with Optikit, and designs shared by the community. Open one, fork it, make it yours.
       </Typography>
       <Stack direction="row" useFlexGap spacing={0.75} sx={{ flexWrap: 'wrap' }} role="group" aria-label="Filter gallery">
-        {FILTERS.map((f) => {
-          const selected = f.value === filter;
-          return (
-            <Chip
-              key={f.value}
-              label={f.label}
-              onClick={() => setFilter(f.value)}
-              aria-pressed={selected}
-              sx={
-                selected
-                  ? { bgcolor: 'primary.soft', color: 'primary.onSoft', '&:hover': { bgcolor: 'primary.soft' } }
-                  : { bgcolor: 'background.sunken', color: 'text.secondary' }
-              }
-            />
-          );
-        })}
+        {FILTERS.map((f) => (
+          <Pill key={f.value} active={f.value === filter} onClick={() => setFilter(f.value)}>
+            {f.label}
+          </Pill>
+        ))}
       </Stack>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', alignContent: 'start', flex: 1 }}>
         {items.map((item) => (
           <GalleryTile key={item.id} item={item} onOpen={() => onOpenDesign?.(item.id)} />
         ))}
       </Box>
-      <Link href="#gallery" variant="body2" sx={{ alignSelf: 'flex-start' }}>
+      <Link component="button" variant="body2" onClick={onBrowseGallery} sx={{ alignSelf: 'flex-start' }}>
         Browse the full gallery
       </Link>
     </Stack>
@@ -296,6 +285,83 @@ function ContributeCard() {
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
+export interface HomeDashboardProps
+  extends Pick<HomePageProps, 'projects' | 'autoAdvanceMs' | 'onOpenProject' | 'onNewProject' | 'onLogIn' | 'onOpenDesign' | 'onBrowseGallery'> {
+  user: AccountUser;
+}
+
+/** The signed-in home: projects, inspiration, tutorials and community. Used by HomePage and the workspace's Home tab. */
+export function HomeDashboard({
+  user,
+  projects = demoProjects,
+  autoAdvanceMs = 7000,
+  onOpenProject,
+  onNewProject,
+  onLogIn,
+  onOpenDesign,
+  onBrowseGallery,
+}: HomeDashboardProps) {
+  return (
+    <PageContainer component="main" sx={{ flex: 1, pt: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 } }}>
+      <Typography variant="h1" sx={{ mb: { xs: 3, md: 4 } }}>
+        Welcome back, {user.name}.
+      </Typography>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: { xs: 4, lg: 5 },
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
+        }}
+      >
+        <Stack spacing={3} sx={{ minWidth: 0 }}>
+          <DashboardCard
+            title="Your projects"
+            flush
+            action={
+              <Link href="#/projects" variant="body2">
+                View all
+              </Link>
+            }
+          >
+            <ProjectsBody
+              signedIn
+              projects={projects}
+              onOpenProject={onOpenProject}
+              onNewProject={onNewProject}
+              onLogIn={onLogIn}
+            />
+          </DashboardCard>
+          <BenchIllustration />
+        </Stack>
+
+        <Stack sx={{ minWidth: 0 }}>
+          <DashboardCard title="Need inspiration?" grow>
+            <GalleryBody onOpenDesign={onOpenDesign} onBrowseGallery={onBrowseGallery} />
+          </DashboardCard>
+        </Stack>
+
+        <Stack spacing={4} sx={{ minWidth: 0, gridColumn: { md: '1 / -1', lg: 'auto' } }}>
+          <DashboardCard title="Need a hand?" flush>
+            <TutorialsBody />
+          </DashboardCard>
+          <DashboardCard title="Community" unframed>
+            <StackedCards
+              aria-label="Community"
+              autoAdvanceMs={autoAdvanceMs}
+              items={[
+                { id: 'forum', label: 'Community forum', icon: <ForumOutlinedIcon fontSize="small" />, content: <ForumCard /> },
+                { id: 'releases', label: 'Release notes', icon: <NewReleasesOutlinedIcon fontSize="small" />, content: <ReleaseNotesCard /> },
+                { id: 'showcase', label: 'Build of the week', icon: <AutoAwesomeOutlinedIcon fontSize="small" />, content: <ShowcaseCard /> },
+                { id: 'contribute', label: 'Contribute', icon: <GitHubIcon fontSize="small" />, content: <ContributeCard /> },
+              ]}
+            />
+          </DashboardCard>
+        </Stack>
+      </Box>
+    </PageContainer>
+  );
+}
+
 /**
  * Optikit home. Signed in: projects, gallery, tutorials and a community card
  * stack in three columns. Signed out: the landing page.
@@ -340,63 +406,16 @@ export function HomePage({
     <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <SiteHeader user={user} onHome={onHome} onLogIn={onLogIn} onSignUp={onSignUp} onProjects={onHome} onAccount={onAccount} onLogOut={onLogOut} />
 
-      <PageContainer component="main" sx={{ flex: 1, pt: { xs: 3, md: 5 }, pb: { xs: 6, md: 8 } }}>
-        <Typography variant="h1" sx={{ mb: { xs: 3, md: 4 } }}>
-          Welcome back, {user.name}.
-        </Typography>
-        <Box
-          sx={{
-            display: 'grid',
-            gap: { xs: 4, lg: 5 },
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
-          }}
-        >
-          <Stack spacing={3} sx={{ minWidth: 0 }}>
-            <DashboardCard
-              title="Your projects"
-              flush
-              action={
-                <Link href="#projects" variant="body2">
-                  View all
-                </Link>
-              }
-            >
-              <ProjectsBody
-                signedIn
-                projects={projects}
-                onOpenProject={onOpenProject}
-                onNewProject={onNewProject}
-                onLogIn={onLogIn}
-              />
-            </DashboardCard>
-            <BenchIllustration />
-          </Stack>
-
-          <Stack sx={{ minWidth: 0 }}>
-            <DashboardCard title="Need inspiration?" grow>
-              <GalleryBody onOpenDesign={onOpenDesign} />
-            </DashboardCard>
-          </Stack>
-
-          <Stack spacing={4} sx={{ minWidth: 0, gridColumn: { md: '1 / -1', lg: 'auto' } }}>
-            <DashboardCard title="Need a hand?" flush>
-              <TutorialsBody />
-            </DashboardCard>
-            <DashboardCard title="Community" unframed>
-              <StackedCards
-                aria-label="Community"
-                autoAdvanceMs={autoAdvanceMs}
-                items={[
-                  { id: 'forum', label: 'Community forum', icon: <ForumOutlinedIcon fontSize="small" />, content: <ForumCard /> },
-                  { id: 'releases', label: 'Release notes', icon: <NewReleasesOutlinedIcon fontSize="small" />, content: <ReleaseNotesCard /> },
-                  { id: 'showcase', label: 'Build of the week', icon: <AutoAwesomeOutlinedIcon fontSize="small" />, content: <ShowcaseCard /> },
-                  { id: 'contribute', label: 'Contribute', icon: <GitHubIcon fontSize="small" />, content: <ContributeCard /> },
-                ]}
-              />
-            </DashboardCard>
-          </Stack>
-        </Box>
-      </PageContainer>
+      <HomeDashboard
+        user={user}
+        projects={projects}
+        autoAdvanceMs={autoAdvanceMs}
+        onOpenProject={onOpenProject}
+        onNewProject={onNewProject}
+        onLogIn={onLogIn}
+        onOpenDesign={onOpenDesign}
+        onBrowseGallery={onBrowseGallery}
+      />
 
       <SiteFooter />
     </Box>
