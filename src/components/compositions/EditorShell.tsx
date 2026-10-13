@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -38,6 +38,11 @@ import { demoUser } from '../../demo/user';
 import { AccountMenu, type AccountUser } from './AccountMenu';
 import { AppHeader, type HeaderVariant } from './AppHeader';
 import { StatusBar } from './StatusBar';
+import { meshForPart } from '../../demo/meshes';
+import type { CameraCommand, CameraMove } from '../editor/scene3d/Camera';
+
+// three.js and its helpers load only when the 3D view is first opened.
+const DesignScene3D = lazy(() => import('../editor/scene3d/DesignScene3D').then((m) => ({ default: m.DesignScene3D })));
 
 export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'files';
 export type RightPanelId = 'properties' | 'history' | 'info';
@@ -53,6 +58,7 @@ const HINTS: Record<CanvasTool, string> = {
   zoom: 'Click to zoom in · Alt-click to zoom out',
   measure: 'Click two points to measure between them',
 };
+const HINT_3D = 'Click a part to select it, double-click for its properties · right drag orbits, middle drag pans, the wheel zooms';
 
 export interface EditorShellProps {
   /** Off inside the workspace, which has its own header. */
@@ -64,8 +70,6 @@ export interface EditorShellProps {
   user?: AccountUser | null;
   /** Initial design; edits are kept inside the shell. */
   schematic?: Schematic;
-  /** The design in 3D, shown by the 3D switch when there is a model. */
-  preview3d?: ReactNode;
 
   /** Left panel (palette, layers, parts, files). Controlled if set; otherwise `defaultLeftState`. */
   leftState?: SidePanelState;
@@ -140,7 +144,6 @@ export function EditorShell({
   version = '0.4.2',
   user = demoUser,
   schematic: initialSchematic = demoSchematic,
-  preview3d,
   leftState: leftStateProp,
   defaultLeftState = 'collapsed',
   onLeftStateChange,
@@ -180,6 +183,9 @@ export function EditorShell({
   // The schematic shows one layer at a time; it opens on the lowest layer with parts.
   const [layer, setLayer] = useState(() => Math.min(...initialSchematic.symbols.map((s) => s.z), 1));
   const [detail, setDetail] = useState<Detail>('solids');
+  // The 3D camera is moved by commands (views, fit, zoom); `n` counts them so the same one can repeat.
+  const [cameraCommand, setCameraCommand] = useState<CameraCommand>();
+  const move3d = (move: CameraMove) => setCameraCommand((c) => ({ move, n: (c?.n ?? 0) + 1 }));
   const [camera, setCamera] = useState<Camera | 'fit'>('fit');
   const [flyout, setFlyout] = useState<Flyout | null>(null);
   const [placing, setPlacing] = useState<PartEntry | null>(null);
@@ -385,14 +391,17 @@ export function EditorShell({
       } else if (key === 'a' || key === '/') {
         e.preventDefault();
         setFlyout('add');
-      } else if (view === '2d' && TOOL_KEYS[key]) {
+      } else if (TOOL_KEYS[key] && (view === '2d' || key !== 'm')) {
         setTool(TOOL_KEYS[key]);
-      } else if (view === '2d' && key === 'f') {
-        zoomBy('fit');
-      } else if (view === '2d' && (key === '+' || key === '=')) {
-        zoomBy('in');
-      } else if (view === '2d' && key === '-') {
-        zoomBy('out');
+      } else if (key === 'f') {
+        if (view === '3d') move3d(e.shiftKey ? 'fitSelection' : 'fit');
+        else zoomBy('fit');
+      } else if (key === '+' || key === '=') {
+        if (view === '3d') move3d('in');
+        else zoomBy('in');
+      } else if (key === '-') {
+        if (view === '3d') move3d('out');
+        else zoomBy('out');
       } else if (view === '2d' && key === '1') {
         zoomBy('actual');
       } else if (selected && key === 'r') {
@@ -455,6 +464,10 @@ export function EditorShell({
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => openRight('info') },
   ];
 
+  useEffect(() => {
+    if (view === '3d' && tool === 'measure') setTool('select');
+  }, [view, tool]);
+
   const hint = !placing
     ? HINTS[tool]
     : dragging
@@ -489,6 +502,18 @@ export function EditorShell({
         </Typography>
       </ButtonBase>
     </Stack>
+  );
+
+  // The selection's floating actions, the same in 2D and 3D.
+  const selectionActions = selected && (
+    <SelectionActions
+      parts={selectedParts}
+      realizeOptions={demoModules[selected.kind]}
+      onUpdate={updateSelected}
+      onProperties={() => openRight('properties')}
+      onDuplicate={() => copyParts(selectedParts)}
+      onDelete={deleteSelected}
+    />
   );
 
   const footerButton = (label: string, icon: ReactNode) => (
@@ -596,20 +621,25 @@ export function EditorShell({
         />
 
         <Box sx={{ position: 'relative', display: 'flex', flex: 1, minWidth: 0 }}>
-          {view === '3d' && preview3d ? (
-            <Box sx={{ position: 'relative', flex: 1, display: 'grid', bgcolor: 'canvas.ground' }}>
-              {preview3d}
-              {detail !== 'solids' && (
-                <Typography
-                  variant="meta"
-                  color="text.secondary"
-                  sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', bgcolor: 'background.paper', px: 1.5, py: 0.5, borderRadius: 1 }}
-                >
-                  {detail === 'symbols' ? 'Symbols' : 'Cubes'} in 3D come with the 3D editor; showing solids.
-                </Typography>
-              )}
-              <Box sx={{ position: 'absolute', top: (t) => t.spacing(1.5), left: (t) => t.spacing(1.5) }}>{toolbar}</Box>
-            </Box>
+          {view === '3d' ? (
+            <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+              <DesignScene3D
+                schematic={schematic}
+                layer={layer}
+                options={options}
+                fidelity={detail}
+                selectedIds={selectedIds}
+                tool={tool}
+                meshFor={meshForPart}
+                onSelect={(id, more) => (id && more ? toggle(id) : select(id))}
+                onSelectMany={selectMany}
+                onInspect={inspect}
+                command={cameraCommand}
+                toolbar={toolbar}
+                hint={HINT_3D}
+                selectionActions={selectionActions}
+              />
+            </Suspense>
           ) : (
             <SchematicCanvas
               schematic={schematic}
@@ -631,18 +661,7 @@ export function EditorShell({
               onPlace={place}
               onMove={moveParts}
               snap={options.snapToGrid}
-              selectionActions={
-                selected && (
-                  <SelectionActions
-                    parts={selectedParts}
-                    realizeOptions={demoModules[selected.kind]}
-                    onUpdate={updateSelected}
-                    onProperties={() => openRight('properties')}
-                    onDuplicate={() => copyParts(selectedParts)}
-                    onDelete={deleteSelected}
-                  />
-                )
-              }
+              selectionActions={selectionActions}
             />
           )}
 
@@ -676,6 +695,7 @@ export function EditorShell({
               onDetail={setDetail}
               zoom={zoom}
               onZoom={zoomBy}
+              onCamera={move3d}
               unmounted={unmounted.map((s) => ({ id: s.id, label: s.label }))}
               onShowPart={(id) => {
                 setFlyout(null);
@@ -686,20 +706,18 @@ export function EditorShell({
             />
           </Box>
 
-          {/* Where the drawn layer sits in the whole system, in the corner; it steps aside for the floating right panel. */}
-          {view === '2d' && (
-            <Box
-              sx={(t) => ({
-                position: 'absolute',
-                right: rightState === 'expanded' ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(2),
-                bottom: t.spacing(2),
-                zIndex: 1,
-                transition: 'right 260ms cubic-bezier(0.22, 1, 0.36, 1)',
-              })}
-            >
-              <LayerPreview schematic={schematic} layers={layers} layer={layer} onLayer={setLayer} selectedIds={selectedIds} crowded={rightState === 'expanded'} />
-            </Box>
-          )}
+          {/* Where the current layer sits in the whole system, in the corner; it steps aside for the floating right panel. */}
+          <Box
+            sx={(t) => ({
+              position: 'absolute',
+              right: rightState === 'expanded' ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(2),
+              bottom: t.spacing(2),
+              zIndex: 1,
+              transition: 'right 260ms cubic-bezier(0.22, 1, 0.36, 1)',
+            })}
+          >
+            <LayerPreview schematic={schematic} layers={layers} layer={layer} onLayer={setLayer} selectedIds={selectedIds} crowded={rightState === 'expanded'} />
+          </Box>
         </Box>
 
         <SidePanel
@@ -775,7 +793,7 @@ export function EditorShell({
           <>
             <Typography variant="caption">snap {options.snapToGrid ? 'on' : 'off'}</Typography>
             <Typography variant="caption">grid {schematic.unitMm} mm</Typography>
-            <Typography variant="mono">{Math.round(zoom * 100)}%</Typography>
+            {view === '2d' && <Typography variant="mono">{Math.round(zoom * 100)}%</Typography>}
           </>
         }
       />

@@ -13,7 +13,8 @@ import type { BenchBeam, BenchPart, BenchPose } from '../components/landing/benc
 const STORE = 'https://raw.githubusercontent.com/beniroquai/openUC2-OptiKit-Store/main/GLB/';
 const glb = (file: string) => STORE + encodeURIComponent(file);
 
-const M = {
+/** The store's GLBs by what they are; the editor's 3D view uses them too (src/demo/meshes.ts). */
+export const STORE_MESHES = {
   laser: glb('ASS_-_2018_-_CUBLAS520_-_V04.glb'),
   led: glb('ASS_-_2043_-_CUBFLULEDGRENEWENE_-_V04.glb'),
   mirror: glb('ASS_-_2020_-_CUBMIR45°TH2_-_V04.glb'),
@@ -26,6 +27,7 @@ const M = {
   camera: glb('ASS_-_2045_-_CUBCAM+RASPI0_-_V04.glb'),
   empty: glb('ASS_-_2000_-_CUB_-_V04.glb'),
 };
+const M = STORE_MESHES;
 
 export interface Assembly {
   parts: BenchPart[];

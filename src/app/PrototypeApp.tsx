@@ -277,7 +277,6 @@ export function PrototypeApp() {
           showHeader={false}
           schematic={played[openId] ?? design.schematic}
           defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
-          preview3d={exampleAssemblies[openId] && <AssemblyView assembly={exampleAssemblies[openId]} animate={false} label={`${design.name} in 3D`} sx={{ width: '100%', height: '100%' }} />}
         />
       );
     } else {

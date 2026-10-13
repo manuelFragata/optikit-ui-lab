@@ -7,6 +7,7 @@ import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { rayPoints, shifted, symbolBounds, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
+import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './CanvasToolbar';
 
@@ -17,6 +18,9 @@ export interface Camera {
 }
 
 const ZOOM = { min: 0.2, max: 5 };
+
+/** How strongly each layer shows in the schematic. */
+const SHOW_OPACITY: Record<LayerShow, number> = { current: 1, ghost: 0.16, hidden: 0 };
 
 export interface SchematicCanvasProps {
   schematic: Schematic;
@@ -165,10 +169,9 @@ export function SchematicCanvas({
         const { x, y } = shifted(s, moving.by);
         return moving.copy ? [s, { ...s, x, y, id: `${s.id}-copy` }] : [{ ...s, x, y }];
       });
-  /** How visible a part on layer `z` is: on the drawn layer fully, on another faintly (onion skin) or not at all. */
-  const onLayer = (z: number) => layer === undefined || z === layer;
-  const ghost = options.onionSkin === false ? 0 : 0.16;
-  const layerOpacity = (z: number) => (onLayer(z) ? 1 : ghost);
+  // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
+  const others = options.onionSkin !== false;
+  const onLayer = (z: number) => layerShow(z, layer, others) === 'current';
   const symbolZ = (id: string) => symbols.find((s) => s.id === id)?.z;
   // While copies are dragged, the copies are what is selected.
   const selectedParts = symbols.filter((s) => (moving?.copy ? moving.ids.map((id) => `${id}-copy`) : selectedIds).includes(s.id));
@@ -415,7 +418,7 @@ export function SchematicCanvas({
 
             {/* groups */}
             {groupBoxes.map((g) => (
-              <Box component="g" key={g.id} sx={{ color: 'canvas.group' }} opacity={symbols.some((s) => s.group === g.id && onLayer(s.z)) ? 1 : ghost}>
+              <Box component="g" key={g.id} sx={{ color: 'canvas.group' }} opacity={SHOW_OPACITY[layerShowOfAny(symbols.filter((s) => s.group === g.id).map((s) => s.z), layer, others)]}>
                 <rect x={g.x} y={g.y} width={g.w} height={g.h} stroke="currentColor" strokeWidth={1} strokeDasharray="5 4" {...line} />
                 <Box component="text" x={g.x + 0.2} y={g.y - 0.3} fontSize={LABEL * 0.85} sx={{ fill: 'var(--mui-palette-text-secondary)', letterSpacing: '0.08em', fontWeight: 500 }}>
                   {g.label.toUpperCase()}
@@ -427,7 +430,7 @@ export function SchematicCanvas({
             {options.showRays !== false && rays.map((ray) => {
               const pts = rayPoints(ray, symbols);
               if (pts.length < 2) return null;
-              const touchesLayer = ray.path.some((id) => id !== 'sample' && onLayer(symbolZ(id) ?? -1));
+              const show = layerShowOfAny(ray.path.filter((id) => id !== 'sample').map(symbolZ), layer, others);
               const a = pts[Math.min(ray.arrowSegment, pts.length - 2)];
               const b = pts[Math.min(ray.arrowSegment + 1, pts.length - 1)];
               const angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
@@ -436,7 +439,7 @@ export function SchematicCanvas({
               const prev = pts[Math.max(0, Math.min(ray.labelAt, pts.length - 1) - 1)];
               const endsRight = lp.x >= prev.x;
               return (
-                <Box component="g" key={ray.id} className="schematic-ray" opacity={touchesLayer ? 1 : ghost} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show]} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
                   <path d="M-0.2 -0.14 L0.2 0 L-0.2 0.14 Z" fill="currentColor" transform={`translate(${mid.x} ${mid.y}) rotate(${angle})`} />
                   {options.showRayLabels && (
@@ -481,7 +484,7 @@ export function SchematicCanvas({
                   role="button"
                   tabIndex={here ? 0 : -1}
                   aria-hidden={here ? undefined : true}
-                  opacity={layerOpacity(s.z)}
+                  opacity={SHOW_OPACITY[layerShow(s.z, layer, others)]}
                   pointerEvents={here && (interactive || moving?.ids.includes(s.id)) ? undefined : 'none'}
                   aria-label={`${s.label} (${s.id})`}
                   aria-pressed={isSelected}

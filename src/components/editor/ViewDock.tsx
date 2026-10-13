@@ -13,7 +13,9 @@ import CheckIcon from '@mui/icons-material/Check';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import FilterNoneIcon from '@mui/icons-material/FilterNone';
+import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import FitScreenOutlinedIcon from '@mui/icons-material/FitScreenOutlined';
+import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
@@ -30,12 +32,14 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import { floatingCardSx } from '../panels/floatingCard';
 import type { CanvasTool, EditorView, ViewOptions } from './CanvasToolbar';
+import type { CameraMove } from './scene3d/Camera';
+import type { Fidelity } from './scene3d/layout3d';
 
-/** How much the 3D view draws: the symbols, their cubes, or the real solids. */
-export type Detail = 'symbols' | 'cubes' | 'solids';
+/** How much the 3D view draws: the symbols, their cubes, or the real solids (the brief's fidelity dial). */
+export type Detail = Fidelity;
 
 /** The dock's pop-up option lists; one is open at a time. */
-export type Flyout = 'add' | 'show' | 'detail' | 'zoom' | 'build';
+export type Flyout = 'add' | 'show' | 'detail' | 'zoom' | 'views' | 'build';
 
 export type ZoomCommand = 'in' | 'out' | 'actual' | 'fit';
 
@@ -63,6 +67,8 @@ export interface ViewDockProps {
   /** The schematic zoom, 1 = 100%. */
   zoom: number;
   onZoom: (command: ZoomCommand) => void;
+  /** 3D: move the camera to a view, or fit. */
+  onCamera?: (move: CameraMove) => void;
 
   /** The parts not mounted yet; none means buildable. */
   unmounted: { id: string; label: string }[];
@@ -90,6 +96,23 @@ const TOOLS: { value: CanvasTool; label: string; icon: ReactNode }[] = [
   { value: 'pan', label: 'Pan (H)', icon: <PanToolOutlinedIcon fontSize="small" /> },
   { value: 'zoom', label: 'Zoom (Z), Alt-click to zoom out', icon: <ZoomInIcon fontSize="small" /> },
   { value: 'measure', label: 'Measure (M)', icon: <StraightenIcon fontSize="small" /> },
+];
+
+/** Faces of a view cube, drawn small: which side the camera looks from. */
+const face = (d: string) => (
+  <Box component="svg" viewBox="0 0 20 20" sx={{ width: 20, height: 20 }}>
+    <path d="M10 2 17 6v8l-7 4-7-4V6z" fill="none" stroke="currentColor" strokeWidth={1.2} />
+    <path d={d} fill="currentColor" opacity={0.45} />
+  </Box>
+);
+
+const VIEWS: { value: CameraMove; label: string; shortcut?: string; icon: ReactNode }[] = [
+  { value: 'iso', label: 'Angled', icon: <ThreeDRotationIcon fontSize="small" /> },
+  { value: 'top', label: 'Top', icon: face('M10 2 17 6l-7 4-7-4z') },
+  { value: 'front', label: 'Front', icon: face('M3 6l7 4v8l-7-4z') },
+  { value: 'right', label: 'Right', icon: face('M17 6l-7 4v8l7-4z') },
+  { value: 'fit', label: 'Fit the design', shortcut: 'F', icon: <FitScreenOutlinedIcon fontSize="small" /> },
+  { value: 'fitSelection', label: 'Fit the selection', shortcut: 'Shift F', icon: <CenterFocusStrongOutlinedIcon fontSize="small" /> },
 ];
 
 const ZOOMS: { value: ZoomCommand; label: string; shortcut: string; icon: ReactNode }[] = [
@@ -217,16 +240,13 @@ export function ViewDock(props: ViewDockProps) {
           <RedoIcon fontSize="small" />
         </DockButton>
 
-        {schematic && (
-          <>
-            <Sep />
-            {TOOLS.map((t) => (
-              <DockButton key={t.value} label={t.label} on={tool === t.value} onClick={() => onTool(t.value)}>
-                {t.icon}
-              </DockButton>
-            ))}
-          </>
-        )}
+        <Sep />
+        {/* Measure is 2D only. In 3D, right drag orbits whatever the tool. */}
+        {TOOLS.filter((t) => schematic || t.value !== 'measure').map((t) => (
+          <DockButton key={t.value} label={t.label} on={tool === t.value} onClick={() => onTool(t.value)}>
+            {t.icon}
+          </DockButton>
+        ))}
 
         <Sep />
         <WithFlyout
@@ -256,6 +276,18 @@ export function ViewDock(props: ViewDockProps) {
             </DockButton>
           </WithFlyout>
         ) : (
+          <WithFlyout
+            open={flyout === 'views'}
+            content={VIEWS.map((v) => (
+              <FlyoutRow key={v.value} label={v.label} icon={v.icon} hint={v.shortcut} onClick={() => props.onCamera?.(v.value)} />
+            ))}
+          >
+            <DockButton label="Views" flyout on={flyout === 'views'} onClick={() => toggle('views')}>
+              <ThreeDRotationIcon fontSize="small" />
+            </DockButton>
+          </WithFlyout>
+        )}
+        {!schematic && (
           <WithFlyout
             open={flyout === 'detail'}
             content={DETAILS.map((d) => (
