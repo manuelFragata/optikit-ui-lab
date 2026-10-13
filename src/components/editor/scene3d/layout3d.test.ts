@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Schematic, SchematicSymbol } from '../model';
+import type { Light, LightPath } from '../light';
 import { boundsOf, cubeCenter, layout3d, toThree, type View3D } from './layout3d';
 
 const part = (id: string, patch: Partial<SchematicSymbol> = {}): SchematicSymbol => ({
@@ -31,6 +32,11 @@ const view = (patch: Partial<View3D> = {}): View3D => ({
 
 const mesh = { url: 'lens.glb', axes: { z: '+x', x: '+y' } } as const;
 const ray = { id: 'r', label: 'excitation', color: 'ray1' as const, path: ['A', 'B'], offset: 0, arrowSegment: 0, labelAt: 0 };
+/** The light the app's light source would give: from A (0, 0) to B (2, 0), on layer 1. */
+const light = (patch: Partial<LightPath> = {}, misses: Light['misses'] = []): Light => ({
+  paths: [{ ray, z: 1, points: [{ x: 0, y: 0 }, { x: 2, y: 0 }], open: false, ...patch }],
+  misses,
+});
 
 describe('frames', () => {
   it('puts a cube centre a grid step per unit, standing on its layer', () => {
@@ -71,23 +77,29 @@ describe('parts', () => {
     expect(layout3d(d, view({ cages: true })).parts.map((p) => p.cage)).toEqual([true, false]);
   });
 
-  it('turn by their seat, and know when they are selected', () => {
+  it('turn by their seat (clockwise from above, so negative turns for three.js), and know when they are selected', () => {
     const turned = part('A', { placement: { state: 'in-cube', module: 'm', source: 's', seat: 3 } });
-    expect(layout3d(design([turned]), view({ selectedIds: ['A'] })).parts[0]).toMatchObject({ turns: 3, selected: true });
+    expect(layout3d(design([turned]), view({ selectedIds: ['A'] })).parts[0]).toMatchObject({ turns: -3, selected: true });
   });
 });
 
 describe('rays', () => {
-  it('run through the parts they name, and are ghosts when they miss the layer', () => {
-    const d = design([part('A'), part('B', { x: 2 })], [ray]);
-    expect(layout3d(d, view()).rays[0]).toMatchObject({ points: [[0, 0, 80], [100, 0, 80]], ghost: false });
-    expect(layout3d(d, view({ layer: 0 })).rays[0].ghost).toBe(true);
-    expect(layout3d(d, view({ layer: 0, otherLayers: false })).rays).toEqual([]);
+  const d = design([part('A'), part('B', { x: 2 })], [ray]);
+
+  it('go where the light source says, at the height of their layer, and are ghosts on another layer', () => {
+    expect(layout3d(d, view(), undefined, light()).rays[0]).toMatchObject({ points: [[0, 0, 80], [100, 0, 80]], open: false, miss: null, ghost: false });
+    expect(layout3d(d, view({ layer: 0 }), undefined, light()).rays[0].ghost).toBe(true);
+    expect(layout3d(d, view({ layer: 0, otherLayers: false }), undefined, light()).rays).toEqual([]);
   });
 
-  it('are left out when rays are off, or when a part they need is gone', () => {
-    expect(layout3d(design([part('A'), part('B')], [ray]), view({ rays: false })).rays).toEqual([]);
-    expect(layout3d(design([part('A')], [ray]), view()).rays).toEqual([]);
+  it('carry a run into nothing, and the hint to the part they miss', () => {
+    const miss = { ray, label: 'B', from: { x: 0, y: 0 }, at: { x: 2, y: 1 } };
+    expect(layout3d(d, view(), undefined, light({ open: true }, [miss])).rays[0]).toMatchObject({ open: true, miss: [[0, 0, 80], [100, 50, 80]] });
+  });
+
+  it('are left out when rays are off, or with no light source', () => {
+    expect(layout3d(d, view({ rays: false }), undefined, light()).rays).toEqual([]);
+    expect(layout3d(d, view()).rays).toEqual([]);
   });
 });
 
@@ -105,8 +117,8 @@ describe('labels', () => {
 
   it('name the rays over their first leg, unless their labels are off', () => {
     const d = design([part('A'), part('B', { x: 2 })], [ray]);
-    expect(layout3d(d, view()).labels.find((l) => l.tone === 'ray')).toMatchObject({ text: 'excitation', at: [50, 0, 90], color: 'ray1' });
-    expect(layout3d(d, view({ rayLabels: false })).labels.some((l) => l.tone === 'ray')).toBe(false);
+    expect(layout3d(d, view(), undefined, light()).labels.find((l) => l.tone === 'ray')).toMatchObject({ text: 'excitation', at: [50, 0, 90], color: 'ray1' });
+    expect(layout3d(d, view({ rayLabels: false }), undefined, light()).labels.some((l) => l.tone === 'ray')).toBe(false);
   });
 });
 

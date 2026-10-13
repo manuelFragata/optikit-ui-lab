@@ -17,6 +17,7 @@ import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../../settings/preferences';
 import type { CanvasTool, ViewOptions } from '../CanvasToolbar';
 import { withMove, type Move, type Schematic, type SchematicSymbol } from '../model';
+import { useLightFor } from '../light';
 import { Camera, type CameraCommand } from './Camera';
 import { useSceneColors } from './colors';
 import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';
@@ -69,6 +70,7 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
   // Dragged up or down, the parts take the view's layer with them (as they will once let go).
   const shownLayer = layer + (drag.dragging?.by.z ?? 0);
 
+  const lightFor = useLightFor();
   const layout = useMemo(
     () =>
       layout3d(
@@ -84,8 +86,9 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
           selectedIds,
         },
         meshFor,
+        lightFor(shown),
       ),
-    [shown, shownLayer, options, fidelity, selectedIds, meshFor],
+    [shown, shownLayer, options, fidelity, selectedIds, meshFor, lightFor],
   );
   const { parts, rays, labels, floor, anchor, handles, bounds } = layout;
 
@@ -187,7 +190,7 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
             />
           ))}
           {rays.map((r) => (
-            <Ray key={r.id} ray={r} color={colors.rays[r.color]} />
+            <Ray key={r.id} ray={r} color={colors.rays[r.color]} warning={colors.warning} />
           ))}
           {handles && tool === 'select' && <MoveHandles at={handles.at} axes={handles.axes} size={prefs.arrowSize} onPress={pressArrow} />}
         </group>

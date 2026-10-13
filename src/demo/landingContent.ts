@@ -3,7 +3,7 @@
  * community highlights and pricing. Not part of the component set; the plans
  * and prices are made up for the prototype.
  */
-import type { Placement, Schematic } from '../components/editor/model';
+import type { Placement, Schematic, Seat } from '../components/editor/model';
 import { demoSchematic } from './editorContent';
 
 export interface ExampleDesign {
@@ -17,7 +17,7 @@ export interface ExampleDesign {
   schematic: Schematic;
 }
 
-const cube = (module: string, source = 'Core Box'): Placement => ({ state: 'in-cube', module, source, seat: 0 });
+const cube = (module: string, source = 'Core Box', seat: Seat = 0): Placement => ({ state: 'in-cube', module, source, seat });
 const loose = (part: string, source: string): Placement => ({ state: 'unmounted', part, source });
 
 const brightfield: Schematic = {
@@ -39,7 +39,7 @@ const brightfield: Schematic = {
       inputs: [{ label: 'Wavelength', value: 520, unit: 'nm', min: 400, max: 700, step: 1 }],
       notes: '',
     },
-    { id: 'S2', placement: cube('Mirror cube 45°'), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', group: 'illumination', x: 22, y: 12, z: 1, notes: '' },
+    { id: 'S2', placement: cube('Mirror cube 45°', 'Core Box', 1), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', group: 'illumination', x: 22, y: 12, z: 1, notes: '' },
     { id: 'S3', placement: cube('Mirror cube 45°'), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', x: 22, y: 4, z: 1, notes: '' },
     {
       id: 'S4', placement: cube('Lens holder, f = 40'),
@@ -134,7 +134,7 @@ const beamExpander: Schematic = {
       notes: '',
     },
     { id: 'S4', placement: cube('Mirror cube 45°'), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', x: 18, y: 4, z: 1, notes: '' },
-    { id: 'S5', placement: cube('Mirror cube 45°'), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', group: 'profiler', x: 18, y: 11, z: 1, notes: '' },
+    { id: 'S5', placement: cube('Mirror cube 45°', 'Core Box', 1), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', group: 'profiler', x: 18, y: 11, z: 1, notes: '' },
     { id: 'S6', placement: cube('IMX477 camera'), label: 'Camera', kind: 'camera', type: 'camera', group: 'profiler', x: 9, y: 11, z: 1, notes: '' },
   ],
   rays: [

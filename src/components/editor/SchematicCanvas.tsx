@@ -6,7 +6,8 @@ import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { rayPoints, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
+import { useLightFor, type Light, type Point } from './light';
+import { facing, samplePoint, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
@@ -101,10 +102,10 @@ function cageOf(b: Bounds) {
 /** Where a part's name starts: just under its cube outline (drawn or not, so names stay put when cages are toggled). */
 const nameTop = (b: Bounds) => cageOf(b).y + cageOf(b).side + 0.1;
 
-/** Screen-space bounds (y down) of every symbol and ray point. */
-function drawingBounds({ symbols, rays }: Schematic) {
-  const boxes = symbols.map(symbolBounds);
-  const points = rays.flatMap((r) => rayPoints(r, symbols));
+/** Screen-space bounds (y down) of every symbol and where the light goes. */
+function drawingBounds(schematic: Schematic, light: Light) {
+  const boxes = schematic.symbols.map(symbolBounds);
+  const points = light.paths.flatMap((p) => p.points.map((q) => toScreen(q)));
   const xs = [...boxes.flatMap((b) => [b.x, b.x + b.w]), ...points.map((p) => p.x)];
   const ys = [...boxes.flatMap((b) => [b.y, nameTop(b) + LABEL]), ...points.map((p) => p.y)];
   if (xs.length === 0) return null;
@@ -122,6 +123,34 @@ const MINOR = gridPath(1);
 const MAJOR = gridPath(5);
 
 const line = { fill: 'none', vectorEffect: 'non-scaling-stroke' } as const;
+
+/** A design point (y up) on screen (y down), raised by `lift`. */
+const toScreen = (p: Point, lift = 0) => ({ x: p.x, y: -(p.y + lift) });
+
+/** The light's last run, into nothing: it fades out. */
+function RunOut({ from, to, id }: { from: Point; to: Point; id: string }) {
+  return (
+    <>
+      <defs>
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={from.x} y1={from.y} x2={to.x} y2={to.y}>
+          <stop offset="0" stopColor="currentColor" stopOpacity={1} />
+          <stop offset="1" stopColor="currentColor" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={`url(#${id})`} strokeWidth={2} {...line} />
+    </>
+  );
+}
+
+/** Where the light was meant to go and does not: a dashed line from the last part it reached to the one it misses, ringed. */
+function MissHint({ from, to }: { from: Point; to: Point }) {
+  return (
+    <Box component="g" sx={{ color: 'warning.main' }}>
+      <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="currentColor" strokeWidth={1.25} strokeDasharray="4 4" {...line} />
+      <circle cx={to.x} cy={to.y} r={0.35} stroke="currentColor" strokeWidth={1.5} {...line} />
+    </Box>
+  );
+}
 
 function Selection({ s }: { s: SchematicSymbol }) {
   const b = symbolBounds(s);
@@ -176,13 +205,16 @@ export function SchematicCanvas({
   const movingRef = useRef(moving);
   movingRef.current = moving;
   const justMoved = useRef(false);
-  const { groups, rays } = schematic;
+  const { groups } = schematic;
   const symbols = moving ? withMove(schematic, moving).symbols : schematic.symbols;
+  // The light, from the app's light source, for the parts where they are: moving a part never drags it along.
+  const lightFor = useLightFor();
+  const light = lightFor({ ...schematic, symbols });
+  const objective = symbols.find((s) => s.kind === 'objective');
   // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
   const others = options.onionSkin !== false;
   const nameScale = LABEL_SCALE[prefs.labelSize];
   const onLayer = (z: number) => layerShow(z, layer, others) === 'current';
-  const symbolZ = (id: string) => symbols.find((s) => s.id === id)?.z;
   // While copies are dragged, the copies are what is selected.
   const selectedParts = symbols.filter((s) => (moving?.copy ? moving.ids.map((id) => `${id}-copy`) : selectedIds).includes(s.id));
 
@@ -196,7 +228,7 @@ export function SchematicCanvas({
     return () => observer.disconnect();
   }, []);
   const size = measured ?? { w: 960, h: 600 };
-  const bounds = fit || camera === 'fit' ? drawingBounds(schematic) : null;
+  const bounds = fit || camera === 'fit' ? drawingBounds(schematic, light) : null;
   const scale =
     typeof camera === 'object' ? PX_PER_UNIT * camera.zoom : bounds ? Math.min(PX_PER_UNIT, size.w / bounds.w, size.h / bounds.h) : PX_PER_UNIT;
   const center = typeof camera === 'object' ? camera.center : bounds ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 } : CENTER;
@@ -437,11 +469,12 @@ export function SchematicCanvas({
               </Box>
             ))}
 
-            {/* rays */}
-            {options.showRays !== false && rays.map((ray) => {
-              const pts = rayPoints(ray, symbols);
-              if (pts.length < 2) return null;
-              const show = layerShowOfAny(ray.path.filter((id) => id !== 'sample').map(symbolZ), layer, others);
+            {/* the light: where it goes, fading out where it runs into nothing, and a dashed hint to the part it misses */}
+            {options.showRays !== false && light.paths.map(({ ray, z, points, open }) => {
+              const miss = light.misses.find((m) => m.ray.id === ray.id);
+              const pts = points.map((p) => toScreen(p, ray.offset));
+              const show = layerShow(z, layer, others);
+              const lit = open ? pts.slice(0, -1) : pts;
               const a = pts[Math.min(ray.arrowSegment, pts.length - 2)];
               const b = pts[Math.min(ray.arrowSegment + 1, pts.length - 1)];
               const angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
@@ -451,7 +484,9 @@ export function SchematicCanvas({
               const endsRight = lp.x >= prev.x;
               return (
                 <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show]} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
-                  <polyline points={pts.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
+                  <polyline points={lit.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
+                  {open && <RunOut from={pts[pts.length - 2]} to={pts[pts.length - 1]} id={`run-out-${ray.id}`} />}
+                  {miss && <MissHint from={toScreen(miss.from)} to={toScreen(miss.at)} />}
                   <path d="M-0.2 -0.14 L0.2 0 L-0.2 0.14 Z" fill="currentColor" transform={`translate(${mid.x} ${mid.y}) rotate(${angle})`} />
                   {options.showRayLabels && (
                     <text
@@ -468,14 +503,13 @@ export function SchematicCanvas({
               );
             })}
 
-            {/* sample plane */}
-            {(() => {
-              const pts = rays.length ? rayPoints(rays[0], symbols) : [];
-              const end = pts[pts.length - 1];
-              if (!end) return null;
+            {/* the sample, in front of the objective, across the way it looks */}
+            {objective && (() => {
+              const end = toScreen(samplePoint(objective));
+              const across = facing(objective).x !== 0 ? `M${end.x} ${end.y - 0.5}V${end.y + 0.9}` : `M${end.x - 0.7} ${end.y}H${end.x + 0.7}`;
               return (
-                <Box component="g" sx={{ color: 'text.meta', pointerEvents: 'none' }}>
-                  <path d={`M${end.x} ${end.y - 0.5}V${end.y + 0.9}`} stroke="currentColor" strokeWidth={1.5} strokeDasharray="3 2" {...line} />
+                <Box component="g" opacity={SHOW_OPACITY[layerShow(objective.z, layer, others)]} sx={{ color: 'text.meta', pointerEvents: 'none' }}>
+                  <path d={across} stroke="currentColor" strokeWidth={1.5} strokeDasharray="3 2" {...line} />
                   <text x={end.x + 0.3} y={end.y + 1.4} fontSize={LABEL * 0.85} fill="currentColor">
                     sample
                   </text>

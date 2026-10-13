@@ -7,8 +7,9 @@
  * millimetres, z up. The scene turns it into three.js's y-up frame with one
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
-import { layerShow, layerShowOfAny } from '../layers';
-import { isLocked, SAMPLE_OFFSET, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
+import type { Light, LightPath, Point } from '../light';
+import { layerShow } from '../layers';
+import { isLocked, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
 
 /* ------------------------------------------------------------------ */
 /* Grid and frames                                                     */
@@ -76,7 +77,7 @@ export interface PlacedPart {
   kind: SymbolKind;
   /** Cube centre, document mm. */
   center: Vec3;
-  /** Quarter turns about z: the part's seat. */
+  /** Quarter turns about z (counter-clockwise, as three.js turns): the part's seat, which turns clockwise. */
   turns: number;
   layer: number;
   look: Look;
@@ -94,9 +95,13 @@ export interface PlacedRay {
   id: string;
   label: string;
   color: RayColorKey;
-  /** Through the parts' centres, document mm. */
+  /** Where the light goes, document mm. */
   points: Vec3[];
-  /** Touches no part on the current layer. */
+  /** Its last run goes into nothing (drawn fading). */
+  open: boolean;
+  /** From the last part meant that it reached to the one it misses (a dashed hint). */
+  miss: [Vec3, Vec3] | null;
+  /** On another layer. */
   ghost: boolean;
 }
 
@@ -162,7 +167,7 @@ function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbo
     label: s.label,
     kind: s.kind,
     center: cubeCenter(s),
-    turns: s.placement.state === 'in-cube' ? s.placement.seat : 0,
+    turns: s.placement.state === 'in-cube' ? -s.placement.seat : 0,
     layer: s.z,
     look,
     mounted,
@@ -174,23 +179,21 @@ function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbo
   };
 }
 
-/** A light path through the centres of the parts it names; the sample sits a little past the objective. */
-function placeRay(ray: Schematic['rays'][number], byId: Map<string, SchematicSymbol>, view: View3D): PlacedRay | null {
-  const objective = [...byId.values()].find((s) => s.kind === 'objective');
-  const lift = ray.offset * GRID_MM.y;
-  const points = ray.path.flatMap((id): Vec3[] => {
-    const s = id === 'sample' ? objective : byId.get(id);
-    if (!s) return [];
-    const [x, y, z] = cubeCenter(s);
-    return [[id === 'sample' ? x + SAMPLE_OFFSET * GRID_MM.x : x, y + lift, z]];
-  });
-  const show = layerShowOfAny(
-    ray.path.filter((id) => id !== 'sample').map((id) => byId.get(id)?.z),
-    view.layer,
-    view.otherLayers,
-  );
-  if (points.length < 2 || show === 'hidden') return null;
-  return { id: ray.id, label: ray.label, color: ray.color, points, ghost: show === 'ghost' };
+/** A light path at the height of its layer's cube centres, in mm. */
+function placeRay({ ray, z, points, open }: LightPath, misses: Light['misses'], view: View3D): PlacedRay | null {
+  const show = layerShow(z, view.layer, view.otherLayers);
+  if (show === 'hidden') return null;
+  const at = (p: Point, lift = 0) => cubeCenter({ x: p.x, y: p.y + lift, z });
+  const miss = misses.find((m) => m.ray.id === ray.id);
+  return {
+    id: ray.id,
+    label: ray.label,
+    color: ray.color,
+    points: points.map((p) => at(p, ray.offset)),
+    open,
+    miss: miss ? [at(miss.from), at(miss.at)] : null,
+    ghost: show === 'ghost',
+  };
 }
 
 /** The box around some parts' cubes, document mm; null for none. */
@@ -248,12 +251,16 @@ function labelsOf(parts: PlacedPart[], rays: PlacedRay[], floor: Floor | null, v
  * the names, the current layer's floor, and where the camera and the action
  * bar should look.
  */
-export function layout3d(schematic: Schematic, view: View3D, meshFor: (s: SchematicSymbol) => MeshRef | undefined = () => undefined): Layout3D {
+export function layout3d(
+  schematic: Schematic,
+  view: View3D,
+  meshFor: (s: SchematicSymbol) => MeshRef | undefined = () => undefined,
+  light: Light = { paths: [], misses: [] },
+): Layout3D {
   const parts = schematic.symbols
     .filter((s) => layerShow(s.z, view.layer, view.otherLayers) !== 'hidden')
     .map((s) => placePart(s, view, meshFor));
-  const byId = new Map(schematic.symbols.map((s) => [s.id, s]));
-  const rays = view.rays ? schematic.rays.flatMap((r) => placeRay(r, byId, view) ?? []) : [];
+  const rays = view.rays ? light.paths.flatMap((p) => placeRay(p, light.misses, view) ?? []) : [];
   const floor = floorOf(view.layer, parts);
 
   const selection = boundsOf(parts.filter((p) => p.selected && p.look !== 'ghost'));

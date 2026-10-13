@@ -36,7 +36,7 @@ export const demoSchematic: Schematic = {
       x: 10,
       y: 13,
       z: 1,
-      placement: { state: 'in-cube', module: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1', seat: 0 },
+      placement: { state: 'in-cube', module: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1', seat: 1 },
       notes: '',
     },
     {
@@ -48,7 +48,7 @@ export const demoSchematic: Schematic = {
       x: 10,
       y: 4,
       z: 1,
-      placement: { state: 'in-cube', module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0', seat: 0 },
+      placement: { state: 'in-cube', module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0', seat: 1 },
       inputs: [
         { label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 },
         { label: 'Emission band', value: 525, unit: 'nm', min: 450, max: 700, step: 1 },

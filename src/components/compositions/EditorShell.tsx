@@ -19,6 +19,7 @@ import { demoInputs, demoModules, demoPalette, demoSchematic } from '../../demo/
 import { meshForPart } from '../../demo/meshes';
 import { demoUser } from '../../demo/user';
 import { usePreferences } from '../../settings/preferences';
+import { useLightFor } from '../editor/light';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
 import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/CanvasToolbar';
 import { CommandPalette } from '../editor/CommandPalette';
@@ -307,6 +308,9 @@ export function EditorShell({
   };
 
   useShortcuts(actions, { view, hasSelection: ids.length > 0, paused: paletteOpen });
+  // Light paths that miss a part, for the status bar.
+  const misses = useLightFor()(design).misses.map((m) => `${m.ray.label} misses ${m.label}`);
+
   const commands = paletteCommands(actions, { library: LIBRARY, symbols: design.symbols, layers, unmounted: unmounted.length, options });
 
   /* ---------------------------------------------------------------- */
@@ -520,6 +524,7 @@ export function EditorShell({
         layer={layer}
         snap={options.snapToGrid}
         zoom={zoom}
+        misses={misses}
         onShowParts={() => openLeft('parts')}
       />
 

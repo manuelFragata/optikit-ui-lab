@@ -115,17 +115,21 @@ export interface SchematicGroup {
 
 export type RayColorKey = 'ray1' | 'ray2' | 'ray3' | 'ray4' | 'ray5' | 'ray6';
 
+/**
+ * A light path: where the light starts and the parts it is meant to go
+ * through, in order. Where it actually goes comes from the app's light source (light.ts).
+ */
 export interface SchematicRay {
   id: string;
   label: string;
   color: RayColorKey;
-  /** Symbol ids, or 'sample' for the sample plane after the last objective. */
+  /** Part ids, or 'sample' for the sample in front of the objective; the first is where the light starts. */
   path: string[];
   /** Offset (grid units, y up) so parallel rays sit side by side. */
   offset: number;
-  /** Segment index that carries the direction arrow. */
+  /** Which leg of the traced light carries the direction arrow. */
   arrowSegment: number;
-  /** Point index near which the label sits. */
+  /** The traced point near which the label sits. */
   labelAt: number;
 }
 
@@ -147,20 +151,27 @@ export const GLYPH_BOUNDS: Record<SymbolKind, { x: number; y: number; w: number;
   camera: { x: -2.35, y: -0.95, w: 2.45, h: 1.9 },
 };
 
-/** The sample plane sits this far (grid units) after the objective. */
+/** The sample sits this far (grid units) in front of the objective. */
 export const SAMPLE_OFFSET = 4.5;
+
+/** The way a part faces (a source shines, an objective looks): +x turned by its seat, a quarter turn clockwise each, seen from above. */
+export function facing(s: SchematicSymbol): { x: number; y: number } {
+  const seat = s.placement.state === 'in-cube' ? s.placement.seat : 0;
+  return [
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+  ][seat];
+}
+
+/** The sample: in front of the objective, where it looks. */
+export function samplePoint(objective: SchematicSymbol) {
+  const f = facing(objective);
+  return { x: objective.x + f.x * SAMPLE_OFFSET, y: objective.y + f.y * SAMPLE_OFFSET };
+}
 
 export function symbolBounds(s: SchematicSymbol) {
   const b = GLYPH_BOUNDS[s.kind];
   return { x: s.x + b.x, y: -s.y + b.y, w: b.w, h: b.h };
-}
-
-/** Screen-space points (y down) of a ray, skipping symbols that no longer exist. */
-export function rayPoints(ray: SchematicRay, symbols: SchematicSymbol[]): { x: number; y: number }[] {
-  const objective = symbols.find((s) => s.kind === 'objective');
-  return ray.path.flatMap((id) => {
-    if (id === 'sample') return objective ? [{ x: objective.x + SAMPLE_OFFSET, y: -(objective.y + ray.offset) }] : [];
-    const s = symbols.find((sym) => sym.id === id);
-    return s ? [{ x: s.x, y: -(s.y + ray.offset) }] : [];
-  });
 }

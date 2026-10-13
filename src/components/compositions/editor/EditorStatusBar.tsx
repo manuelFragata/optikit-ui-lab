@@ -14,6 +14,8 @@ export interface EditorStatusBarProps {
   snap: boolean;
   /** The 2D zoom, 1 = 100%. */
   zoom: number;
+  /** Light paths that miss a part, e.g. "emission misses Camera". */
+  misses: string[];
   /** The unmounted count was clicked: show the parts list. */
   onShowParts: () => void;
 }
@@ -21,9 +23,9 @@ export interface EditorStatusBarProps {
 /**
  * The editor's status bar. UI-V4 §1.2: it counts the parts not mounted yet;
  * none left means buildable. Then where the selection is, what is in the
- * design, and the grid.
+ * design (and which light paths miss a part), and the grid.
  */
-export function EditorStatusBar({ design, selected, selectedCount, unmounted, view, layer, snap, zoom, onShowParts }: EditorStatusBarProps) {
+export function EditorStatusBar({ design, selected, selectedCount, unmounted, view, layer, snap, zoom, misses, onShowParts }: EditorStatusBarProps) {
   const parts = design.symbols.length;
   return (
     <StatusBar
@@ -38,7 +40,13 @@ export function EditorStatusBar({ design, selected, selectedCount, unmounted, vi
           <Typography variant="mono">{selected ? `x ${selected.x} y ${selected.y} z ${selected.z}` : 'x – y – z –'}</Typography>
           <Typography variant="caption">{selectedCount > 1 ? `${selectedCount} of ${parts} parts selected` : `${parts} parts`}</Typography>
           {view === '2d' && <Typography variant="caption">layer z{layer}</Typography>}
-          <Typography variant="caption">{design.rays.length} rays</Typography>
+          {misses.length > 0 ? (
+            <Typography variant="caption" sx={{ color: 'warning.main' }}>
+              {misses.join(' · ')}
+            </Typography>
+          ) : (
+            <Typography variant="caption">{design.rays.length} light paths</Typography>
+          )}
         </>
       }
       end={

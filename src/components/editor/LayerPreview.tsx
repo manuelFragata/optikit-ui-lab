@@ -12,7 +12,8 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { floatingCardSx } from '../panels/floatingCard';
-import { SAMPLE_OFFSET, type Schematic } from './model';
+import { useLightFor, type Light } from './light';
+import { samplePoint, type Schematic } from './model';
 
 export interface LayerPreviewProps {
   schematic: Schematic;
@@ -36,11 +37,12 @@ const SIZE = { w: 320, h: 240, minW: 200, minH: 150, maxW: 720, maxH: 560 };
 type P = { x: number; y: number; z: number };
 
 /** Every layer's outline and contents, from a schematic, in screen units. */
-function projection(schematic: Schematic, layers: number[]) {
-  const { symbols, rays } = schematic;
+function projection(schematic: Schematic, light: Light, layers: number[]) {
+  const { symbols } = schematic;
   const objective = symbols.find((s) => s.kind === 'objective');
-  const xs = symbols.map((s) => s.x).concat(objective ? [objective.x + SAMPLE_OFFSET] : []);
-  const ys = symbols.map((s) => s.y);
+  const sample = objective ? [samplePoint(objective)] : [];
+  const xs = symbols.map((s) => s.x).concat(sample.map((p) => p.x));
+  const ys = symbols.map((s) => s.y).concat(sample.map((p) => p.y));
   const [x0, x1] = [Math.min(0, ...xs) - MARGIN, Math.max(4, ...xs) + MARGIN];
   const [y0, y1] = [Math.min(0, ...ys) - MARGIN, Math.max(4, ...ys) + MARGIN];
   const gap = Math.max(3, Math.max(x1 - x0, y1 - y0) * 0.22);
@@ -64,15 +66,8 @@ function projection(schematic: Schematic, layers: number[]) {
       true,
     );
 
-  // Each ray as its points in space; a step between layers is a periscope.
-  const rayPaths = rays.map((ray) => ({
-    ray,
-    points: ray.path.flatMap((id): P[] => {
-      if (id === 'sample') return objective ? [{ x: objective.x + SAMPLE_OFFSET, y: objective.y + ray.offset, z: objective.z }] : [];
-      const s = symbols.find((sym) => sym.id === id);
-      return s ? [{ x: s.x, y: s.y + ray.offset, z: s.z }] : [];
-    }),
-  }));
+  // Where the light goes, on its layer.
+  const rayPaths = light.paths.map(({ ray, z, points }) => ({ ray, points: points.map((p): P => ({ x: p.x, y: p.y + ray.offset, z })) }));
 
   const corners = layers.flatMap((z) => [x0, x1].flatMap((x) => [y0, y1].map((y) => project({ x, y, z }))));
   const pad = 1;
@@ -100,7 +95,8 @@ export function LayerPreview({ schematic, layers, layer, onLayer, selectedIds = 
   const shown = open && (!crowded || pinned || peek);
   const [size, setSize] = useState({ w: SIZE.w, h: SIZE.h });
   const drag = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-  const { project, path, plate, rayPaths, viewBox, labelAt } = projection(schematic, layers);
+  const lightFor = useLightFor();
+  const { project, path, plate, rayPaths, viewBox, labelAt } = projection(schematic, lightFor(schematic), layers);
   const at = layers.indexOf(layer);
 
   // Anchored bottom-right, so dragging the top-left corner up and left grows it.
@@ -233,22 +229,16 @@ export function LayerPreview({ schematic, layers, layer, onLayer, selectedIds = 
           );
         })}
 
-        {/* The beam on top: along a layer it is drawn with that layer, up or down a layer as a riser. */}
-        {rayPaths.map(({ ray, points }) => (
-          <Box component="g" key={ray.id} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
-            {points.slice(1).map((b, i) => {
-              const a = points[i];
-              const riser = a.z !== b.z;
-              const here = riser ? a.z === layer || b.z === layer : a.z === layer;
-              const d = riser ? path([a, { ...a, z: b.z }, b]) : path([a, b]);
-              return <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth={1.5} vectorEffect="non-scaling-stroke" opacity={here ? 1 : FADED} />;
-            })}
-            {points.length > 0 && (() => {
-              const p = project(points[0]);
-              return <circle cx={p.x} cy={p.y} r={0.35} fill="currentColor" opacity={points[0].z === layer ? 1 : FADED} />;
-            })()}
-          </Box>
-        ))}
+        {/* The beams on top, with their layer: full on the current one, faded on the others. */}
+        {rayPaths.map(({ ray, points }) => {
+          const start = project(points[0]);
+          return (
+            <Box component="g" key={ray.id} opacity={points[0].z === layer ? 1 : FADED} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+              <path d={path(points)} fill="none" stroke="currentColor" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+              <circle cx={start.x} cy={start.y} r={0.35} fill="currentColor" />
+            </Box>
+          );
+        })}
       </Box>
 
       {/* The resize grip, top-left, since the card grows up and to the left. */}

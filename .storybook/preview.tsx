@@ -12,6 +12,8 @@ import {
   type MonoFontName,
   type UiFontName,
 } from '../src/theme';
+import { LightProvider } from '../src/components/editor/light';
+import { demoLight } from '../src/demo/demoLight';
 
 type Scheme = 'light' | 'dark';
 
@@ -41,7 +43,8 @@ function ThemeWrapper({
     <ThemeProvider theme={theme} defaultMode={scheme} storageManager={null} disableTransitionOnChange>
       <CssBaseline enableColorScheme />
       <SchemeSync scheme={scheme} />
-      {children}
+      {/* The demo light, as in the app. */}
+      <LightProvider value={demoLight}>{children}</LightProvider>
     </ThemeProvider>
   );
 }

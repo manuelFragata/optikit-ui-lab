@@ -53,7 +53,7 @@ export function Glyph({ kind, turns, color, outline, scale = 1 }: { kind: Symbol
       </>
     ),
     mirror: (
-      <mesh rotation={[0, 0, Math.PI / 4]}>
+      <mesh rotation={[0, 0, -Math.PI / 4]}>
         <boxGeometry args={[2.5, 34, 30]} />
         {solid}
         <Outline color={outline} />
@@ -162,17 +162,29 @@ export function Solid({ mesh, turns, outline, placeholder }: { mesh: MeshRef; tu
   );
 }
 
-/** A light path: a thick line with a soft glow, and an arrow on its first leg (when that leg has a length). */
-export function Ray({ ray, color }: { ray: PlacedRay; color: string }) {
+/**
+ * A beam: a thick line with a soft glow and an arrow on its first leg; its
+ * last run, when it goes into nothing, dashed and faint; and a dashed hint to
+ * the part it misses.
+ */
+export function Ray({ ray, color, warning }: { ray: PlacedRay; color: string; warning: string }) {
   const opacity = ray.ghost ? 0.25 : 1;
+  const lit = ray.open ? ray.points.slice(0, -1) : ray.points;
+  const runOut = ray.open ? ray.points.slice(-2) : null;
   const [a, b] = ray.points;
   const middle: Vec3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
   const leg = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   const arrow = leg.lengthSq() > 0 ? new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), leg.normalize()) : null;
   return (
     <group>
-      <Line points={ray.points} color={color} lineWidth={8} transparent opacity={0.16 * opacity} depthWrite={false} />
-      <Line points={ray.points} color={color} lineWidth={2.5} transparent={opacity < 1} opacity={opacity} />
+      {lit.length > 1 && (
+        <>
+          <Line points={lit} color={color} lineWidth={8} transparent opacity={0.16 * opacity} depthWrite={false} />
+          <Line points={lit} color={color} lineWidth={2.5} transparent={opacity < 1} opacity={opacity} />
+        </>
+      )}
+      {runOut && <Line points={runOut} color={color} lineWidth={2} dashed dashSize={8} gapSize={6} transparent opacity={0.45 * opacity} />}
+      {ray.miss && <Line points={ray.miss} color={warning} lineWidth={1.5} dashed dashSize={6} gapSize={6} transparent opacity={0.9 * opacity} />}
       {arrow && (
         <mesh position={middle} quaternion={arrow}>
           <coneGeometry args={[4, 10, 16]} />
