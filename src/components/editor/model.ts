@@ -85,6 +85,29 @@ export function shifted(s: SchematicSymbol, d: { x?: number; y?: number; z?: num
   };
 }
 
+/** A part move: by how much (grid units, z in layers), and whether copies go there instead. */
+export interface Move {
+  ids: string[];
+  by: { x?: number; y?: number; z?: number };
+  copy: boolean;
+}
+
+/**
+ * The design as it looks while parts are being dragged (2D and 3D): the
+ * parts moved along their free axes, or, for a copy, left where they are
+ * with their copies (ids `<id>-copy`) at the new spot.
+ */
+export function withMove(schematic: Schematic, { ids, by, copy }: Move): Schematic {
+  return {
+    ...schematic,
+    symbols: schematic.symbols.flatMap((s) => {
+      if (!ids.includes(s.id)) return [s];
+      const moved = { ...s, ...shifted(s, by) };
+      return copy ? [s, { ...moved, id: `${s.id}-copy` }] : [moved];
+    }),
+  };
+}
+
 export interface SchematicGroup {
   id: string;
   label: string;

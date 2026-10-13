@@ -5,22 +5,26 @@
  * - layout3d.ts   what to draw where (pure, tested): parts, rays, labels, floor;
  * - meshes.ts     the modules' meshes, loaded and prepared once, shared;
  * - shapes.tsx    what things look like; Part.tsx: one clickable part;
+ * - drag3d.ts     the geometry of dragging (pure, tested); useMoveDrag.ts:
+ *                 the gesture; MoveHandles.tsx: the arrows on the selection;
  * - Camera.tsx    orbit, pan, zoom, preset views, fit;
  * - overlay.tsx   DOM over the canvas: labels, action bar, box select, hint.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
 import type { CanvasTool, ViewOptions } from '../CanvasToolbar';
-import type { Schematic, SchematicSymbol } from '../model';
+import { withMove, type Move, type Schematic, type SchematicSymbol } from '../model';
 import { Camera, type CameraCommand } from './Camera';
 import { useSceneColors } from './colors';
-import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type MeshRef, type Vec3 } from './layout3d';
+import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';
 import { preloadMeshes } from './meshes';
 import { ActionBar, Hint, Labels, Marquee, Projector, useBoxSelect, type OnScreen, type Project } from './overlay';
+import { MoveHandles } from './MoveHandles';
 import { Part } from './Part';
 import { LayerFloor, Ray } from './shapes';
+import { useMoveDrag } from './useMoveDrag';
 
 export interface DesignScene3DProps {
   schematic: Schematic;
@@ -28,8 +32,12 @@ export interface DesignScene3DProps {
   options: ViewOptions;
   fidelity: Fidelity;
   selectedIds: string[];
-  /** Select (left button picks and drags a box), pan or zoom. Right drag always orbits, middle drag pans, the wheel zooms. */
+  /** Select (left button picks, drags parts, or drags a box), pan or zoom. Right drag always orbits, middle drag pans, the wheel zooms. */
   tool: CanvasTool;
+  /** Snap moves to the grid; Shift does the opposite while held. */
+  snap: boolean;
+  /** Parts dragged: moved (each along its free axes), or, with Alt, copied there. */
+  onMove: (move: Move) => void;
   meshFor?: (s: SchematicSymbol) => MeshRef | undefined;
   /** A part clicked, or `null` for empty space; `toggle` with Shift or Ctrl held. */
   onSelect: (id: string | null, toggle?: boolean) => void;
@@ -48,14 +56,22 @@ export interface DesignScene3DProps {
 /** The action bar's key among the projected points (label keys are part ids, `ray-…` and `layer`). */
 const ANCHOR = 'selection-anchor';
 
-export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds, tool, meshFor, onSelect, onSelectMany, onInspect, command, toolbar, selectionActions, hint }: DesignScene3DProps) {
+export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds, tool, snap, onMove, meshFor, onSelect, onSelectMany, onInspect, command, toolbar, selectionActions, hint }: DesignScene3DProps) {
   const colors = useSceneColors();
+  const frame = useRef<HTMLDivElement>(null);
+
+  // Dragging parts: while it lasts, the scene shows the design as it would be after the move.
+  const drag = useMoveDrag({ frame, snap, selectedIds, onSelect: (ids) => onSelectMany(ids, false), onMove });
+  const shown = useMemo(() => (drag.dragging ? withMove(schematic, drag.dragging) : schematic), [schematic, drag.dragging]);
+  // Dragged up or down, the parts take the view's layer with them (as they will once let go).
+  const shownLayer = layer + (drag.dragging?.by.z ?? 0);
+
   const layout = useMemo(
     () =>
       layout3d(
-        schematic,
+        shown,
         {
-          layer,
+          layer: shownLayer,
           otherLayers: options.onionSkin !== false,
           fidelity,
           cages: options.showCages,
@@ -65,9 +81,9 @@ export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds
         },
         meshFor,
       ),
-    [schematic, layer, options, fidelity, selectedIds, meshFor],
+    [shown, shownLayer, options, fidelity, selectedIds, meshFor],
   );
-  const { parts, rays, labels, floor, anchor, bounds } = layout;
+  const { parts, rays, labels, floor, anchor, handles, bounds } = layout;
 
   // Start fetching the meshes as soon as solids are asked for.
   useEffect(() => {
@@ -83,9 +99,20 @@ export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds
   const [onScreen, setOnScreen] = useState<OnScreen>({});
   const anchorAt = anchor ? onScreen[ANCHOR] : undefined;
 
-  // Box selection, and the click that ends it (which must not deselect).
-  const frame = useRef<HTMLDivElement>(null);
+  // A press on a part (or an arrow) starts a drag with the select tool, and never a box.
   const pressedOnPart = useRef(false);
+  const pressPart = (part: PlacedPart, e: ThreeEvent<PointerEvent>) => {
+    pressedOnPart.current = true;
+    if (tool === 'select') drag.startAcross(part, e);
+  };
+  const pressArrow = (axis: MoveAxis, e: ThreeEvent<PointerEvent>) => {
+    pressedOnPart.current = true;
+    // Steps along the axis are counted from the part the inspector shows (the last one selected).
+    const primary = schematic.symbols.find((s) => s.id === selectedIds[selectedIds.length - 1]);
+    if (handles && primary) drag.startAlong(axis, handles.at, primary[axis], e);
+  };
+
+  // Box selection, and the click that ends it (which must not deselect).
   const downAt = useRef({ x: 0, y: 0 });
   const box = useBoxSelect({
     frame,
@@ -150,7 +177,7 @@ export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds
               part={p}
               colors={colors}
               hovered={hovered === p.id}
-              pressed={pressedOnPart}
+              onPress={pressPart}
               onSelect={onSelect}
               onInspect={onInspect}
               onHover={setHovered}
@@ -159,6 +186,7 @@ export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds
           {rays.map((r) => (
             <Ray key={r.id} ray={r} color={colors.rays[r.color]} />
           ))}
+          {handles && tool === 'select' && <MoveHandles at={handles.at} axes={handles.axes} onPress={pressArrow} />}
         </group>
 
         {/* Which way is which, in document axes. */}
@@ -171,7 +199,13 @@ export function DesignScene3D({ schematic, layer, options, fidelity, selectedIds
       {box.rect && <Marquee rect={box.rect} />}
       {selectionActions && anchorAt && !box.rect && <ActionBar at={anchorAt}>{selectionActions}</ActionBar>}
       {toolbar && <Box sx={{ position: 'absolute', top: (t) => t.spacing(1.5), left: (t) => t.spacing(1.5), zIndex: 3 }}>{toolbar}</Box>}
-      {hint && (selectedIds.length === 0 || box.rect) && <Hint>{box.rect ? 'Everything the box covers · Shift adds to the selection' : hint}</Hint>}
+      {drag.dragging ? (
+        <Hint>{`${drag.dragging.free ? 'Off the grid' : 'On the grid'} · Shift: ${drag.dragging.free ? 'snap' : 'off the grid'} · Alt: drop copies · Esc: put back`}</Hint>
+      ) : box.rect ? (
+        <Hint>Everything the box covers · Shift adds to the selection</Hint>
+      ) : (
+        hint && selectedIds.length === 0 && <Hint>{hint}</Hint>
+      )}
     </Box>
   );
 }

@@ -8,7 +8,7 @@
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
 import { layerShow, layerShowOfAny } from '../layers';
-import { SAMPLE_OFFSET, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
+import { isLocked, SAMPLE_OFFSET, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
 
 /* ------------------------------------------------------------------ */
 /* Grid and frames                                                     */
@@ -20,6 +20,8 @@ export const CUBE_MM = 50;
 
 export type Vec3 = [number, number, number];
 export type Axis = '+x' | '-x' | '+y' | '-y' | '+z' | '-z';
+/** An axis parts can be moved along. */
+export type MoveAxis = 'x' | 'y' | 'z';
 
 /** The centre of a part's cube: a grid step per unit, the cube standing on its layer's floor. */
 export function cubeCenter(s: Pick<SchematicSymbol, 'x' | 'y' | 'z'>): Vec3 {
@@ -127,8 +129,10 @@ export interface Layout3D {
   rays: PlacedRay[];
   labels: PlacedLabel[];
   floor: Floor | null;
-  /** Where the selection's action bar is pinned: the top of the selection; null with nothing selected on this layer. */
+  /** Where the selection's action bar is pinned: under the selection (the space above is the z arrow's); null with nothing selected on this layer. */
   anchor: Vec3 | null;
+  /** The move arrows: at the selection's centre, one per axis some selected part may move along; null when none apply. */
+  handles: { at: Vec3; axes: MoveAxis[] } | null;
   /** For the camera: everything drawn, and the selection. */
   bounds: { all: Box | null; selection: Box | null };
 }
@@ -251,7 +255,12 @@ export function layout3d(schematic: Schematic, view: View3D, meshFor: (s: Schema
   const floor = floorOf(view.layer, parts);
 
   const selection = boundsOf(parts.filter((p) => p.selected && p.look !== 'ghost'));
-  const anchor: Vec3 | null = selection ? [(selection.min[0] + selection.max[0]) / 2, (selection.min[1] + selection.max[1]) / 2, selection.max[2]] : null;
+  const centre = selection && middle(selection.min, selection.max);
+  const anchor: Vec3 | null = centre && selection ? [centre[0], centre[1], selection.min[2]] : null;
 
-  return { parts, rays, labels: labelsOf(parts, rays, floor, view), floor, anchor, bounds: { all: boundsOf(parts), selection } };
+  const selectedHere = schematic.symbols.filter((s) => view.selectedIds.includes(s.id) && s.z === view.layer);
+  const axes = (['x', 'y', 'z'] as const).filter((axis) => selectedHere.some((s) => !isLocked(s, axis)));
+  const handles = centre && axes.length ? { at: centre, axes } : null;
+
+  return { parts, rays, labels: labelsOf(parts, rays, floor, view), floor, anchor, handles, bounds: { all: boundsOf(parts), selection } };
 }

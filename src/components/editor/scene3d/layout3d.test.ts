@@ -114,8 +114,8 @@ describe('floor, anchor and bounds', () => {
     expect(labels.at(-1)).toMatchObject({ text: 'z1', at: [165, -65, 55.5], below: true });
   });
 
-  it('pin the action bar over the top of the selection', () => {
-    expect(layout3d(d, view({ selectedIds: ['A', 'B'] })).anchor).toEqual([50, 25, 105]);
+  it('pin the action bar under the selection', () => {
+    expect(layout3d(d, view({ selectedIds: ['A', 'B'] })).anchor).toEqual([50, 25, 55]);
     expect(layout3d(d, view({ selectedIds: ['C'] })).anchor).toBeNull(); // a ghost is not on screen to act on
   });
 
@@ -123,6 +123,13 @@ describe('floor, anchor and bounds', () => {
     const { bounds } = layout3d(d, view({ selectedIds: ['A'] }));
     expect(bounds.all).toEqual({ min: [-25, -25, 0], max: [125, 75, 105] });
     expect(bounds.selection).toEqual({ min: [-25, -25, 55], max: [25, 25, 105] });
+  });
+
+  it('put move arrows at the centre of the selection, leaving out axes every selected part is locked on', () => {
+    expect(layout3d(d, view({ selectedIds: ['A', 'B'] })).handles).toEqual({ at: [50, 25, 80], axes: ['x', 'y', 'z'] });
+    const locked = design([part('A', { locks: { x: true, z: true } }), part('B', { x: 2, locks: { x: true } })]);
+    expect(layout3d(locked, view({ selectedIds: ['A', 'B'] })).handles?.axes).toEqual(['y', 'z']);
+    expect(layout3d(d, view()).handles).toBeNull();
   });
 
   it('wrap no parts in no box', () => {

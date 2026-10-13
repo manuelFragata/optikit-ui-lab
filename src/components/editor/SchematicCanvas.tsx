@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { rayPoints, shifted, symbolBounds, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
+import { rayPoints, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './CanvasToolbar';
@@ -70,7 +70,7 @@ export interface SchematicCanvasProps {
    * Parts dragged by `by` (grid units, y up), each staying put along its
    * locked axes; `copy` when Alt was held to drop copies instead.
    */
-  onMove?: (ids: string[], by: { x: number; y: number }, copy: boolean) => void;
+  onMove?: (move: Move) => void;
   /** Snap placing, moving and measuring to whole cubes. Shift does the opposite while held. */
   snap?: boolean;
   /** Floats next to the selected parts (see SelectionActions). */
@@ -162,13 +162,7 @@ export function SchematicCanvas({
   movingRef.current = moving;
   const justMoved = useRef(false);
   const { groups, rays } = schematic;
-  const symbols = !moving
-    ? schematic.symbols
-    : schematic.symbols.flatMap((s) => {
-        if (!moving.ids.includes(s.id)) return [s];
-        const { x, y } = shifted(s, moving.by);
-        return moving.copy ? [s, { ...s, x, y, id: `${s.id}-copy` }] : [{ ...s, x, y }];
-      });
+  const symbols = moving ? withMove(schematic, moving).symbols : schematic.symbols;
   // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
   const others = options.onionSkin !== false;
   const onLayer = (z: number) => layerShow(z, layer, others) === 'current';
@@ -333,7 +327,7 @@ export function SchematicCanvas({
     const up = () => {
       const m = movingRef.current;
       stop();
-      if (m && (m.by.x || m.by.y || m.copy)) onMove(m.ids, m.by, m.copy);
+      if (m && (m.by.x || m.by.y || m.copy)) onMove({ ids: m.ids, by: m.by, copy: m.copy });
     };
     const key = (ev: globalThis.KeyboardEvent) => {
       if (ev.key !== 'Escape') return;

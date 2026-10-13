@@ -86,10 +86,10 @@ export function Labels({ labels, at, rays }: { labels: PlacedLabel[]; at: OnScre
   });
 }
 
-/** The selection's action bar, just above its anchor (not under the top-left controls); none while the anchor is behind the camera. */
+/** The selection's action bar, just under its anchor (the bottom of the selection); none while the anchor is behind the camera. */
 export function ActionBar({ at, children }: { at: ScreenPoint; children: ReactNode }) {
   if (at.behind) return null;
-  return <Box sx={{ position: 'absolute', left: at.x, top: Math.max(at.y - 16, 64), transform: 'translate(-50%, -100%)', zIndex: 3 }}>{children}</Box>;
+  return <Box sx={{ position: 'absolute', left: at.x, top: at.y + 16, transform: 'translateX(-50%)', zIndex: 3 }}>{children}</Box>;
 }
 
 type Rect = { x0: number; y0: number; x1: number; y1: number };
