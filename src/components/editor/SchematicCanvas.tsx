@@ -1,20 +1,39 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { rayPoints, symbolBounds, type Schematic, type SchematicSymbol } from './model';
+import { rayPoints, shifted, symbolBounds, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { SymbolGlyph } from './SymbolGlyph';
-import { VIEW_LABELS, type EditorView, type ViewOptions } from './CanvasToolbar';
+import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './CanvasToolbar';
+
+/** What the editor looks at: the zoom (1 = 100%) and the point in the middle, in grid units (y down). */
+export interface Camera {
+  zoom: number;
+  center: { x: number; y: number };
+}
+
+const ZOOM = { min: 0.2, max: 5 };
 
 export interface SchematicCanvasProps {
   schematic: Schematic;
+  /** The selected part (the one the inspector shows), or `null`. */
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  /** Every selected part, when several are; defaults to just `selectedId`. */
+  selectedIds?: string[];
+  /** A part clicked, or `null` for empty canvas. `toggle` with Shift or Ctrl held: add it to the selection or take it out. */
+  onSelect: (id: string | null, toggle?: boolean) => void;
+  /** Parts caught in a box dragged on empty canvas; `add` with Shift held. */
+  onSelectMany?: (ids: string[], add: boolean) => void;
+  /** A part double-clicked: open its properties. */
+  onInspect?: (id: string) => void;
   view?: EditorView;
-  options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages'>>;
+  options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages' | 'onionSkin' | 'showRays'>>;
+  /** Draw this layer (z) only; the others show faintly with onion skin on, or not at all. Omit to draw every layer. */
+  layer?: number;
   /** Floating controls in the top-left corner (see CanvasToolbar). */
   toolbar?: ReactNode;
   /**
@@ -22,8 +41,36 @@ export interface SchematicCanvasProps {
    * fixed editor zoom. For previews and small embeds.
    */
   fit?: boolean;
-  /** Bottom hint while nothing is selected; `false` hides it. */
+  /** Hint while nothing is selected; `false` hides it. */
   hint?: string | false;
+  /** Where the hint sits: the bottom, or the top when something else (the view dock) holds the bottom. */
+  hintAt?: 'top' | 'bottom';
+
+  /**
+   * The editor's camera, moved with the pan tool, the zoom tool and the
+   * wheel. `'fit'` fits the drawing and reports the result through
+   * `onCamera`. Omit for the fixed zoom (or `fit`).
+   */
+  camera?: Camera | 'fit';
+  onCamera?: (camera: Camera) => void;
+  /** Select (default), pan, zoom or measure. */
+  tool?: CanvasTool;
+  /**
+   * A part being placed: it follows the pointer, and a click drops it. With
+   * `drag`, it was dragged in from a list and drops where the button is let go.
+   */
+  placing?: { kind: SymbolKind; drag?: boolean } | null;
+  /** Where to drop the part, in schematic units (y up); `more` when Ctrl is held to keep placing. */
+  onPlace?: (at: { x: number; y: number }, more: boolean) => void;
+  /**
+   * Parts dragged by `by` (grid units, y up), each staying put along its
+   * locked axes; `copy` when Alt was held to drop copies instead.
+   */
+  onMove?: (ids: string[], by: { x: number; y: number }, copy: boolean) => void;
+  /** Snap placing, moving and measuring to whole cubes. Shift does the opposite while held. */
+  snap?: boolean;
+  /** Floats next to the selected parts (see SelectionActions). */
+  selectionActions?: ReactNode;
 }
 
 // Everything inside the SVG is in grid units: 1 unit = 1 cube. The zoom is
@@ -82,30 +129,234 @@ function Selection({ s }: { s: SchematicSymbol }) {
 export function SchematicCanvas({
   schematic,
   selectedId,
+  selectedIds: selectedIdsProp,
   onSelect,
+  onSelectMany,
+  onInspect,
   view = '2d',
   options,
   toolbar,
   fit = false,
-  hint = 'Select a symbol to open its properties',
+  hint = 'Select a part to see its properties',
+  hintAt = 'bottom',
+  layer,
+  camera,
+  onCamera,
+  tool = 'select',
+  placing,
+  onPlace,
+  onMove,
+  snap = true,
+  selectionActions,
 }: SchematicCanvasProps) {
-  const { symbols, groups, rays } = schematic;
-  const selected = symbols.find((s) => s.id === selectedId) ?? null;
+  const selectedIds = selectedIdsProp ?? (selectedId ? [selectedId] : []);
+  // Parts being dragged across the canvas are drawn where they are, rays and
+  // all, and only go into the design (one undo step) when they are let go.
+  // `anchor` is the part under the pointer; the others move with it.
+  const [moving, setMoving] = useState<{ ids: string[]; anchor: string; by: { x: number; y: number }; copy: boolean; free: boolean } | null>(null);
+  const movingRef = useRef(moving);
+  movingRef.current = moving;
+  const justMoved = useRef(false);
+  const { groups, rays } = schematic;
+  const symbols = !moving
+    ? schematic.symbols
+    : schematic.symbols.flatMap((s) => {
+        if (!moving.ids.includes(s.id)) return [s];
+        const { x, y } = shifted(s, moving.by);
+        return moving.copy ? [s, { ...s, x, y, id: `${s.id}-copy` }] : [{ ...s, x, y }];
+      });
+  /** How visible a part on layer `z` is: on the drawn layer fully, on another faintly (onion skin) or not at all. */
+  const onLayer = (z: number) => layer === undefined || z === layer;
+  const ghost = options.onionSkin === false ? 0 : 0.16;
+  const layerOpacity = (z: number) => (onLayer(z) ? 1 : ghost);
+  const symbolZ = (id: string) => symbols.find((s) => s.id === id)?.z;
+  // While copies are dragged, the copies are what is selected.
+  const selectedParts = symbols.filter((s) => (moving?.copy ? moving.ids.map((id) => `${id}-copy`) : selectedIds).includes(s.id));
 
   const frameRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 960, h: 600 });
+  const [measured, setMeasured] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const el = frameRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width, h: entry.contentRect.height }));
+    const observer = new ResizeObserver(([entry]) => setMeasured({ w: entry.contentRect.width, h: entry.contentRect.height }));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const bounds = fit ? drawingBounds(schematic) : null;
-  const scale = bounds ? Math.min(PX_PER_UNIT, size.w / bounds.w, size.h / bounds.h) : PX_PER_UNIT;
-  const center = bounds ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 } : CENTER;
+  const size = measured ?? { w: 960, h: 600 };
+  const bounds = fit || camera === 'fit' ? drawingBounds(schematic) : null;
+  const scale =
+    typeof camera === 'object' ? PX_PER_UNIT * camera.zoom : bounds ? Math.min(PX_PER_UNIT, size.w / bounds.w, size.h / bounds.h) : PX_PER_UNIT;
+  const center = typeof camera === 'object' ? camera.center : bounds ? { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 } : CENTER;
   const vw = size.w / scale;
   const vh = size.h / scale;
+  const vx = center.x - vw / 2;
+  const vy = center.y - vh / 2;
+
+  // Asked to fit: once the frame is measured, hand the fitted camera back.
+  useEffect(() => {
+    if (camera === 'fit' && measured) onCamera?.({ zoom: scale / PX_PER_UNIT, center });
+  });
+
+  /** Zoom by `factor`, keeping the grid point `at` under the same pixel. */
+  const zoomAt = (factor: number, at: { x: number; y: number }) => {
+    if (typeof camera !== 'object' || !onCamera) return;
+    const zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, camera.zoom * factor));
+    const k = camera.zoom / zoom;
+    onCamera({ zoom, center: { x: at.x + (center.x - at.x) * k, y: at.y + (center.y - at.y) * k } });
+  };
+
+  /** The grid point (y down) under a pointer. */
+  const toGrid = (e: { clientX: number; clientY: number }) => {
+    const r = frameRef.current!.getBoundingClientRect();
+    return { x: vx + (e.clientX - r.left) / scale, y: vy + (e.clientY - r.top) / scale };
+  };
+  /** On whole cubes, or (Shift flips it) free, to a tenth of a cube. */
+  const freeAt = (shift: boolean) => snap === shift;
+  const round = (v: number, free: boolean) => (free ? Math.round(v * 10) / 10 : Math.round(v));
+  const snapped = (p: { x: number; y: number }, shift = false) => {
+    const free = freeAt(shift);
+    return { x: round(p.x, free), y: round(p.y, free) };
+  };
+
+  // The wheel zooms around the cursor. A native listener, so the page does not scroll.
+  const wheel = useRef((e: WheelEvent) => zoomAt(Math.exp(-e.deltaY * 0.0015), toGrid(e)));
+  wheel.current = (e: WheelEvent) => zoomAt(Math.exp(-e.deltaY * 0.0015), toGrid(e));
+  const zoomable = typeof camera === 'object' && Boolean(onCamera);
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || !zoomable) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      wheel.current(e);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoomable]);
+
+  // The pointer: where it is (for the part being placed and the measure), and a pan drag.
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; center: { x: number; y: number }; moved: boolean } | null>(null);
+  const [panning, setPanning] = useState(false);
+  const [measure, setMeasure] = useState<{ a: { x: number; y: number }; b?: { x: number; y: number } } | null>(null);
+  useEffect(() => setMeasure(null), [tool]);
+  // A box dragged on empty canvas selects what it touches (grid units, y down).
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+
+  /** Drag on empty canvas with the select tool: everything on this layer the box touches. */
+  const startMarquee = (e: PointerEvent) => {
+    const from = { x: e.clientX, y: e.clientY, grid: toGrid(e) };
+    let started = false;
+    let box = { x0: from.grid.x, y0: from.grid.y, x1: from.grid.x, y1: from.grid.y };
+    const move = (ev: globalThis.PointerEvent) => {
+      if (!started && Math.hypot(ev.clientX - from.x, ev.clientY - from.y) < 4) return;
+      started = true;
+      const g = toGrid(ev);
+      box = { x0: Math.min(from.grid.x, g.x), y0: Math.min(from.grid.y, g.y), x1: Math.max(from.grid.x, g.x), y1: Math.max(from.grid.y, g.y) };
+      setMarquee(box);
+    };
+    const up = (ev: globalThis.PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setMarquee(null);
+      if (!started) return;
+      justMoved.current = true;
+      const caught = schematic.symbols.filter((s) => {
+        if (!onLayer(s.z)) return false;
+        const b = symbolBounds(s);
+        return b.x < box.x1 && b.x + b.w > box.x0 && b.y < box.y1 && b.y + b.h > box.y0;
+      });
+      onSelectMany?.(caught.map((s) => s.id), ev.shiftKey);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button === 0 && tool === 'select' && !placing && onSelectMany) return startMarquee(e);
+    // The pan tool, or the middle button with any tool.
+    if (!zoomable || !(tool === 'pan' || e.button === 1)) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, center, moved: false };
+    setPanning(true);
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    const d = drag.current;
+    if (d && panning && typeof camera === 'object') {
+      d.moved = true;
+      onCamera?.({ zoom: camera.zoom, center: { x: d.center.x - (e.clientX - d.x) / scale, y: d.center.y - (e.clientY - d.y) / scale } });
+    }
+    if (placing || tool === 'measure') setPointer(snapped(toGrid(e), e.shiftKey));
+  };
+  const onPointerUp = (e: PointerEvent) => {
+    setPanning(false);
+    // A part dragged in from a list drops where it is let go.
+    if (placing?.drag) {
+      const at = snapped(toGrid(e), e.shiftKey);
+      onPlace?.({ x: at.x, y: -at.y }, e.ctrlKey || e.metaKey);
+    }
+  };
+
+  /**
+   * Press on a part and drag it, with the rest of the selection: on the grid,
+   * off it with Shift, copies with Alt; Esc puts them back.
+   */
+  const startMove = (e: PointerEvent, s: SchematicSymbol) => {
+    if (!onMove || e.button !== 0) return;
+    e.stopPropagation();
+    const from = { x: e.clientX, y: e.clientY, grid: toGrid(e) };
+    // A selected part takes the selection along; Shift on another adds it; otherwise it goes alone.
+    const ids = selectedIds.includes(s.id) ? selectedIds : e.shiftKey ? [...selectedIds, s.id] : [s.id];
+    let started = false;
+    const move = (ev: globalThis.PointerEvent) => {
+      if (!started && Math.hypot(ev.clientX - from.x, ev.clientY - from.y) < 4) return;
+      if (!started && !selectedIds.includes(s.id)) {
+        if (ids.length > 1) onSelectMany?.(ids, false);
+        else onSelect(s.id);
+      }
+      started = true;
+      const g = toGrid(ev);
+      const free = freeAt(ev.shiftKey);
+      // The part under the pointer lands on the grid (or off it); the others keep their distance to it.
+      const by = { x: round(s.x + g.x - from.grid.x, free) - s.x, y: round(s.y - (g.y - from.grid.y), free) - s.y };
+      setMoving({ ids, anchor: s.id, by, copy: ev.altKey, free });
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('keydown', key, true);
+      setMoving(null);
+      justMoved.current = started;
+    };
+    const up = () => {
+      const m = movingRef.current;
+      stop();
+      if (m && (m.by.x || m.by.y || m.copy)) onMove(m.ids, m.by, m.copy);
+    };
+    const key = (ev: globalThis.KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      // Before the editor's own Esc, which would deselect.
+      ev.stopImmediatePropagation();
+      stop();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('keydown', key, true);
+  };
+
+  const onCanvasClick = (e: MouseEvent) => {
+    // The click that ends a pan or a part drag is not a click.
+    const dragged = drag.current?.moved || justMoved.current;
+    drag.current = null;
+    justMoved.current = false;
+    if (dragged) return;
+    const at = snapped(toGrid(e), e.shiftKey);
+    if (placing) onPlace?.({ x: at.x, y: -at.y }, e.ctrlKey || e.metaKey);
+    else if (tool === 'zoom') zoomAt(e.altKey ? 1 / 1.5 : 1.5, toGrid(e));
+    else if (tool === 'measure') setMeasure(!measure || measure.b ? { a: at } : { a: measure.a, b: at });
+    else if (tool === 'select') onSelect(null);
+  };
+  const interactive = tool === 'select' && !placing && !moving;
+  const cursor = placing || tool === 'measure' ? 'crosshair' : tool === 'pan' ? (panning ? 'grabbing' : 'grab') : tool === 'zoom' ? 'zoom-in' : 'default';
 
   const groupBoxes = groups.flatMap((g) => {
     const members = symbols.filter((s) => s.group === g.id).map(symbolBounds);
@@ -118,9 +369,13 @@ export function SchematicCanvas({
   });
 
   const onSymbolKey = (event: KeyboardEvent, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === 'Enter' && onInspect) {
       event.preventDefault();
-      onSelect(id);
+      event.stopPropagation();
+      onInspect(id);
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onSelect(id, event.shiftKey);
     }
   };
 
@@ -132,12 +387,16 @@ export function SchematicCanvas({
     >
       <Box
         component="svg"
-        viewBox={`${center.x - vw / 2} ${center.y - vh / 2} ${vw} ${vh}`}
+        viewBox={`${vx} ${vy} ${vw} ${vh}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
         aria-label="Optics schematic"
-        onClick={() => onSelect(null)}
-        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', typography: 'body2' }}
+        onClick={onCanvasClick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={() => setPointer(null)}
+        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', typography: 'body2', cursor, touchAction: 'none', userSelect: 'none' }}
       >
         {/* grid */}
         <Box component="path" d={MINOR} strokeWidth={1} sx={{ stroke: 'var(--mui-palette-canvas-grid)' }} {...line} />
@@ -156,7 +415,7 @@ export function SchematicCanvas({
 
             {/* groups */}
             {groupBoxes.map((g) => (
-              <Box component="g" key={g.id} sx={{ color: 'canvas.group' }}>
+              <Box component="g" key={g.id} sx={{ color: 'canvas.group' }} opacity={symbols.some((s) => s.group === g.id && onLayer(s.z)) ? 1 : ghost}>
                 <rect x={g.x} y={g.y} width={g.w} height={g.h} stroke="currentColor" strokeWidth={1} strokeDasharray="5 4" {...line} />
                 <Box component="text" x={g.x + 0.2} y={g.y - 0.3} fontSize={LABEL * 0.85} sx={{ fill: 'var(--mui-palette-text-secondary)', letterSpacing: '0.08em', fontWeight: 500 }}>
                   {g.label.toUpperCase()}
@@ -165,9 +424,10 @@ export function SchematicCanvas({
             ))}
 
             {/* rays */}
-            {rays.map((ray) => {
+            {options.showRays !== false && rays.map((ray) => {
               const pts = rayPoints(ray, symbols);
               if (pts.length < 2) return null;
+              const touchesLayer = ray.path.some((id) => id !== 'sample' && onLayer(symbolZ(id) ?? -1));
               const a = pts[Math.min(ray.arrowSegment, pts.length - 2)];
               const b = pts[Math.min(ray.arrowSegment + 1, pts.length - 1)];
               const angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
@@ -176,7 +436,7 @@ export function SchematicCanvas({
               const prev = pts[Math.max(0, Math.min(ray.labelAt, pts.length - 1) - 1)];
               const endsRight = lp.x >= prev.x;
               return (
-                <Box component="g" key={ray.id} className="schematic-ray" sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                <Box component="g" key={ray.id} className="schematic-ray" opacity={touchesLayer ? 1 : ghost} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
                   <path d="M-0.2 -0.14 L0.2 0 L-0.2 0.14 Z" fill="currentColor" transform={`translate(${mid.x} ${mid.y}) rotate(${angle})`} />
                   {options.showRayLabels && (
@@ -212,22 +472,33 @@ export function SchematicCanvas({
             {/* symbols */}
             {symbols.map((s) => {
               const b = symbolBounds(s);
-              const isSelected = s.id === selectedId;
+              const isSelected = selectedIds.includes(s.id);
+              const here = onLayer(s.z);
               return (
                 <Box
                   component="g"
                   key={s.id}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={here ? 0 : -1}
+                  aria-hidden={here ? undefined : true}
+                  opacity={layerOpacity(s.z)}
+                  pointerEvents={here && (interactive || moving?.ids.includes(s.id)) ? undefined : 'none'}
                   aria-label={`${s.label} (${s.id})`}
                   aria-pressed={isSelected}
+                  onPointerDown={(e) => startMove(e, s)}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSelect(s.id);
+                    // The click that ends a drag is not a click.
+                    if (justMoved.current) return void (justMoved.current = false);
+                    onSelect(s.id, e.shiftKey || e.ctrlKey || e.metaKey);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    onInspect?.(s.id);
                   }}
                   onKeyDown={(e) => onSymbolKey(e, s.id)}
                   sx={{
-                    cursor: 'pointer',
+                    cursor: onMove ? (moving ? 'grabbing' : 'grab') : 'pointer',
                     color: 'canvas.symbol',
                     outline: 'none',
                     '&:hover .glyph, &:focus-visible .glyph': { color: 'primary.main' },
@@ -241,8 +512,7 @@ export function SchematicCanvas({
                     const cx = b.x + b.w / 2;
                     const cy = b.y + b.h / 2;
                     return (
-                      <Box
-                        component="rect"
+                      <rect
                         x={cx - side / 2}
                         y={cy - side / 2}
                         width={side}
@@ -251,13 +521,20 @@ export function SchematicCanvas({
                         strokeWidth={1}
                         strokeDasharray={mounted ? undefined : '3 3'}
                         {...line}
-                        sx={{ stroke: mounted ? 'var(--mui-palette-text-meta)' : 'var(--mui-palette-warning-main)' }}
+                        stroke={mounted ? 'var(--mui-palette-text-meta)' : 'var(--mui-palette-warning-main)'}
                       />
                     );
                   })()}
                   {/* generous hit area */}
                   <rect x={b.x - 0.2} y={b.y - 0.2} width={b.w + 0.4} height={b.h + 0.4} fill="transparent" />
-                  <g className="glyph" transform={`translate(${s.x} ${-s.y})`} stroke="currentColor" strokeWidth={1.5} fill="none">
+                  {/* Turned in its cube by its seat, a quarter at a time. */}
+                  <g
+                    className="glyph"
+                    transform={`translate(${s.x} ${-s.y}) rotate(${s.placement.state === 'in-cube' ? s.placement.seat * 90 : 0})`}
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    fill="none"
+                  >
                     <SymbolGlyphNonScaling kind={s.kind} />
                   </g>
                   <Box
@@ -277,11 +554,71 @@ export function SchematicCanvas({
                   >
                     {s.label}
                   </Box>
+                  {/* A locked part wears a small padlock. */}
+                  {s.locks && Object.values(s.locks).some(Boolean) && (
+                    <g transform={`translate(${b.x + b.w + 0.15} ${b.y - 0.15})`} pointerEvents="none">
+                      {/* Plain SVG: a Box would read width and height as CSS sizes. */}
+                      <rect x={-0.17} y={-0.05} width={0.34} height={0.26} rx={0.04} fill="var(--mui-palette-text-secondary)" />
+                      <path d="M-0.1 -0.05V-0.13A0.1 0.1 0 0 1 0.1 -0.13V-0.05" fill="none" stroke="var(--mui-palette-text-secondary)" strokeWidth={0.06} />
+                    </g>
+                  )}
                 </Box>
               );
             })}
 
-            {selected && <Selection s={selected} />}
+            {selectedParts.map((s) => (
+              <Selection key={s.id} s={s} />
+            ))}
+
+            {/* the box being dragged out to select */}
+            {marquee && (
+              <rect
+                x={marquee.x0}
+                y={marquee.y0}
+                width={marquee.x1 - marquee.x0}
+                height={marquee.y1 - marquee.y0}
+                fill="color-mix(in srgb, var(--mui-palette-primary-main) 8%, transparent)"
+                stroke="var(--mui-palette-primary-main)"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
+
+            {/* where the dragged parts are going: the one under the pointer says */}
+            {moving && (() => {
+              const s = symbols.find((sym) => sym.id === (moving.copy ? `${moving.anchor}-copy` : moving.anchor));
+              if (!s) return null;
+              const b = symbolBounds(s);
+              const many = moving.ids.length > 1 ? `${moving.ids.length} parts · ` : '';
+              const text = `${many}x ${s.x}  y ${s.y}${moving.free ? ' · off grid' : ''}${moving.copy ? ' · copy' : ''}`;
+              return (
+                <Box
+                  component="text"
+                  x={b.x + b.w / 2}
+                  y={b.y - 0.55}
+                  fontSize={LABEL * 0.95}
+                  textAnchor="middle"
+                  sx={{ fill: 'var(--mui-palette-primary-main)', fontFamily: 'monospace', paintOrder: 'stroke', stroke: 'var(--mui-palette-canvas-ground)', strokeWidth: 0.12, pointerEvents: 'none' }}
+                >
+                  {text}
+                </Box>
+              );
+            })()}
+
+            {/* the part being placed, under the cursor */}
+            {placing && pointer && (
+              <Box component="g" sx={{ color: 'primary.main', pointerEvents: 'none' }} opacity={0.7}>
+                <rect x={pointer.x - 1.1} y={pointer.y - 1.1} width={2.2} height={2.2} rx={0.15} stroke="currentColor" strokeDasharray="3 3" strokeWidth={1} {...line} />
+                <g transform={`translate(${pointer.x} ${pointer.y})`} stroke="currentColor" strokeWidth={1.5} fill="none">
+                  <SymbolGlyphNonScaling kind={placing.kind} />
+                </g>
+              </Box>
+            )}
+
+            {/* the measure: from the first click to the second, or to the cursor */}
+            {tool === 'measure' && measure && <Measure a={measure.a} b={measure.b ?? pointer} unitMm={schematic.unitMm} />}
           </>
         )}
       </Box>
@@ -315,14 +652,37 @@ export function SchematicCanvas({
         </text>
       </Box>
 
+      {/* the selection's actions, just above it (below it near the top edge) */}
+      {view === '2d' && selectedParts.length > 0 && selectionActions && interactive && selectedParts.some((s) => onLayer(s.z)) && (() => {
+        const boxes = selectedParts.filter((s) => onLayer(s.z)).map(symbolBounds);
+        const x0 = Math.min(...boxes.map((r) => r.x));
+        const y0 = Math.min(...boxes.map((r) => r.y));
+        const b = { x: x0, y: y0, w: Math.max(...boxes.map((r) => r.x + r.w)) - x0, h: Math.max(...boxes.map((r) => r.y + r.h)) - y0 };
+        const above = (b.y - vy) * scale - 12;
+        const flip = above < 72;
+        return (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: (b.x + b.w / 2 - vx) * scale,
+              top: flip ? (b.y + b.h + LABEL + 0.4 - vy) * scale + 12 : above,
+              transform: flip ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+              zIndex: 1,
+            }}
+          >
+            {selectionActions}
+          </Box>
+        );
+      })()}
+
       {/* hint */}
-      {view === '2d' && !selected && hint && (
+      {view === '2d' && hint && (selectedParts.length === 0 || !interactive) && (
         <Paper
           variant="outlined"
           sx={{
             position: 'absolute',
             left: '50%',
-            bottom: (t) => t.spacing(2.5),
+            [hintAt]: (t: Theme) => t.spacing(2.5),
             transform: 'translateX(-50%)',
             display: 'flex',
             alignItems: 'center',
@@ -335,9 +695,32 @@ export function SchematicCanvas({
           }}
         >
           <NearMeOutlinedIcon fontSize="small" sx={{ transform: 'scaleX(-1)', color: 'text.secondary' }} />
-          <Typography variant="body2">{hint}</Typography>
+          <Typography variant="body2">{moving ? 'Shift: off the grid · Alt: drop copies · Esc: put back' : marquee ? 'Everything the box touches · Shift adds to the selection' : hint}</Typography>
         </Paper>
       )}
+    </Box>
+  );
+}
+
+/** A measured distance: a dashed line and its length in mm and in cubes. */
+function Measure({ a, b, unitMm }: { a: { x: number; y: number }; b: { x: number; y: number } | null; unitMm: number }) {
+  if (!b) return <Box component="circle" cx={a.x} cy={a.y} r={0.15} sx={{ fill: 'var(--mui-palette-primary-main)' }} />;
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  return (
+    <Box component="g" sx={{ color: 'primary.main', pointerEvents: 'none' }}>
+      <path d={`M${a.x} ${a.y}L${b.x} ${b.y}`} stroke="currentColor" strokeWidth={1.5} strokeDasharray="6 3" {...line} />
+      <circle cx={a.x} cy={a.y} r={0.15} fill="currentColor" />
+      <circle cx={b.x} cy={b.y} r={0.15} fill="currentColor" />
+      <Box
+        component="text"
+        x={(a.x + b.x) / 2}
+        y={(a.y + b.y) / 2 - 0.4}
+        fontSize={LABEL * 1.1}
+        textAnchor="middle"
+        sx={{ fill: 'currentColor', paintOrder: 'stroke', stroke: 'var(--mui-palette-canvas-ground)', strokeWidth: 0.12, strokeLinejoin: 'round' }}
+      >
+        {`${Math.round(d * unitMm)} mm · ${+d.toFixed(2)} cubes`}
+      </Box>
     </Box>
   );
 }

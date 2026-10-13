@@ -11,6 +11,7 @@ import BlurOnIcon from '@mui/icons-material/BlurOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { dragPart } from '../dragPart';
 
 export interface PaletteGroupData {
   id: string;
@@ -31,12 +32,15 @@ export interface SymbolPalettePanelProps {
   /** Highlighted entry, e.g. the module of the selected part. */
   activeEntryId?: string;
   onPick?: (entryId: string) => void;
+  /** An entry dragged out towards the canvas; `onDragEnd` when it is let go anywhere. */
+  onDragStart?: (entryId: string) => void;
+  onDragEnd?: () => void;
   /** Groups open at start; defaults to all but the last. */
   defaultOpen?: string[];
 }
 
 /** Parts to add, in two sections (mounted modules, unmounted optics), grouped by kit or source, with a filter. */
-export function SymbolPalettePanel({ groups, activeEntryId, onPick, defaultOpen }: SymbolPalettePanelProps) {
+export function SymbolPalettePanel({ groups, activeEntryId, onPick, onDragStart, onDragEnd = () => {}, defaultOpen }: SymbolPalettePanelProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string[]>(defaultOpen ?? groups.slice(0, -1).map((g) => g.id));
   const q = query.trim().toLowerCase();
@@ -104,7 +108,8 @@ export function SymbolPalettePanel({ groups, activeEntryId, onPick, defaultOpen 
                     key={entry.id}
                     selected={entry.id === activeEntryId}
                     onClick={() => onPick?.(entry.id)}
-                    sx={{ gap: 1, pl: 4.5, py: 0.5 }}
+                    onPointerDown={(e) => onDragStart && dragPart(e, () => onDragStart(entry.id), onDragEnd)}
+                    sx={{ gap: 1, pl: 4.5, py: 0.5, cursor: onDragStart ? 'grab' : undefined, userSelect: 'none' }}
                   >
                     {group.mount === 'mounted' ? (
                       <ViewInArOutlinedIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />

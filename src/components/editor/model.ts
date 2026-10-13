@@ -20,7 +20,30 @@ export type Placement =
 
 export const isMounted = (s: { placement: Placement }) => s.placement.state === 'in-cube';
 
-/** One numeric, kind-specific parameter shown in the inspector (e.g. cut-on wavelength). */
+/** An existing module a part can be realized as. */
+export interface ModuleOption {
+  module: string;
+  source: string;
+  version?: string;
+}
+
+/** Realize: swap the part for an existing module, in its cube. */
+export const realized = (option: ModuleOption): Placement => ({ state: 'in-cube', ...option, seat: 0 });
+
+/** Freeze: generate a holder for an unmounted optic, here. */
+export const frozen = (p: Placement): Placement =>
+  p.state === 'unmounted' ? { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: 0, frozen: true } : p;
+
+/** Unbind: take the optic out of its cube; a frozen holder goes away. */
+export const unbound = (s: { label: string; placement: Placement }): Placement => {
+  const p = s.placement;
+  if (p.state !== 'in-cube') return p;
+  return p.frozen
+    ? { state: 'unmounted', part: p.module.replace(/^Holder for /, ''), source: 'Holder removed' }
+    : { state: 'unmounted', part: s.label, source: `Taken out of ${p.module}` };
+};
+
+/** One numeric, kind-specific input of a part, shown as a slider (e.g. cut-on wavelength). */
 export interface SymbolParam {
   label: string;
   value: number;
@@ -41,8 +64,25 @@ export interface SchematicSymbol {
   y: number;
   z: number;
   placement: Placement;
-  param?: SymbolParam;
+  /** The part's inputs, each a slider in the inspector. */
+  inputs?: SymbolParam[];
+  /** Axes the part may not move along (and `turn`: its seat stays). */
+  locks?: Partial<Record<Lock, boolean>>;
   notes: string;
+}
+
+export type Lock = 'x' | 'y' | 'z' | 'turn';
+
+export const isLocked = (s: { locks?: SchematicSymbol['locks'] }, lock: Lock) => Boolean(s.locks?.[lock]);
+
+/** Where a part ends up moved by `d` (grid units, y up), staying put along its locked axes. */
+export function shifted(s: SchematicSymbol, d: { x?: number; y?: number; z?: number }) {
+  const tenth = (v: number) => Math.round(v * 10) / 10;
+  return {
+    x: isLocked(s, 'x') ? s.x : tenth(s.x + (d.x ?? 0)),
+    y: isLocked(s, 'y') ? s.y : tenth(s.y + (d.y ?? 0)),
+    z: isLocked(s, 'z') ? s.z : Math.max(0, s.z + (d.z ?? 0)),
+  };
 }
 
 export interface SchematicGroup {

@@ -17,12 +17,14 @@ export interface Vec3FieldProps {
   step?: number;
   precision?: number;
   disabled?: boolean;
+  /** Axes that are locked: shown, not editable. */
+  locked?: Partial<Record<keyof Vec3, boolean>>;
 }
 
 const AXES = ['x', 'y', 'z'] as const;
 
 /** Three linked numeric inputs for an x / y / z vector. */
-export function Vec3Field({ label, value, onChange, unit, step = 0.1, precision = 2, disabled }: Vec3FieldProps) {
+export function Vec3Field({ label, value, onChange, unit, step = 0.1, precision = 2, disabled, locked = {} }: Vec3FieldProps) {
   return (
     <Box component="fieldset" sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
       <Typography component="legend" variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -37,7 +39,7 @@ export function Vec3Field({ label, value, onChange, unit, step = 0.1, precision 
             onChange={(next) => onChange({ ...value, [axis]: next })}
             step={step}
             precision={precision}
-            disabled={disabled}
+            disabled={disabled || locked[axis]}
             startLabel={axis.toUpperCase()}
             ariaLabel={`${label} ${axis.toUpperCase()}`}
             sx={{

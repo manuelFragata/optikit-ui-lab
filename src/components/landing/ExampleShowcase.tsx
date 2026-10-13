@@ -57,7 +57,8 @@ const PRELOAD_MS = 600;
 function setParam(schematic: Schematic, symbolId: string, value: number): Schematic {
   return {
     ...schematic,
-    symbols: schematic.symbols.map((s) => (s.id === symbolId && s.param ? { ...s, param: { ...s.param, value } } : s)),
+    // The landing shows a part's first input only.
+    symbols: schematic.symbols.map((s) => (s.id === symbolId && s.inputs?.length ? { ...s, inputs: [{ ...s.inputs[0], value }, ...s.inputs.slice(1)] } : s)),
   };
 }
 
@@ -290,14 +291,14 @@ function ExampleCard(props: CardProps) {
                   {selected.id} · {selected.type}
                 </Typography>
               </Stack>
-              {selected.param ? (
+              {selected.inputs?.[0] ? (
                 <SliderField
-                  label={selected.param.label}
-                  value={selected.param.value}
-                  min={selected.param.min}
-                  max={selected.param.max}
-                  step={selected.param.step}
-                  unit={selected.param.unit}
+                  label={selected.inputs[0].label}
+                  value={selected.inputs[0].value}
+                  min={selected.inputs[0].min}
+                  max={selected.inputs[0].max}
+                  step={selected.inputs[0].step}
+                  unit={selected.inputs[0].unit}
                   onChange={(value) => onParam(selected.id, value)}
                 />
               ) : (
@@ -312,7 +313,7 @@ function ExampleCard(props: CardProps) {
                 {inAssembly ? 'The same design, as cubes' : 'Try this'}
               </Typography>
               <Typography variant="body1">
-                {inAssembly ? 'Every symbol is a real openUC2 cube. Optikit keeps the drawing and the assembly in step.' : example.tryThis}
+                {inAssembly ? 'Every part is a real openUC2 cube. Optikit keeps the drawing and the assembly in step.' : example.tryThis}
               </Typography>
             </Stack>
           )}

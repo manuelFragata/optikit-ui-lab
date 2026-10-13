@@ -32,6 +32,19 @@ export interface WorkspaceShellProps {
   children: ReactNode;
 }
 
+/** The strip under the header that holds a view's commands. Views with their own layout (View) render it themselves. */
+export function CommandStrip({ children }: { children: ReactNode }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1.5}
+      sx={{ flexShrink: 0, alignItems: 'center', px: 2, py: 0.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', overflowX: 'auto' }}
+    >
+      {children}
+    </Stack>
+  );
+}
+
 /**
  * The app frame: a header with one tab per view, the active view's commands
  * (if any), the view, and an optional status bar. One design is open at a
@@ -77,15 +90,7 @@ export function WorkspaceShell({
           </>
         }
       />
-      {commands && (
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ flexShrink: 0, alignItems: 'center', px: 2, py: 0.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', overflowX: 'auto' }}
-        >
-          {commands}
-        </Stack>
-      )}
+      {commands && <CommandStrip>{commands}</CommandStrip>}
       <Box component="main" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {children}
       </Box>

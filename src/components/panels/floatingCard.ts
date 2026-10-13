@@ -5,9 +5,9 @@ import type { Theme } from '@mui/material/styles';
  * blur, a soft shadow, and a short slide in from `from`. Shared by the
  * editor's side panels and the gallery's filter pop-ups.
  */
-export function floatingCardSx(theme: Theme, from: 'left' | 'right' | 'top') {
+export function floatingCardSx(theme: Theme, from: 'left' | 'right' | 'top' | 'bottom') {
   const v = theme.vars ?? theme;
-  const offset = { left: 'translateX(-8px)', right: 'translateX(8px)', top: 'translateY(-6px)' }[from];
+  const offset = { left: 'translateX(-8px)', right: 'translateX(8px)', top: 'translateY(-6px)', bottom: 'translateY(6px)' }[from];
   return {
     display: 'flex',
     flexDirection: 'column',

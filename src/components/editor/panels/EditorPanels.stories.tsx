@@ -85,7 +85,7 @@ export const DesignInfo: Story = {
     <DesignInfoPanel
       {...demoDesignInfo}
       stats={[
-        { label: 'symbols', value: 6 },
+        { label: 'parts', value: 6 },
         { label: 'rays', value: 2 },
         { label: 'groups', value: 2 },
       ]}

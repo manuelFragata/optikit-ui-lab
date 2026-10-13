@@ -28,7 +28,7 @@ const meta = {
     leftPanel: { name: 'Left panel shows', control: 'inline-radio', options: ['palette', 'layers', 'parts', 'files'] },
     rightState: { name: 'Right panel', control: 'inline-radio', options: PANEL_STATES },
     rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'history', 'info'] },
-    selectedId: { name: 'Selected symbol', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
+    selectedId: { name: 'Selected part', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
     view: { name: 'Canvas view', control: 'inline-radio', options: ['2d', '3d'] },
     headerVariant: { name: 'Header style', control: 'inline-radio', options: ['navy', 'light'] },
     density: { name: 'Density', control: 'inline-radio', options: ['comfortable', 'compact'] },
@@ -66,7 +66,7 @@ export const Default: Story = {
 };
 
 export const SymbolSelected: Story = {
-  name: 'Symbol selected',
+  name: 'Part selected',
   args: { selectedId: 'S3', rightState: 'expanded' },
 };
 

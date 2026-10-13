@@ -12,7 +12,6 @@ import { exampleAssemblies } from '../demo/assemblies';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
-import { EditorShell } from '../components/compositions/EditorShell';
 import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
 import { WorkspaceShell } from '../components/compositions/WorkspaceShell';
 import { AccountPage } from '../components/pages/AccountPage';
@@ -21,6 +20,7 @@ import { AssemblyView } from '../components/landing/AssemblyView';
 import { SchematicCanvas } from '../components/editor/SchematicCanvas';
 import { DesignPage } from '../components/views/DesignPage';
 import { ExploreView } from '../components/views/ExploreView';
+import { EditorShell } from '../components/compositions/EditorShell';
 import { ProjectsView } from '../components/views/ProjectsView';
 import { NewProjectDialog, type ProjectStart } from '../components/views/projects/NewProjectDialog';
 import type { Schematic } from '../components/editor/model';
@@ -277,6 +277,7 @@ export function PrototypeApp() {
           showHeader={false}
           schematic={played[openId] ?? design.schematic}
           defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+          preview3d={exampleAssemblies[openId] && <AssemblyView assembly={exampleAssemblies[openId]} animate={false} label={`${design.name} in 3D`} sx={{ width: '100%', height: '100%' }} />}
         />
       );
     } else {

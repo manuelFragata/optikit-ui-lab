@@ -2,7 +2,7 @@
  * Placeholder design for the editor stories: the BF+Fluor FRAME optical core.
  * Not part of the component set; replace freely.
  */
-import type { Schematic, SymbolKind } from '../components/editor/model';
+import type { Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
 
 export const demoSchematic: Schematic = {
   unitMm: 50,
@@ -21,7 +21,10 @@ export const demoSchematic: Schematic = {
       y: 13,
       z: 1,
       placement: { state: 'in-cube', module: 'Laser 488 module', source: 'Fluor Box', version: '1.1.0', seat: 0 },
-      param: { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 700, step: 1 },
+      inputs: [
+        { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 700, step: 1 },
+        { label: 'Power', value: 20, unit: 'mW', min: 0, max: 100, step: 1 },
+      ],
       notes: '',
     },
     {
@@ -46,7 +49,10 @@ export const demoSchematic: Schematic = {
       y: 4,
       z: 1,
       placement: { state: 'in-cube', module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0', seat: 0 },
-      param: { label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 },
+      inputs: [
+        { label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 },
+        { label: 'Emission band', value: 525, unit: 'nm', min: 450, max: 700, step: 1 },
+      ],
       notes: 'Swap for DMLP490 if the 488 line bleeds into the emission band.',
     },
     {
@@ -59,7 +65,10 @@ export const demoSchematic: Schematic = {
       y: 4,
       z: 1,
       placement: { state: 'in-cube', module: 'RMS objective insert', source: 'Core Box', version: '2.3.0', seat: 0 },
-      param: { label: 'Magnification', value: 10, unit: '×', min: 4, max: 60, step: 1 },
+      inputs: [
+        { label: 'Magnification', value: 10, unit: '×', min: 4, max: 60, step: 1 },
+        { label: 'Numerical aperture', value: 0.25, unit: 'NA', min: 0.1, max: 1.4, step: 0.05 },
+      ],
       notes: '',
     },
     {
@@ -72,7 +81,10 @@ export const demoSchematic: Schematic = {
       y: 4,
       z: 1,
       placement: { state: 'unmounted', part: 'AC254-050-A', source: 'Thorlabs parts' },
-      param: { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
+      inputs: [
+        { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
+        { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+      ],
       notes: '',
     },
     {
@@ -97,6 +109,8 @@ export const demoSchematic: Schematic = {
 export interface PaletteEntry {
   id: string;
   label: string;
+  /** The symbol it is drawn as once placed. */
+  kind: SymbolKind;
 }
 
 export interface PaletteGroup {
@@ -112,14 +126,15 @@ export const demoPalette: PaletteGroup[] = [
   {
     id: 'core',
     label: 'openUC2 Core Box',
-    count: 5,
+    count: 6,
     mount: 'mounted',
     entries: [
-      { id: 'bs', label: 'Beam splitter cube' },
-      { id: 'mirror', label: 'Mirror cube 45°' },
-      { id: 'lens50', label: 'Lens holder, f = 50' },
-      { id: 'rms', label: 'RMS objective insert' },
-      { id: 'xyz', label: 'xyz-stage' },
+      { id: 'bs', label: 'Beam splitter cube', kind: 'dichroic' },
+      { id: 'mirror', label: 'Mirror cube 45°', kind: 'mirror' },
+      { id: 'lens50', label: 'Lens holder, f = 50', kind: 'lens' },
+      { id: 'rms', label: 'RMS objective insert', kind: 'objective' },
+      { id: 'xyz', label: 'xyz-stage', kind: 'objective' },
+      { id: 'cam', label: 'IMX477 camera', kind: 'camera' },
     ],
   },
   {
@@ -128,9 +143,9 @@ export const demoPalette: PaletteGroup[] = [
     count: 3,
     mount: 'mounted',
     entries: [
-      { id: 'dichroic', label: 'Dichroic holder' },
-      { id: 'emfilter', label: 'Emission filter slot' },
-      { id: 'laser488', label: 'Laser 488 module' },
+      { id: 'dichroic', label: 'Dichroic holder', kind: 'dichroic' },
+      { id: 'emfilter', label: 'Emission filter slot', kind: 'lens' },
+      { id: 'laser488', label: 'Laser 488 module', kind: 'laser' },
     ],
   },
   {
@@ -139,9 +154,9 @@ export const demoPalette: PaletteGroup[] = [
     count: 62,
     mount: 'unmounted',
     entries: [
-      { id: 'ac254', label: 'AC254-050-A achromat' },
-      { id: 'dmlp505', label: 'DMLP505 dichroic' },
-      { id: 'md498', label: 'MD498 filter set' },
+      { id: 'ac254', label: 'AC254-050-A achromat', kind: 'lens' },
+      { id: 'dmlp505', label: 'DMLP505 dichroic', kind: 'dichroic' },
+      { id: 'md498', label: 'MD498 filter set', kind: 'lens' },
     ],
   },
 ];
@@ -184,6 +199,28 @@ export const demoDesignInfo = {
   tags: ['fluorescence', 'frame', 'core-box', '488nm'],
   license: 'CERN-OHL-S-2.0',
   created: '2 Mar 2026',
+};
+
+/** The inputs a newly placed part of each kind starts with. */
+export const demoInputs: Record<SymbolKind, SymbolParam[]> = {
+  laser: [
+    { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 700, step: 1 },
+    { label: 'Power', value: 10, unit: 'mW', min: 0, max: 100, step: 1 },
+  ],
+  mirror: [{ label: 'Tilt', value: 45, unit: '°', min: 40, max: 50, step: 0.5 }],
+  dichroic: [{ label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 }],
+  lens: [
+    { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
+    { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+  ],
+  objective: [
+    { label: 'Magnification', value: 10, unit: '×', min: 4, max: 60, step: 1 },
+    { label: 'Numerical aperture', value: 0.25, unit: 'NA', min: 0.1, max: 1.4, step: 0.05 },
+  ],
+  camera: [
+    { label: 'Exposure', value: 20, unit: 'ms', min: 1, max: 500, step: 1 },
+    { label: 'Gain', value: 1, unit: '×', min: 1, max: 16, step: 0.5 },
+  ],
 };
 
 /** Existing modules a part of each kind can be realized as (swapped for). */

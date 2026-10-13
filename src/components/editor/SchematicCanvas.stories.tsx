@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useArgs } from 'storybook/preview-api';
 import Box from '@mui/material/Box';
 import { demoSchematic } from '../../demo/editorContent';
-import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool, type ViewOptions } from './CanvasToolbar';
+import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool } from './CanvasToolbar';
 import { SchematicCanvas, type SchematicCanvasProps } from './SchematicCanvas';
 
 const meta = {
@@ -33,22 +33,11 @@ const meta = {
   render: function Render(args: SchematicCanvasProps) {
     const [, updateArgs] = useArgs<SchematicCanvasProps>();
     const [tool, setTool] = useState<CanvasTool>('select');
-    const [options, setOptions] = useState<ViewOptions>(args.options as ViewOptions);
     return (
       <SchematicCanvas
         {...args}
-        options={options}
         onSelect={(selectedId) => updateArgs({ selectedId })}
-        toolbar={
-          <CanvasToolbar
-            tool={tool}
-            onToolChange={setTool}
-            view={args.view ?? '2d'}
-            onViewChange={(view) => updateArgs({ view })}
-            options={options}
-            onOptionsChange={setOptions}
-          />
-        }
+        toolbar={<CanvasToolbar tool={tool} onToolChange={setTool} view={args.view ?? '2d'} onViewChange={(view) => updateArgs({ view })} />}
       />
     );
   },

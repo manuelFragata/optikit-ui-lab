@@ -45,7 +45,7 @@ export function LayersPanel({ symbols, groups, selectedId, onSelect }: LayersPan
               Layer z = {z}
             </Typography>
             <Typography variant="meta" color="text.meta">
-              {symbols.filter((s) => s.z === z).length} symbols
+              {symbols.filter((s) => s.z === z).length} parts
             </Typography>
           </Stack>
           {groups.map((g) => {

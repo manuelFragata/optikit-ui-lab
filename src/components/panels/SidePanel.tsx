@@ -26,7 +26,7 @@ export interface SidePanelItem {
   content: ReactNode;
   /** Panel title when it should differ from the rail label (e.g. the selected symbol's name). */
   title?: ReactNode;
-  /** Pinned to the bottom of the panel, outside the scroll area (e.g. "+ Add symbol"). */
+  /** Pinned to the bottom of the panel, outside the scroll area (e.g. "+ Add part"). */
   footer?: ReactNode;
 }
 
