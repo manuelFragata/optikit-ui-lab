@@ -9,6 +9,7 @@ import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { rayPoints, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
+import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
 import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './CanvasToolbar';
 
 /** What the editor looks at: the zoom (1 = 100%) and the point in the middle, in grid units (y down). */
@@ -35,7 +36,9 @@ export interface SchematicCanvasProps {
   /** A part double-clicked: open its properties. */
   onInspect?: (id: string) => void;
   view?: EditorView;
-  options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages' | 'onionSkin' | 'showRays'>>;
+  options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages' | 'onionSkin' | 'showRays' | 'showPartLabels'>>;
+  /** Label size and wheel direction (Settings); the defaults when omitted. */
+  prefs?: Pick<Preferences, 'labelSize' | 'invertZoom'>;
   /** Draw this layer (z) only; the others show faintly with onion skin on, or not at all. Omit to draw every layer. */
   layer?: number;
   /** Floating controls in the top-left corner (see CanvasToolbar). */
@@ -84,15 +87,26 @@ const GRID = { minX: -40, maxX: 80, minY: -50, maxY: 30 };
 const PX_PER_UNIT = 32;
 const CENTER = { x: 10, y: -7.5 }; // drawing centre, screen coordinates (y down)
 const LABEL = 0.4; // label font size, grid units
+/** The label size option, as a factor on part and ray names (the drawing's own text keeps its size). */
+const LABEL_SCALE = { small: 0.8, medium: 1, large: 1.3 } as const;
 const PAD = 0.9; // group box padding around its symbols
 const FIT_MARGIN = 2.5; // grid units kept free around a fitted drawing
+
+type Bounds = ReturnType<typeof symbolBounds>;
+/** The cube outline around a part: a square a little larger than its symbol. */
+function cageOf(b: Bounds) {
+  const side = Math.max(b.w, b.h) + 0.5;
+  return { x: b.x + b.w / 2 - side / 2, y: b.y + b.h / 2 - side / 2, side };
+}
+/** Where a part's name starts: just under its cube outline (drawn or not, so names stay put when cages are toggled). */
+const nameTop = (b: Bounds) => cageOf(b).y + cageOf(b).side + 0.1;
 
 /** Screen-space bounds (y down) of every symbol and ray point. */
 function drawingBounds({ symbols, rays }: Schematic) {
   const boxes = symbols.map(symbolBounds);
   const points = rays.flatMap((r) => rayPoints(r, symbols));
   const xs = [...boxes.flatMap((b) => [b.x, b.x + b.w]), ...points.map((p) => p.x)];
-  const ys = [...boxes.flatMap((b) => [b.y, b.y + b.h + LABEL]), ...points.map((p) => p.y)];
+  const ys = [...boxes.flatMap((b) => [b.y, nameTop(b) + LABEL]), ...points.map((p) => p.y)];
   if (xs.length === 0) return null;
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   return { x: x0 - FIT_MARGIN, y: y0 - FIT_MARGIN, w: x1 - x0 + 2 * FIT_MARGIN, h: y1 - y0 + 2 * FIT_MARGIN };
@@ -139,6 +153,7 @@ export function SchematicCanvas({
   onInspect,
   view = '2d',
   options,
+  prefs = DEFAULT_PREFERENCES,
   toolbar,
   fit = false,
   hint = 'Select a part to see its properties',
@@ -165,6 +180,7 @@ export function SchematicCanvas({
   const symbols = moving ? withMove(schematic, moving).symbols : schematic.symbols;
   // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
   const others = options.onionSkin !== false;
+  const nameScale = LABEL_SCALE[prefs.labelSize];
   const onLayer = (z: number) => layerShow(z, layer, others) === 'current';
   const symbolZ = (id: string) => symbols.find((s) => s.id === id)?.z;
   // While copies are dragged, the copies are what is selected.
@@ -216,8 +232,9 @@ export function SchematicCanvas({
   };
 
   // The wheel zooms around the cursor. A native listener, so the page does not scroll.
-  const wheel = useRef((e: WheelEvent) => zoomAt(Math.exp(-e.deltaY * 0.0015), toGrid(e)));
-  wheel.current = (e: WheelEvent) => zoomAt(Math.exp(-e.deltaY * 0.0015), toGrid(e));
+  const zoomBy = (e: WheelEvent) => zoomAt(Math.exp((prefs.invertZoom ? 1 : -1) * e.deltaY * 0.0015), toGrid(e));
+  const wheel = useRef(zoomBy);
+  wheel.current = zoomBy;
   const zoomable = typeof camera === 'object' && Boolean(onCamera);
   useEffect(() => {
     const el = frameRef.current;
@@ -361,7 +378,7 @@ export function SchematicCanvas({
     const x0 = Math.min(...members.map((b) => b.x)) - PAD;
     const y0 = Math.min(...members.map((b) => b.y)) - PAD;
     const x1 = Math.max(...members.map((b) => b.x + b.w)) + PAD;
-    const y1 = Math.max(...members.map((b) => b.y + b.h)) + PAD + LABEL; // room for symbol labels
+    const y1 = Math.max(...members.map(nameTop)) + PAD + LABEL; // room for the names
     return [{ ...g, x: x0, y: y0, w: x1 - x0, h: y1 - y0 }];
   });
 
@@ -440,7 +457,7 @@ export function SchematicCanvas({
                     <text
                       x={endsRight ? lp.x - 0.1 : lp.x + 0.5}
                       y={lp.y - 0.35}
-                      fontSize={LABEL * 0.9}
+                      fontSize={LABEL * 0.9 * nameScale}
                       textAnchor={endsRight ? 'end' : 'start'}
                       fill="currentColor"
                     >
@@ -505,15 +522,13 @@ export function SchematicCanvas({
                   {(() => {
                     const mounted = s.placement.state === 'in-cube';
                     if (mounted && !options.showCages) return null;
-                    const side = Math.max(b.w, b.h) + 0.5;
-                    const cx = b.x + b.w / 2;
-                    const cy = b.y + b.h / 2;
+                    const cage = cageOf(b);
                     return (
                       <rect
-                        x={cx - side / 2}
-                        y={cy - side / 2}
-                        width={side}
-                        height={side}
+                        x={cage.x}
+                        y={cage.y}
+                        width={cage.side}
+                        height={cage.side}
                         rx={0.15}
                         strokeWidth={1}
                         strokeDasharray={mounted ? undefined : '3 3'}
@@ -534,23 +549,25 @@ export function SchematicCanvas({
                   >
                     <SymbolGlyphNonScaling kind={s.kind} />
                   </g>
-                  <Box
-                    component="text"
-                    x={b.x + b.w / 2}
-                    y={b.y + b.h + LABEL + 0.15}
-                    fontSize={LABEL}
-                    textAnchor="middle"
-                    sx={{
-                      fill:
-                        s.placement.state === 'unmounted'
-                          ? 'var(--mui-palette-warning-main)'
-                          : isSelected
-                            ? 'var(--mui-palette-text-primary)'
-                            : 'var(--mui-palette-text-secondary)',
-                    }}
-                  >
-                    {s.label}
-                  </Box>
+                  {options.showPartLabels !== false && (
+                    <Box
+                      component="text"
+                      x={b.x + b.w / 2}
+                      y={nameTop(b) + LABEL * nameScale}
+                      fontSize={LABEL * nameScale}
+                      textAnchor="middle"
+                      sx={{
+                        fill:
+                          s.placement.state === 'unmounted'
+                            ? 'var(--mui-palette-warning-main)'
+                            : isSelected
+                              ? 'var(--mui-palette-text-primary)'
+                              : 'var(--mui-palette-text-secondary)',
+                      }}
+                    >
+                      {s.label}
+                    </Box>
+                  )}
                   {/* A locked part wears a small padlock. */}
                   {s.locks && Object.values(s.locks).some(Boolean) && (
                     <g transform={`translate(${b.x + b.w + 0.15} ${b.y - 0.15})`} pointerEvents="none">
@@ -654,7 +671,8 @@ export function SchematicCanvas({
         const boxes = selectedParts.filter((s) => onLayer(s.z)).map(symbolBounds);
         const x0 = Math.min(...boxes.map((r) => r.x));
         const y0 = Math.min(...boxes.map((r) => r.y));
-        const b = { x: x0, y: y0, w: Math.max(...boxes.map((r) => r.x + r.w)) - x0, h: Math.max(...boxes.map((r) => r.y + r.h)) - y0 };
+        const b = { x: x0, y: y0, w: Math.max(...boxes.map((r) => r.x + r.w)) - x0 };
+        const under = Math.max(...boxes.map(nameTop)) + LABEL * nameScale + 0.2;
         const above = (b.y - vy) * scale - 12;
         const flip = above < 72;
         return (
@@ -662,7 +680,7 @@ export function SchematicCanvas({
             sx={{
               position: 'absolute',
               left: (b.x + b.w / 2 - vx) * scale,
-              top: flip ? (b.y + b.h + LABEL + 0.4 - vy) * scale + 12 : above,
+              top: flip ? (under - vy) * scale + 12 : above,
               transform: flip ? 'translateX(-50%)' : 'translate(-50%, -100%)',
               zIndex: 1,
             }}

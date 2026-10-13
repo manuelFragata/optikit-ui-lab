@@ -54,6 +54,8 @@ export interface View3D {
   /** Cube cages around mounted parts. */
   cages: boolean;
   rays: boolean;
+  /** Name the parts on the current layer. */
+  partLabels: boolean;
   rayLabels: boolean;
   selectedIds: string[];
 }
@@ -224,7 +226,7 @@ const above = ([x, y, z]: Vec3, mm: number): Vec3 => [x, y, z + mm];
  */
 function labelsOf(parts: PlacedPart[], rays: PlacedRay[], floor: Floor | null, view: View3D): PlacedLabel[] {
   const partLabels = parts
-    .filter((p) => p.look !== 'ghost')
+    .filter((p) => view.partLabels && p.look !== 'ghost')
     .map((p): PlacedLabel => ({
       key: p.id,
       at: above(p.center, CUBE_MM / 2 + 8),

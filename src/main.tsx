@@ -1,17 +1,33 @@
-import { StrictMode } from 'react';
+import { StrictMode, useMemo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { App } from './App';
-import { defaultFonts, loadFonts, theme } from './theme';
+import { PreferencesProvider, usePreferences } from './settings/preferences';
+import { AppSettings } from './settings/SettingsDialog';
+import { createAppTheme, defaultFonts, loadFonts } from './theme';
 
 loadFonts(defaultFonts.ui, defaultFonts.mono);
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+/** The theme, at the density chosen in Settings. */
+function Themed({ children }: { children: ReactNode }) {
+  const { density } = usePreferences().prefs;
+  const theme = useMemo(() => createAppTheme({ density }), [density]);
+  return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline enableColorScheme />
-      <App />
+      {children}
     </ThemeProvider>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <PreferencesProvider>
+      <Themed>
+        <App />
+        <AppSettings />
+      </Themed>
+    </PreferencesProvider>
   </StrictMode>,
 );

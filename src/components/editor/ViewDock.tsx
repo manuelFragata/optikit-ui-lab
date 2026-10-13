@@ -23,6 +23,7 @@ import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import RedoIcon from '@mui/icons-material/Redo';
 import StraightenIcon from '@mui/icons-material/Straighten';
+import TextFieldsIcon from '@mui/icons-material/TextFields';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
@@ -76,9 +77,10 @@ export interface ViewDockProps {
   onMountAll: () => void;
 }
 
-type ShowKey = 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin';
+type ShowKey = 'showPartLabels' | 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin';
 
 const SHOW: { key: ShowKey; label: string; icon: ReactNode }[] = [
+  { key: 'showPartLabels', label: 'Part labels', icon: <TextFieldsIcon fontSize="small" /> },
   { key: 'showRays', label: 'Rays', icon: <TimelineIcon fontSize="small" /> },
   { key: 'showRayLabels', label: 'Ray labels', icon: <LabelOutlinedIcon fontSize="small" /> },
   { key: 'showCages', label: 'Cube cages', icon: <CheckBoxOutlineBlankIcon fontSize="small" /> },

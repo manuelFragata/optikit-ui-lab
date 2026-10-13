@@ -1,11 +1,12 @@
 import type { PartEntry } from '../../editor/AddPartSearch';
+import type { Size } from '../../../settings/preferences';
 import type { CanvasTool, EditorView, ViewOptions } from '../../editor/CanvasToolbar';
 
 export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'files';
 export type RightPanelId = 'properties' | 'history' | 'info';
 
 /** View options that switch on and off. */
-export type ToggleOption = keyof Pick<ViewOptions, 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin' | 'snapToGrid'>;
+export type ToggleOption = keyof Pick<ViewOptions, 'showPartLabels' | 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin' | 'snapToGrid'>;
 
 /**
  * Everything the editor can be asked to do, by name. The shell implements
@@ -41,6 +42,8 @@ export interface EditorActions {
   setView: (view: EditorView) => void;
   goToLayer: (z: number) => void;
   toggleOption: (option: ToggleOption) => void;
+  /** A preference (Settings), here for Ctrl K. */
+  setLabelSize: (size: Size) => void;
   fit: () => void;
   fitSelection: () => void;
   zoomIn: () => void;
@@ -51,6 +54,7 @@ export interface EditorActions {
   openLeft: (id: LeftPanelId) => void;
   openRight: (id: RightPanelId) => void;
   openPalette: () => void;
+  openSettings: () => void;
 
   /** Esc: stop placing, else close the open list, else back to Select, else deselect. */
   escape: () => void;

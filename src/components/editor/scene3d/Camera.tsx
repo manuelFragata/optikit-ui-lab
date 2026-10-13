@@ -30,15 +30,19 @@ export interface CameraProps {
   command?: CameraCommand;
   /** What "fit" frames: everything drawn, and the selection (document mm). */
   bounds: { all: Box | null; selection: Box | null };
+  /** The button that orbits; the other one (right or middle) pans. */
+  orbitButton: 'right' | 'middle';
+  /** Wheel up zooms out. */
+  invertZoom: boolean;
 }
 
 /**
  * The camera, on CameraControls: smooth moves, fit, zoom to the cursor.
- * Right drag orbits, middle drag pans, the wheel zooms; the left button
+ * Right drag orbits, middle drag pans (or the other way round), the wheel zooms; the left button
  * belongs to the tool (select: nothing, so clicks and box selection work).
  * It opens on an angled view of the whole design.
  */
-export function Camera({ tool, command, bounds }: CameraProps) {
+export function Camera({ tool, command, bounds, orbitButton, invertZoom }: CameraProps) {
   const ref = useRef<CameraControlsImpl>(null);
   // Rebuilt only when the extent changes (compared by value: layout3d returns new objects every time).
   const allKey = JSON.stringify(bounds.all);
@@ -46,17 +50,18 @@ export function Camera({ tool, command, bounds }: CameraProps) {
   const all = useMemo(() => bounds.all && threeBox(bounds.all), [allKey]);
   const selection = useMemo(() => bounds.selection && threeBox(bounds.selection), [selectionKey]);
 
-  // Mouse buttons, per tool.
+  // Mouse buttons, per tool and as set in Settings.
   useEffect(() => {
     const controls = ref.current;
     if (!controls) return;
     const { ACTION } = CameraControlsImpl;
     controls.mouseButtons.left = tool === 'pan' ? ACTION.TRUCK : tool === 'zoom' ? ACTION.DOLLY : ACTION.NONE;
-    controls.mouseButtons.right = ACTION.ROTATE;
-    controls.mouseButtons.middle = ACTION.TRUCK;
+    controls.mouseButtons.right = orbitButton === 'right' ? ACTION.ROTATE : ACTION.TRUCK;
+    controls.mouseButtons.middle = orbitButton === 'middle' ? ACTION.ROTATE : ACTION.TRUCK;
     controls.mouseButtons.wheel = ACTION.DOLLY;
+    controls.dollySpeed = invertZoom ? -1 : 1;
     controls.dollyToCursor = true;
-  }, [tool]);
+  }, [tool, orbitButton, invertZoom]);
 
   const move = (m: CameraMove, smooth: boolean) => {
     const controls = ref.current;

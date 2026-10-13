@@ -27,6 +27,8 @@ export interface ViewOptions {
   showCages: boolean;
   /** Draw the light paths. */
   showRays?: boolean;
+  /** Name the parts (on by default). */
+  showPartLabels?: boolean;
 }
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = {

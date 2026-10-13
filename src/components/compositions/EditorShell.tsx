@@ -18,6 +18,7 @@ import Stack from '@mui/material/Stack';
 import { demoInputs, demoModules, demoPalette, demoSchematic } from '../../demo/editorContent';
 import { meshForPart } from '../../demo/meshes';
 import { demoUser } from '../../demo/user';
+import { usePreferences } from '../../settings/preferences';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
 import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/CanvasToolbar';
 import { CommandPalette } from '../editor/CommandPalette';
@@ -161,6 +162,8 @@ export function EditorShell({
   // How the design is looked at: editor state only, never in the design file.
   const [tool, setTool] = useState<CanvasTool>('select');
   const [options, setOptions] = useState<ViewOptions>(DEFAULT_VIEW_OPTIONS);
+  // How the person likes to work (Settings), kept between sessions.
+  const { prefs, update: updatePrefs, setSettingsOpen } = usePreferences();
   // One layer is worked on at a time; the design opens on the lowest layer with parts.
   const [layer, setLayer] = useState(() => Math.min(...initialDesign.symbols.map((s) => s.z), 1));
   const [detail, setDetail] = useState<Detail>('solids');
@@ -283,6 +286,7 @@ export function EditorShell({
     setView,
     goToLayer: setLayer,
     toggleOption: (option) => setOptions({ ...options, [option]: options[option] === false }),
+    setLabelSize: (labelSize) => updatePrefs({ labelSize }),
     fit: () => (view === '3d' ? move3d('fit') : zoom2d('fit')),
     fitSelection: () => (view === '3d' ? move3d('fitSelection') : zoom2d('fit')),
     zoomIn: () => (view === '3d' ? move3d('in') : zoom2d('in')),
@@ -292,6 +296,7 @@ export function EditorShell({
     openLeft,
     openRight,
     openPalette: () => setPaletteOpen(true),
+    openSettings: () => setSettingsOpen(true),
 
     escape: () => {
       if (placing.entry) placing.stop();
@@ -390,6 +395,7 @@ export function EditorShell({
                 schematic={design}
                 layer={layer}
                 options={options}
+                prefs={prefs}
                 fidelity={detail}
                 selectedIds={ids}
                 tool={tool}
@@ -416,6 +422,7 @@ export function EditorShell({
               view={view}
               layer={layer}
               options={options}
+              prefs={prefs}
               hint={hint2d}
               hintAt="top"
               toolbar={toolbar}

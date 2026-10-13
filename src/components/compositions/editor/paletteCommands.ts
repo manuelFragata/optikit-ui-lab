@@ -36,6 +36,8 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'fit-selection', group: 'View', label: 'Fit the selection', shortcut: 'Shift F', run: a.fitSelection },
     { id: 'zoom-in', group: 'View', label: 'Zoom in', shortcut: '+', run: a.zoomIn },
     { id: 'zoom-out', group: 'View', label: 'Zoom out', shortcut: '−', run: a.zoomOut },
+    { id: 'part-labels', group: 'View', label: onOff(options.showPartLabels, 'part labels'), run: () => a.toggleOption('showPartLabels') },
+    ...(['small', 'medium', 'large'] as const).map((size) => ({ id: `labels-${size}`, group: 'View', label: `Labels: ${size}`, run: () => a.setLabelSize(size) })),
     { id: 'rays', group: 'View', label: onOff(options.showRays, 'rays'), run: () => a.toggleOption('showRays') },
     { id: 'labels', group: 'View', label: onOff(options.showRayLabels, 'ray labels'), run: () => a.toggleOption('showRayLabels') },
     { id: 'cages', group: 'View', label: onOff(options.showCages, 'cube cages'), run: () => a.toggleOption('showCages') },
@@ -48,5 +50,6 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'panel-files', group: 'Panels', label: 'Open project files', run: () => a.openLeft('files') },
     { id: 'panel-history', group: 'Panels', label: 'Open version history', run: () => a.openRight('history') },
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => a.openRight('info') },
+    { id: 'settings', group: 'Panels', label: 'Open settings', shortcut: 'Ctrl ,', run: a.openSettings },
   ];
 }

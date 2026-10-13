@@ -27,6 +27,7 @@ import type { Schematic } from '../components/editor/model';
 import type { ProjectSummary } from '../api/types';
 import { scrollToSection } from '../components/pages/LandingPage';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
+import { SettingsButton } from '../settings/SettingsDialog';
 import { useHashRoute, useSession, type Route } from './routing';
 
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
@@ -301,7 +302,12 @@ export function PrototypeApp() {
         onLogIn={() => openAuth('login')}
         onAccount={() => navigate({ name: 'account' })}
         onLogOut={logOut}
-        headerActions={<ColorSchemeToggle />}
+        headerActions={
+          <>
+            <ColorSchemeToggle />
+            <SettingsButton />
+          </>
+        }
       >
         {view}
       </WorkspaceShell>

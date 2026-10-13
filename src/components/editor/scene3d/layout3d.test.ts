@@ -23,6 +23,7 @@ const view = (patch: Partial<View3D> = {}): View3D => ({
   fidelity: 'solids',
   cages: false,
   rays: true,
+  partLabels: true,
   rayLabels: true,
   selectedIds: [],
   ...patch,
@@ -96,6 +97,10 @@ describe('labels', () => {
     const [a, ...rest] = layout3d(d, view({ selectedIds: ['A'] })).labels;
     expect(a).toMatchObject({ key: 'A', text: '🔒 Lens · no mesh', tone: 'selected', at: [0, 0, 113] });
     expect(rest.map((l) => l.key)).toEqual(['layer']); // B is a ghost: no name
+  });
+
+  it('leave the parts unnamed when part labels are off (the layer keeps its name)', () => {
+    expect(layout3d(design([part('A')]), view({ partLabels: false })).labels.map((l) => l.key)).toEqual(['layer']);
   });
 
   it('name the rays over their first leg, unless their labels are off', () => {
