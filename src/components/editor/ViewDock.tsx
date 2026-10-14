@@ -32,7 +32,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import { floatingCardSx } from '../panels/floatingCard';
-import type { CanvasTool, EditorView, ViewOptions } from './CanvasToolbar';
+import type { CanvasTool, EditorView, ViewOptions } from './viewOptions';
 import type { CameraMove } from './scene3d/Camera';
 import type { Fidelity } from './scene3d/layout3d';
 

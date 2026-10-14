@@ -24,6 +24,7 @@ Other scripts:
 | Script | What it does |
 | --- | --- |
 | `npm run typecheck` | `tsc` in strict mode |
+| `npm run lint` | ESLint, set up as in optikit-v2's frontend |
 | `npm run build` | typecheck, then build the Vite app into `dist/` |
 | `npm run build-storybook` | build static Storybook into `storybook-static/` |
 
@@ -46,32 +47,33 @@ Values marked `(derived)` are not on the Bench sheet: some dark-mode greys and r
 
 Components never import `tokens.ts`. They read from the theme (`sx={{ bgcolor: 'background.paper' }}`, `theme.spacing(theme.layout.railWidth)`), so changing a token updates every story. The token stories are the only exception, because they exist to show the raw values.
 
-## Changing fonts
+## Fonts
 
-Font candidates live in `src/theme/tokens.ts`:
+Two typefaces, both SIL OFL 1.1 and self-hosted, so no page load asks a font service (no Google Fonts) and the app works offline:
 
-- `uiFonts` and `monoFonts` list the candidates. Each has a CSS family stack and, unless it is self-hosted, its Google Fonts query.
-- The default UI font is **Objectivity** (SIL OFL 1.1), the free alternative the openUC2 guide names for its licensed Stolzl. It is self-hosted from `src/theme/fonts/objectivity/` (licence in `OFL.txt` there).
-- `defaultFonts` names the pair the app and Storybook start with.
+- **Objectivity** for everything that is read. The openUC2 guide names it as the free alternative to its licensed Stolzl. Files in `src/theme/fonts/objectivity/`.
+- **JetBrains Mono** for values, versions, coordinates and prices (the `mono` variant). Files in `src/theme/fonts/jetbrains-mono/`.
 
-To compare fonts, open **Tokens → Typography → Font candidates**, which shows every UI font side by side. To try one across all stories, pick it in the **Font** and **Mono** menus in the Storybook toolbar. To make it permanent, change `defaultFonts`. To add a new candidate, add an entry to `uiFonts` or `monoFonts` and it appears in the toolbar. Fonts load at runtime from these tokens (`src/theme/fonts.ts`), so no HTML file needs editing.
+Each folder has its licence in `OFL.txt`. The family stacks are `fonts` in `src/theme/tokens.ts`; `src/theme/fonts.ts` loads the files. **Tokens → Typography → Fonts** shows both.
 
 ## Storybook
 
-The toolbar has four switches:
+The toolbar has two switches:
 
 - **Scheme**: light or dark. Sets the MUI colour scheme through `useColorScheme().setMode`.
 - **Density**: comfortable or compact. Rebuilds the theme with the other density.
-- **Font** and **Mono**: the UI and monospace typefaces (see "Changing fonts").
 
 Stories are grouped as follows:
 
-1. **Tokens**: colour swatches with WCAG contrast ratios, the type scale and families, the spacing scale, layout dimensions and radius.
-2. **Primitives**: Button, Tag Chip, Tooltip, Text Field, Slider Field (a slider with a linked numeric input), Select.
-3. **Panels**: Side Panel (collapsed rail, expanded, pinned), Disclosure Section, Overflow Menu, Inspector Panel (XYZ position and notes).
+1. **Tokens**: colour swatches with WCAG contrast ratios, the type scale and the two fonts, the spacing scale, layout dimensions and radius.
+2. **Primitives**: Button, Pill, Pill Switch, Tag Chip, Tooltip, Text Field, Number Input, Vec3 Field, Slider Field (a slider with a linked numeric input), Select.
+3. **Panels**: Side Panel (collapsed rail, expanded, pinned), Disclosure Section, Overflow Menu.
 4. **Cards**: Dashboard Card, Design Card (part, assembly, instrument, collection) and Stacked Cards (tabbed, auto-advancing, pauses on hover or focus).
-5. **Compositions**: Editor Shell, with Default, Everything collapsed and Working (palette pinned, inspector open) stories. Its controls cover rail state, header style (navy or light), density and whether the inspector is open.
-6. **Pages**: whole screens. **Home** (signed in, signed out, no projects) and **Editor**. Clicking a project on Home opens the Editor story, and the brand mark in the editor goes back to Home.
+5. **Editor**: the Schematic Canvas; the Canvas Overlays that float over it (layer preview, dock, quick add, selection actions, command palette); the Sidebar Panels (library, layers, parts, bill of materials, properties, design info).
+6. **Landing**: the landing page's sections.
+7. **Compositions**: the Workspace Shell (header and tabs), the Editor Shell (the View tab, in 2D and 3D; its controls cover the panels, the selection and the view) and the Settings Dialog.
+8. **Views**: one per workspace tab: Explore, Design Page, Projects, New Project, File (one story per section) and Commercial.
+9. **Pages**: whole screens. **Prototype** is the whole clickable app; **Landing**, **Home** and **Editor** are pages on their own.
 
 To view a page full screen, press **F** in Storybook, or open the story on its own, e.g. `iframe.html?id=pages-home--signed-in&viewMode=story`.
 
@@ -82,14 +84,20 @@ src/
   theme/
     tokens.ts          all values
     theme.ts           MUI theme factory and type augmentation
+    fonts.ts, fonts/   the two self-hosted fonts (Objectivity, JetBrains Mono)
   components/
-    primitives/        NumberInput, SliderField, TagChip, SelectField, Vec3Field, BrandMark, ColorSchemeToggle
-    panels/            SidePanel, DisclosureSection, OverflowMenu, InspectorPanel
-    editor/            SchematicCanvas, CanvasToolbar, SymbolGlyph, model; panels/ for the sidebars
+    primitives/        Pill, PillSwitch, NumberInput, SliderField, TagChip, SelectField, Vec3Field, BrandMark, download, format
+    panels/            SidePanel, DisclosureSection, OverflowMenu
+    editor/            the design model, the 2D canvas, scene3d/ for 3D, the floating tools, panels/ for the sidebars,
+                       bom and designFile (pure, tested), light (where the drawn light comes from)
     cards/             BenchIllustration, CubeThumbnail, DashboardCard, DesignCard, StackedCards
-    compositions/      AppHeader, SiteHeader, SiteFooter, CanvasPlaceholder, StatusBar, EditorShell
-    pages/             HomePage (+ Home and Editor page stories)
-  demo/                placeholder content for stories and the demo app
+    compositions/      AppHeader, SiteHeader, SiteFooter, StatusBar, WorkspaceShell, Ribbon, EditorShell (+ editor/)
+    views/             one per workspace tab: Explore, DesignPage, Projects, File (+ file/), Commercial (+ commercial/)
+    landing/, pages/   the signed-out landing page, Home, Account
+  settings/            preferences (kept in the browser) and the Settings dialog
+  app/                 the clickable prototype: routing, and the tabs wired to demo data
+  api/                 types shared with the real API
+  demo/                DEMO ONLY: placeholder content and stand-ins (prices, light) until the real services
   stories/tokens/      token documentation stories
 .storybook/            Storybook config, theme decorator, toolbar globals
 ```

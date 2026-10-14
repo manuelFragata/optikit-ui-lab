@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { CameraControls } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Box3, Sphere, Vector3 } from 'three';
-import type { CanvasTool } from '../CanvasToolbar';
+import type { CanvasTool } from '../viewOptions';
 import { toThree, type Box } from './layout3d';
 
 /** Camera moves the dock and the keys ask for. */
@@ -47,7 +47,9 @@ export function Camera({ tool, command, bounds, orbitButton, invertZoom }: Camer
   // Rebuilt only when the extent changes (compared by value: layout3d returns new objects every time).
   const allKey = JSON.stringify(bounds.all);
   const selectionKey = JSON.stringify(bounds.selection);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the box is compared by value, through allKey
   const all = useMemo(() => bounds.all && threeBox(bounds.all), [allKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the box is compared by value, through selectionKey
   const selection = useMemo(() => bounds.selection && threeBox(bounds.selection), [selectionKey]);
 
   // Mouse buttons, per tool and as set in Settings.
@@ -91,6 +93,7 @@ export function Camera({ tool, command, bounds, orbitButton, invertZoom }: Camer
   // Only a new command moves the camera: a new selection on its own does not.
   useEffect(() => {
     if (command) move(command.move, true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new command (its count) moves the camera
   }, [command?.n]);
 
   return <CameraControls ref={ref} makeDefault minDistance={60} maxDistance={12000} maxPolarAngle={Math.PI / 2} smoothTime={0.3} />;

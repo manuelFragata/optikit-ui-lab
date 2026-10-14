@@ -2,16 +2,7 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, useColorScheme } from '@mui/material/styles';
-import {
-  createAppTheme,
-  defaultFonts,
-  loadFonts,
-  monoFonts,
-  uiFonts,
-  type DensityName,
-  type MonoFontName,
-  type UiFontName,
-} from '../src/theme';
+import { createAppTheme, type DensityName } from '../src/theme';
 import { LightProvider } from '../src/components/editor/light';
 import { demoLight } from '../src/demo/demoLight';
 
@@ -24,21 +15,8 @@ function SchemeSync({ scheme }: { scheme: Scheme }) {
   return null;
 }
 
-function ThemeWrapper({
-  scheme,
-  density,
-  uiFont,
-  monoFont,
-  children,
-}: {
-  scheme: Scheme;
-  density: DensityName;
-  uiFont: UiFontName;
-  monoFont: MonoFontName;
-  children: ReactNode;
-}) {
-  useEffect(() => loadFonts(uiFont, monoFont), [uiFont, monoFont]);
-  const theme = useMemo(() => createAppTheme({ density, uiFont, monoFont }), [density, uiFont, monoFont]);
+function ThemeWrapper({ scheme, density, children }: { scheme: Scheme; density: DensityName; children: ReactNode }) {
+  const theme = useMemo(() => createAppTheme({ density }), [density]);
   return (
     <ThemeProvider theme={theme} defaultMode={scheme} storageManager={null} disableTransitionOnChange>
       <CssBaseline enableColorScheme />
@@ -55,8 +33,6 @@ const withMuiTheme: Decorator = (Story, context) => (
   <ThemeWrapper
     scheme={(context.globals.scheme ?? 'light') as Scheme}
     density={(context.args.density ?? context.globals.density ?? 'comfortable') as DensityName}
-    uiFont={(context.globals.uiFont ?? defaultFonts.ui) as UiFontName}
-    monoFont={(context.globals.monoFont ?? defaultFonts.mono) as MonoFontName}
   >
     <Story />
   </ThemeWrapper>
@@ -89,31 +65,10 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
-    // Font candidates come from tokens.ts; add one there and it shows up here.
-    uiFont: {
-      description: 'UI typeface',
-      toolbar: {
-        title: 'Font',
-        icon: 'paragraph',
-        items: Object.entries(uiFonts).map(([value, f]) => ({ value, title: f.label })),
-        dynamicTitle: true,
-      },
-    },
-    monoFont: {
-      description: 'Monospace typeface',
-      toolbar: {
-        title: 'Mono',
-        icon: 'markup',
-        items: Object.entries(monoFonts).map(([value, f]) => ({ value, title: f.label })),
-        dynamicTitle: true,
-      },
-    },
   },
   initialGlobals: {
     scheme: 'light',
     density: 'comfortable',
-    uiFont: defaultFonts.ui,
-    monoFont: defaultFonts.mono,
   },
   parameters: {
     layout: 'padded',
@@ -124,17 +79,19 @@ const preview: Preview = {
           'Tokens',
           ['Colours', 'Typography', 'Spacing'],
           'Primitives',
-          ['Button', 'Tag Chip', 'Tooltip', 'Text Field', 'Slider Field', 'Select'],
+          ['Button', 'Pill', 'Pill Switch', 'Tag Chip', 'Tooltip', 'Text Field', 'Number Input', 'Vec3 Field', 'Slider Field', 'Select'],
           'Panels',
-          ['Side Panel', 'Disclosure Section', 'Overflow Menu', 'Inspector Panel'],
+          ['Side Panel', 'Disclosure Section', 'Overflow Menu'],
           'Cards',
           ['Dashboard Card', 'Design Card', 'Stacked Cards'],
           'Editor',
+          ['Schematic Canvas', 'Canvas Overlays', 'Sidebar Panels'],
           'Landing',
           ['Example Showcase', 'Community Section', 'Bench Preview', 'Pricing Section'],
           'Compositions',
+          ['Workspace Shell', 'Editor Shell', 'Settings Dialog'],
           'Views',
-          ['Explore', 'Design Page', 'Projects', 'New Project'],
+          ['Explore', 'Design Page', 'Projects', 'New Project', 'File', 'Commercial'],
           'Pages',
           ['Prototype', 'Landing', 'Home', 'Editor'],
         ],

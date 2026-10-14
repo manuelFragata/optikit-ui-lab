@@ -12,7 +12,7 @@ import { exampleAssemblies } from '../demo/assemblies';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
-import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
+import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/tabs';
 import { WorkspaceShell } from '../components/compositions/WorkspaceShell';
 import { AccountPage } from '../components/pages/AccountPage';
 import { HomeDashboard, HomePage } from '../components/pages/HomePage';
@@ -25,9 +25,10 @@ import { ProjectsView } from '../components/views/ProjectsView';
 import { NewProjectDialog, type ProjectStart } from '../components/views/projects/NewProjectDialog';
 import type { Schematic } from '../components/editor/model';
 import type { ProjectSummary } from '../api/types';
-import { scrollToSection } from '../components/pages/LandingPage';
+import { scrollToSection } from '../components/pages/landingSections';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { SettingsButton } from '../settings/SettingsDialog';
+import { CommercialTab, FileTab } from './designTabs';
 import { useHashRoute, useSession, type Route } from './routing';
 
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
@@ -107,6 +108,7 @@ const UPCOMING: Record<WorkspaceTab, string> = {
   file: 'Save, version history, import, export and share.',
   view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
   simulate: 'The beam table, checks and results, then the optimizer round trip.',
+  commercial: 'The quote: prices, margins, lead time and the checks.',
 };
 
 function UpcomingView({ tab }: { tab: WorkspaceTab }) {
@@ -128,8 +130,11 @@ export function PrototypeApp() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [afterLogin, setAfterLogin] = useState<Route | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  // Examples the visitor changed on the landing page, so the editor opens with their changes.
-  const [played, setPlayed] = useState<Record<string, Schematic>>({});
+  // Designs changed in this visit (an example played with on the landing page, or edited in View), by id:
+  // the editor reopens them as they were left, and the other tabs show them.
+  const [changed, setChanged] = useState<Record<string, Schematic>>({});
+  // Designs renamed in the File tab, by id.
+  const [names, setNames] = useState<Record<string, string>>({});
   // The design open in the workspace, kept while the visitor looks at Home or Projects.
   const [lastOpenId, setLastOpenId] = useState<string>();
   const [created, setCreated] = useState<CreatedProject[]>([]);
@@ -192,29 +197,34 @@ export function PrototypeApp() {
   const home = () => navigate({ name: 'home' });
   const newProject = () => setNewProjectKey(Date.now());
 
-  const createProject = ({ name, start }: { name: string; start: ProjectStart }) => {
+  /** File a new project (made new, saved as a copy, or imported) and open it in View. */
+  const addProject = (name: string, schematic: Schematic, tags: string[] = []) => {
     const id = `p-${Date.now().toString(36)}`;
-    const template = start.kind === 'template' ? projectTemplates.find((t) => t.id === start.id) : undefined;
     const summary: ProjectSummary = {
       id,
       name,
       kind: 'instrument',
       version: '0.0.1',
       description: '',
-      tags: start.kind === 'box' ? [start.id] : [],
+      tags,
       maintainer: user?.name.toLowerCase() ?? 'you',
       updated: 'just now',
-      cubes: template?.cubes ?? 0,
+      cubes: schematic.symbols.filter((s) => s.placement.state === 'in-cube').length,
       status: 'draft',
       pinned: false,
-      unmounted: 0,
+      unmounted: schematic.symbols.filter((s) => s.placement.state === 'unmounted').length,
     };
-    setCreated([{ summary, schematic: startingSchematic(start) }, ...created]);
-    setNewProjectKey(null);
-    setToast(`${name} created.`);
+    setCreated((all) => [{ summary, schematic }, ...all]);
     navigate({ name: 'workspace', tab: 'view', id });
   };
+
+  const createProject = ({ name, start }: { name: string; start: ProjectStart }) => {
+    addProject(name, startingSchematic(start), start.kind === 'box' ? [start.id] : []);
+    setNewProjectKey(null);
+    setToast(`${name} created.`);
+  };
   const openEditor = (id: string) => navigate({ name: 'workspace', tab: 'view', id });
+  const openFile = (id: string) => navigate({ name: 'workspace', tab: 'file', id });
 
   // A gallery design opens its page in Explore when it has one, else straight in the editor.
   const openDesign = (id: string) =>
@@ -227,7 +237,8 @@ export function PrototypeApp() {
     const routeTab: WorkspaceTab = route.name === 'workspace' ? route.tab : 'home';
     const onDesignTab = DESIGN_TABS.includes(routeTab);
     const openId = route.name === 'workspace' && onDesignTab ? route.id : lastOpenId;
-    const design = openId ? findDesign(openId, created) : null;
+    const found = openId ? findDesign(openId, created) : null;
+    const design = found && openId ? { ...found, name: names[openId] ?? found.name } : found;
     // An unknown design: its tabs are hidden, so show Projects.
     const tab = design || !onDesignTab ? routeTab : 'projects';
 
@@ -241,8 +252,8 @@ export function PrototypeApp() {
           preview={designPreview(browsed.id)}
           onBack={() => navigate({ name: 'explore' })}
           onEdit={() => openEditor(browsed.id)}
-          onExport={() => setToast('Export (STEP, STL, BOM) comes with the File tab.')}
-          onShare={() => setToast('Sharing comes with the File tab.')}
+          onExport={() => openFile(browsed.id)}
+          onShare={() => openFile(browsed.id)}
         />
       ) : (
         <ExploreView designs={exploreDesigns} drawings={DRAWINGS} onOpen={(id) => navigate({ name: 'explore', id })} onBack={user ? home : undefined} />
@@ -266,8 +277,8 @@ export function PrototypeApp() {
           details={DETAILS}
           renderPreview={designPreview}
           onOpen={openEditor}
-          onExport={() => setToast('Export (STEP, STL, BOM) comes with the File tab.')}
-          onShare={() => setToast('Sharing comes with the File tab.')}
+          onExport={openFile}
+          onShare={openFile}
           onNewProject={newProject}
         />
       );
@@ -276,10 +287,28 @@ export function PrototypeApp() {
         <EditorShell
           key={openId}
           showHeader={false}
-          schematic={played[openId] ?? design.schematic}
+          schematic={changed[openId] ?? design.schematic}
+          onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
           defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
         />
       );
+    } else if (tab === 'file' && design && openId) {
+      view = (
+        <FileTab
+          key={openId}
+          id={openId}
+          name={design.name}
+          version={design.version}
+          schematic={changed[openId] ?? design.schematic}
+          onNotice={setToast}
+          onRename={(name) => setNames((all) => ({ ...all, [openId]: name }))}
+          onNewProject={newProject}
+          onOpenProjects={() => navigate({ name: 'workspace', tab: 'projects' })}
+          onAddProject={addProject}
+        />
+      );
+    } else if (tab === 'commercial' && design && openId) {
+      view = <CommercialTab key={openId} id={openId} name={design.name} version={design.version} schematic={changed[openId] ?? design.schematic} onNotice={setToast} />;
     } else {
       view = <UpcomingView tab={tab} />;
     }
@@ -340,7 +369,7 @@ export function PrototypeApp() {
           onAccount={() => navigate({ name: 'account' })}
           onLogOut={logOut}
           onOpenExample={(id, schematic) => {
-            setPlayed({ ...played, [id]: schematic });
+            setChanged({ ...changed, [id]: schematic });
             openEditor(id);
           }}
           onSection={(section) => navigate({ name: 'home', section })}
@@ -374,10 +403,13 @@ export function PrototypeApp() {
       />
 
       <Snackbar
+        // Each message is its own: it gets its full time on screen, even when it replaces one.
+        key={toast}
         open={toast !== null}
         message={toast}
         autoHideDuration={3000}
-        onClose={() => setToast(null)}
+        // A click elsewhere does not close it: that click may be the one that just set a new message.
+        onClose={(_, reason) => reason !== 'clickaway' && setToast(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
     </>

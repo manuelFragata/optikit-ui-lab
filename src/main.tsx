@@ -5,11 +5,10 @@ import { ThemeProvider } from '@mui/material/styles';
 import { App } from './App';
 import { LightProvider } from './components/editor/light';
 import { demoLight } from './demo/demoLight';
-import { PreferencesProvider, usePreferences } from './settings/preferences';
+import { usePreferences } from './settings/preferences';
+import { PreferencesProvider } from './settings/PreferencesProvider';
 import { AppSettings } from './settings/SettingsDialog';
-import { createAppTheme, defaultFonts, loadFonts } from './theme';
-
-loadFonts(defaultFonts.ui, defaultFonts.mono);
+import { createAppTheme } from './theme';
 
 /** The theme, at the density chosen in Settings. */
 function Themed({ children }: { children: ReactNode }) {

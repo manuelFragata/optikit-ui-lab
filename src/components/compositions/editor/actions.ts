@@ -1,9 +1,9 @@
 import type { PartEntry } from '../../editor/AddPartSearch';
 import type { Size } from '../../../settings/preferences';
-import type { CanvasTool, EditorView, ViewOptions } from '../../editor/CanvasToolbar';
+import type { CanvasTool, EditorView, ViewOptions } from '../../editor/viewOptions';
 
-export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'files';
-export type RightPanelId = 'properties' | 'history' | 'info';
+export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'bom';
+export type RightPanelId = 'properties' | 'info';
 
 /** View options that switch on and off. */
 export type ToggleOption = keyof Pick<ViewOptions, 'showPartLabels' | 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin' | 'snapToGrid'>;

@@ -11,7 +11,7 @@ import { facing, samplePoint, symbolBounds, withMove, type Move, type Schematic,
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
-import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './CanvasToolbar';
+import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './viewOptions';
 
 /** What the editor looks at: the zoom (1 = 100%) and the point in the middle, in grid units (y down). */
 export interface Camera {
@@ -648,7 +648,7 @@ export function SchematicCanvas({
                   y={b.y - 0.55}
                   fontSize={LABEL * 0.95}
                   textAnchor="middle"
-                  sx={{ fill: 'var(--mui-palette-primary-main)', fontFamily: 'monospace', paintOrder: 'stroke', stroke: 'var(--mui-palette-canvas-ground)', strokeWidth: 0.12, pointerEvents: 'none' }}
+                  sx={{ fill: 'var(--mui-palette-primary-main)', fontFamily: (t) => t.typography.mono.fontFamily, paintOrder: 'stroke', stroke: 'var(--mui-palette-canvas-ground)', strokeWidth: 0.12, pointerEvents: 'none' }}
                 >
                   {text}
                 </Box>

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Box from '@mui/material/Box';
-import { demoDesignInfo, demoFiles, demoHistory, demoPalette, demoSchematic } from '../../../demo/editorContent';
+import { demoDesignInfo, demoHistory, demoPalette, demoSchematic } from '../../../demo/editorContent';
+import { demoPrices } from '../../../demo/prices';
+import { buildBom } from '../bom';
 import type { SchematicSymbol } from '../model';
+import { BomPanel } from './BomPanel';
 import { DesignInfoPanel } from './DesignInfoPanel';
-import { FilesPanel } from './FilesPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { LayersPanel } from './LayersPanel';
 import { PartsListPanel } from './PartsListPanel';
@@ -56,7 +58,13 @@ export const PartsList: Story = {
   render: () => <WithSelection>{(selected, select) => <PartsListPanel symbols={demoSchematic.symbols} selectedId={selected} onSelect={select} />}</WithSelection>,
 };
 
-export const ProjectFiles: Story = { name: 'Project files', render: () => <FilesPanel files={demoFiles} /> };
+export const BillOfMaterials: Story = {
+  name: 'Bill of materials',
+  render: function Render() {
+    const [ids, setIds] = useState<string[]>([]);
+    return <BomPanel bom={buildBom(demoSchematic, demoPrices)} selectedIds={ids} onSelectParts={setIds} />;
+  },
+};
 
 export const Properties: Story = {
   render: function Render() {

@@ -80,11 +80,12 @@ export function AssemblyView({ assembly, load = true, active = true, playKey, an
     return () => {
       cancelled = true;
     };
-    // Created once; the effects below pass on later changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Created once; the effects below pass on later changes.
   }, [shouldLoad]);
 
   useEffect(() => () => sceneRef.current?.dispose(), []);
   useEffect(() => sceneRef.current?.setActive(shouldRender), [shouldRender, status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the colours follow the scheme
   useEffect(() => sceneRef.current?.setColors(colors), [scheme, status]);
   useEffect(() => {
     if (playKey !== undefined) sceneRef.current?.restart();

@@ -3,6 +3,8 @@
  * Not part of the component set; replace freely.
  */
 import type { Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
+import type { VersionEntryData } from '../components/editor/panels/HistoryPanel';
+import type { ProjectFileData } from '../components/views/file/ProjectFiles';
 
 export const demoSchematic: Schematic = {
   unitMm: 50,
@@ -161,31 +163,22 @@ export const demoPalette: PaletteGroup[] = [
   },
 ];
 
-export interface VersionEntry {
-  version?: string;
-  hash: string;
-  message: string;
-  when: string;
-  author: string;
-}
-
-export const demoHistory: VersionEntry[] = [
-  { version: '0.4.2', hash: 'a41f9c0', message: 'Move the emission filter into the Fluor Box group', when: '6 days ago', author: 'manu' },
-  { hash: '8dc01b2', message: 'Swap DMLP490 for DMLP505', when: '9 days ago', author: 'manu' },
-  { version: '0.4.1', hash: '51b7e2a', message: 'Add tube lens, link to Thorlabs AC254-050-A', when: '12 Mar 2026', author: 'paulh' },
-  { hash: '0c9d3f4', message: 'Snap the laser module to the grid', when: '11 Mar 2026', author: 'manu' },
-  { version: '0.4.0', hash: 'e2a8b71', message: 'First fluorescence path on the BF core', when: '2 Mar 2026', author: 'manu' },
+export const demoHistory: VersionEntryData[] = [
+  { version: '0.4.2', hash: 'a41f9c0', message: 'Move the emission filter into the Fluor Box group', when: '6 days ago', author: 'manu', changes: ['Dichroic + filters: moved into Fluor Box'] },
+  { hash: '8dc01b2', message: 'Swap DMLP490 for DMLP505', when: '9 days ago', author: 'manu', changes: ['Dichroic + filters: cut-on 490 → 505 nm'] },
+  {
+    version: '0.4.1',
+    hash: '51b7e2a',
+    message: 'Add tube lens, link to Thorlabs AC254-050-A',
+    when: '12 Mar 2026',
+    author: 'paulh',
+    changes: ['Tube lens: added (AC254-050-A, not mounted)', 'Emission path: now through the tube lens'],
+  },
+  { hash: '0c9d3f4', message: 'Snap the laser module to the grid', when: '11 Mar 2026', author: 'manu', changes: ['Laser 488: moved 0.4 → 0 along x'] },
+  { version: '0.4.0', hash: 'e2a8b71', message: 'First fluorescence path on the BF core', when: '2 Mar 2026', author: 'manu', changes: ['6 parts, 2 light paths'] },
 ];
 
-export interface ProjectFile {
-  id: string;
-  name: string;
-  kind: 'design' | 'export' | 'doc';
-  size: string;
-  updated: string;
-}
-
-export const demoFiles: ProjectFile[] = [
+export const demoFiles: ProjectFileData[] = [
   { id: 'f1', name: 'bf-fluor-core.optikit', kind: 'design', size: '48 KB', updated: '6 days ago' },
   { id: 'f2', name: 'assembly.step', kind: 'export', size: '12.4 MB', updated: '6 days ago' },
   { id: 'f3', name: 'parts-list.csv', kind: 'export', size: '3 KB', updated: '6 days ago' },

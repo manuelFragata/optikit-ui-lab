@@ -3,7 +3,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useArgs } from 'storybook/preview-api';
 import Box from '@mui/material/Box';
 import { demoSchematic } from '../../demo/editorContent';
-import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool } from './CanvasToolbar';
+import { CanvasToolbar } from './CanvasToolbar';
+import { DEFAULT_VIEW_OPTIONS, type CanvasTool } from './viewOptions';
 import { SchematicCanvas, type SchematicCanvasProps } from './SchematicCanvas';
 
 const meta = {

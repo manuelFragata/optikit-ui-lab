@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountUser } from '../components/compositions/AccountMenu';
-import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/Ribbon';
+import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/tabs';
 
 /**
  * Hash routes, so the prototype works from any static host (GitHub Pages,

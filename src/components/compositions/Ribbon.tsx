@@ -1,22 +1,6 @@
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-
-/**
- * The views of the workspace, one tab each (UI-V4 §2). Home and Projects
- * work without a design; the others act on the open design.
- */
-export type WorkspaceTab = 'home' | 'projects' | 'file' | 'view' | 'simulate';
-
-export const TAB_LABELS: Record<WorkspaceTab, string> = {
-  home: 'Home',
-  projects: 'Projects',
-  file: 'File',
-  view: 'View',
-  simulate: 'Simulate',
-};
-
-/** Tabs that need an open design. */
-export const DESIGN_TABS: WorkspaceTab[] = ['file', 'view', 'simulate'];
+import { TAB_LABELS, type WorkspaceTab } from './tabs';
 
 export interface RibbonProps {
   tabs: WorkspaceTab[];

@@ -5,7 +5,8 @@ import Stack from '@mui/material/Stack';
 import { AccountMenu, type AccountUser } from './AccountMenu';
 import { AppHeader } from './AppHeader';
 import { OpenProject } from './OpenProject';
-import { DESIGN_TABS, Ribbon, TAB_LABELS, type WorkspaceTab } from './Ribbon';
+import { Ribbon } from './Ribbon';
+import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from './tabs';
 
 export interface WorkspaceShellProps {
   tab: WorkspaceTab;

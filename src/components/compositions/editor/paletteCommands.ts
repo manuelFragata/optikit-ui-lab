@@ -1,5 +1,5 @@
 import type { PartEntry } from '../../editor/AddPartSearch';
-import type { ViewOptions } from '../../editor/CanvasToolbar';
+import type { ViewOptions } from '../../editor/viewOptions';
 import type { Command } from '../../editor/CommandPalette';
 import type { SchematicSymbol } from '../../editor/model';
 import type { EditorActions } from './actions';
@@ -47,8 +47,7 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'panel-palette', group: 'Panels', label: 'Open the parts library', run: () => a.openLeft('palette') },
     { id: 'panel-layers', group: 'Panels', label: 'Open layers', run: () => a.openLeft('layers') },
     { id: 'panel-parts', group: 'Panels', label: 'Open the parts list', run: () => a.openLeft('parts') },
-    { id: 'panel-files', group: 'Panels', label: 'Open project files', run: () => a.openLeft('files') },
-    { id: 'panel-history', group: 'Panels', label: 'Open version history', run: () => a.openRight('history') },
+    { id: 'panel-bom', group: 'Panels', label: 'Open the bill of materials', run: () => a.openLeft('bom') },
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => a.openRight('info') },
     { id: 'settings', group: 'Panels', label: 'Open settings', shortcut: 'Ctrl ,', run: a.openSettings },
   ];

@@ -62,7 +62,7 @@ export function StackedCards({
     if (!running) return;
     const timer = window.setTimeout(() => select(index + 1), autoAdvanceMs);
     return () => window.clearTimeout(timer);
-    // `select` is recreated each render; index and running are what matter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `select` is recreated each render; index and running are what matter.
   }, [running, index, autoAdvanceMs]);
 
   const ghosts = Math.min(MAX_GHOSTS, count - 1);

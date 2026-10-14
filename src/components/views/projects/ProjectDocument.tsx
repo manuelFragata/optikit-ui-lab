@@ -3,7 +3,8 @@ import Box from '@mui/material/Box';
 import type { DesignDetail } from '../../../api/types';
 import { gsap, reducedMotion } from '../../landing/motion';
 import { DesignPage } from '../DesignPage';
-import { CardTab, cardOutlineSx, ProjectTabLabel, TAB_H } from './ProjectDrawer';
+import { CardTab, ProjectTabLabel, TAB_H } from './ProjectDrawer';
+import { cardOutlineSx } from './cardOutline';
 
 export interface ProjectDocumentProps {
   design: DesignDetail;

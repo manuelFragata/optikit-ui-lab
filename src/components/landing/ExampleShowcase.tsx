@@ -429,7 +429,7 @@ export function ExampleShowcase({ examples, autoAdvanceMs: requestedMs = 12000, 
     }
     at(autoAdvanceMs, () => go(index + 1));
     return () => timers.forEach((t) => window.clearTimeout(t));
-    // `go` is recreated each render; index and running are what matter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `go` is recreated each render; index and running are what matter.
   }, [running, index, autoAdvanceMs, reducedMotion, withCallout]);
 
   // Once the visitor takes over, the demo cursor goes.

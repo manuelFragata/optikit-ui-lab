@@ -15,14 +15,13 @@ export interface EditorHeaderProps {
   onAccount?: () => void;
   onLogOut?: () => void;
   /** Version history and design info open in the inspector. */
-  onShowHistory: () => void;
   onShowInfo: () => void;
   /** Extra header actions, placed before the built-in ones. */
   actions?: ReactNode;
 }
 
 /** The editor's own header, when it stands alone (inside the workspace, the workspace's header is used). */
-export function EditorHeader({ variant, projectName, version, user, onHome, onLogIn, onAccount, onLogOut, onShowHistory, onShowInfo, actions }: EditorHeaderProps) {
+export function EditorHeader({ variant, projectName, version, user, onHome, onLogIn, onAccount, onLogOut, onShowInfo, actions }: EditorHeaderProps) {
   return (
     <AppHeader
       variant={variant}
@@ -32,7 +31,6 @@ export function EditorHeader({ variant, projectName, version, user, onHome, onLo
       projectMenu={[
         { id: 'rename', label: 'Rename…' },
         { id: 'duplicate', label: 'Duplicate design' },
-        { id: 'versions', label: 'Version history', onSelect: onShowHistory },
         { id: 'info', label: 'Design info', onSelect: onShowInfo },
       ]}
       actions={

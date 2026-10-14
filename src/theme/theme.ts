@@ -2,19 +2,15 @@ import type { CSSProperties } from 'react';
 import { createTheme, type Theme } from '@mui/material/styles';
 import {
   colorRoles,
-  defaultFonts,
   density as densityTokens,
+  fonts,
   layout,
-  monoFonts,
   radius,
   typeScale,
-  uiFonts,
   type ColorRoles,
   type DensityName,
   type LayoutTokens,
-  type MonoFontName,
   type RadiusTokens,
-  type UiFontName,
 } from './tokens';
 
 /* ------------------------------------------------------------------ */
@@ -27,13 +23,11 @@ declare module '@mui/material/styles' {
     density: DensityName;
     /** Radii in px; `shape.borderRadius` equals `radius.base`. */
     radius: RadiusTokens;
-    fonts: { ui: UiFontName; mono: MonoFontName };
   }
   interface ThemeOptions {
     layout?: LayoutTokens;
     density?: DensityName;
     radius?: RadiusTokens;
-    fonts?: { ui: UiFontName; mono: MonoFontName };
   }
   interface Palette {
     header: ColorRoles['header'];
@@ -93,15 +87,9 @@ declare module '@mui/material/Typography' {
 
 export interface AppThemeOptions {
   density?: DensityName;
-  uiFont?: UiFontName;
-  monoFont?: MonoFontName;
 }
 
-export function createAppTheme({
-  density: densityName = 'comfortable',
-  uiFont = defaultFonts.ui,
-  monoFont = defaultFonts.mono,
-}: AppThemeOptions = {}): Theme {
+export function createAppTheme({ density: densityName = 'comfortable' }: AppThemeOptions = {}): Theme {
   const d = densityTokens[densityName];
   const size = d.controlSize;
   const dense = densityName === 'compact';
@@ -117,18 +105,17 @@ export function createAppTheme({
     spacing: d.spacing,
     shape: { borderRadius: radius.base },
     typography: {
-      fontFamily: uiFonts[uiFont].family,
+      fontFamily: fonts.ui,
       ...typeScale,
-      mono: { ...typeScale.mono, fontFamily: monoFonts[monoFont].family },
+      mono: { ...typeScale.mono, fontFamily: fonts.mono },
       // Custom variants don't inherit the typography fontFamily; set it so they also hold inside <button>.
-      meta: { ...typeScale.meta, fontFamily: uiFonts[uiFont].family },
-      display: { ...typeScale.display, fontFamily: uiFonts[uiFont].family },
-      headline: { ...typeScale.headline, fontFamily: uiFonts[uiFont].family },
+      meta: { ...typeScale.meta, fontFamily: fonts.ui },
+      display: { ...typeScale.display, fontFamily: fonts.ui },
+      headline: { ...typeScale.headline, fontFamily: fonts.ui },
     },
     layout,
     radius,
     density: densityName,
-    fonts: { ui: uiFont, mono: monoFont },
     components: {
       MuiButton: {
         defaultProps: { size, disableElevation: true },

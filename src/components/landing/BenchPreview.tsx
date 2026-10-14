@@ -275,12 +275,13 @@ export function BenchPreview({ features, autoAdvanceMs = 6500, onStart, title }:
     return () => {
       cancelled = true;
     };
-    // Created once; later changes go through the effects below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Created once; later changes go through the effects below.
   }, [visible]);
 
   useEffect(() => () => sceneRef.current?.dispose(), []);
   useEffect(() => sceneRef.current?.setActive(visible), [visible]);
   useEffect(() => sceneRef.current?.setStep(step), [step, status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the colours follow the scheme
   useEffect(() => sceneRef.current?.setColors(colors), [scheme, status]);
 
   // Step through on its own until the visitor touches the stage or the steps.

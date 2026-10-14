@@ -14,8 +14,8 @@ import { PricingSection } from '../landing/PricingSection';
 import { BenchPreview } from '../landing/BenchPreview';
 import { useRiseIn } from '../landing/motion';
 import { featuredBuild } from '../../demo/assemblies';
+import { LANDING_SECTIONS, scrollToSection, type LandingSection } from './landingSections';
 
-export type LandingSection = 'examples' | 'community' | 'how-it-works' | 'pricing';
 
 export interface LandingPageProps {
   /** Example slideshow auto-advance in ms; 0 turns it off. */
@@ -49,17 +49,6 @@ const GALLERY_DRAWINGS = Object.fromEntries(
     return example ? [[galleryId, example.schematic]] : [];
   }),
 );
-
-export const LANDING_SECTIONS: { id: LandingSection; label: string }[] = [
-  { id: 'examples', label: 'Examples' },
-  { id: 'how-it-works', label: 'How it works' },
-  { id: 'community', label: 'Community' },
-  { id: 'pricing', label: 'Pricing' },
-];
-
-export function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
 
 /** A full-width stretch of the page; whitespace separates one from the next. */
 function Band({ id, children }: { id?: string; children: ReactNode }) {

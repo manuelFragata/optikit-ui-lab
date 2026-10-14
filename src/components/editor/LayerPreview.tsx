@@ -222,7 +222,7 @@ export function LayerPreview({ schematic, layers, layer, onLayer, selectedIds = 
                     />
                   );
                 })}
-              <Box component="text" x={label.x + 0.6} y={label.y} fontSize={1.6} dominantBaseline="middle" sx={{ fill: 'currentColor', color: here ? 'primary.main' : 'text.secondary', fontFamily: 'monospace' }}>
+              <Box component="text" x={label.x + 0.6} y={label.y} fontSize={1.6} dominantBaseline="middle" sx={{ fill: 'currentColor', color: here ? 'primary.main' : 'text.secondary', fontFamily: (t) => t.typography.mono.fontFamily }}>
                 z{z}
               </Box>
             </Box>

@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm run build-storybook
       # The clickable prototype app, served next to Storybook at /app/.
       - run: npx vite build --outDir storybook-static/app --emptyOutDir

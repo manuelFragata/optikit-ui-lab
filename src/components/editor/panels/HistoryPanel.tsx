@@ -11,15 +11,19 @@ export interface VersionEntryData {
   message: string;
   when: string;
   author: string;
+  /** What changed in it, in a few lines. */
+  changes?: string[];
 }
 
 export interface HistoryPanelProps {
   entries: VersionEntryData[];
-  onRestore?: (hash: string) => void;
+  /** The entry picked, highlighted. */
+  selected?: string;
+  onSelect?: (hash: string) => void;
 }
 
 /** Version timeline: tagged releases and saves, newest first. */
-export function HistoryPanel({ entries, onRestore }: HistoryPanelProps) {
+export function HistoryPanel({ entries, selected, onSelect }: HistoryPanelProps) {
   return (
     <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, py: 1.5 }}>
       {entries.map((e, i) => {
@@ -31,8 +35,9 @@ export function HistoryPanel({ entries, onRestore }: HistoryPanelProps) {
               <Box sx={{ position: 'absolute', left: (t) => t.spacing(2.9), top: (t) => t.spacing(2.5), bottom: 0, borderLeft: 1, borderColor: 'divider' }} />
             )}
             <ButtonBase
-              onClick={() => onRestore?.(e.hash)}
-              sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, width: '100%', textAlign: 'left', px: 2, py: 1, '&:hover': { bgcolor: 'action.hover' } }}
+              onClick={() => onSelect?.(e.hash)}
+              aria-pressed={onSelect ? e.hash === selected : undefined}
+              sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, width: '100%', textAlign: 'left', px: 2, py: 1, bgcolor: e.hash === selected ? 'action.selected' : undefined, '&:hover': { bgcolor: 'action.hover' } }}
             >
               <Box
                 sx={{

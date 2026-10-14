@@ -19,8 +19,9 @@ export interface ProjectsViewProps {
   /** The 3D view (or drawing) for a project's document. */
   renderPreview?: (id: string) => ReactNode;
   onOpen: (id: string) => void;
-  onExport?: () => void;
-  onShare?: () => void;
+  /** Export or share a project (the File tab). */
+  onExport?: (id: string) => void;
+  onShare?: (id: string) => void;
   onNewProject: () => void;
 }
 
@@ -103,8 +104,8 @@ export function ProjectsView({ owner, projects, drawings = {}, details = {}, ren
               top={doc.top}
               width={doc.docWidth}
               onOpen={() => onOpen(project.id)}
-              onExport={onExport}
-              onShare={onShare}
+              onExport={onExport && (() => onExport(project.id))}
+              onShare={onShare && (() => onShare(project.id))}
               onClose={() => setDoc(null)}
             />
           )}

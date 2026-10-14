@@ -10,6 +10,7 @@ import { EASE_OUT, gsap, reducedMotion } from '../../landing/motion';
 import { CornerArrow } from '../../primitives/CornerArrow';
 import { Pill } from '../../primitives/Pill';
 import { DesignPicture } from '../explore/DesignTile';
+import { cardOutlineSx } from './cardOutline';
 
 export interface ProjectDrawerProps {
   projects: ProjectSummary[];
@@ -181,9 +182,6 @@ function DrawerBox({ rows }: { rows: number }) {
     </>
   );
 }
-
-/** The outline every card and the document share. */
-export const cardOutlineSx = { bgcolor: 'background.paper', border: 1, borderColor: 'text.primary', borderRadius: '10px' } as const;
 
 /**
  * The user's projects as index cards in an open drawer. One card is pulled

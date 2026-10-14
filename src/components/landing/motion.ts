@@ -49,6 +49,7 @@ export function useRiseIn<T extends HTMLElement>({ immediate = false, delay = 0 
       });
     }, el);
     return () => ctx.revert();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the animation is set up once, on mount
   }, []);
   return ref;
 }
@@ -66,6 +67,7 @@ export function useStaggerIn<T extends HTMLElement>({ y = 32, stagger = 0.12 }: 
       gsap.from(el.children, { opacity: 0, y, scale: 0.97, duration: 0.9, ease: EASE_OUT, stagger, scrollTrigger: inView(el), clearProps: 'transform,opacity' });
     }, el);
     return () => ctx.revert();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the animation is set up once, on mount
   }, []);
   return ref;
 }

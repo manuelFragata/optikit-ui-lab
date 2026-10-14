@@ -12,7 +12,7 @@
  * - panels.tsx         what the left and right panels hold;
  * - EditorHeader.tsx, EditorStatusBar.tsx, SearchButton.tsx.
  */
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import { demoInputs, demoModules, demoPalette, demoSchematic } from '../../demo/editorContent';
@@ -21,7 +21,8 @@ import { demoUser } from '../../demo/user';
 import { usePreferences } from '../../settings/preferences';
 import { useLightFor } from '../editor/light';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
-import { CanvasToolbar, DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/CanvasToolbar';
+import { CanvasToolbar } from '../editor/CanvasToolbar';
+import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/viewOptions';
 import { CommandPalette } from '../editor/CommandPalette';
 import { LayerPreview } from '../editor/LayerPreview';
 import type { Move, Schematic, SchematicSymbol } from '../editor/model';
@@ -74,6 +75,8 @@ export interface EditorShellProps {
   user?: AccountUser | null;
   /** Initial design; edits are kept inside the shell. */
   schematic?: Schematic;
+  /** The design after each edit (and undo), so the other tabs can show it. */
+  onDesignChange?: (design: Schematic) => void;
 
   /** Left panel (library, layers, parts, files). Controlled if set; otherwise `defaultLeftState`. */
   leftState?: SidePanelState;
@@ -116,6 +119,7 @@ export function EditorShell({
   version = '0.4.2',
   user = demoUser,
   schematic: initialDesign = demoSchematic,
+  onDesignChange,
   leftState: leftStateProp,
   defaultLeftState = 'collapsed',
   onLeftStateChange,
@@ -156,6 +160,13 @@ export function EditorShell({
   const history = useHistory(initialDesign);
   const design = history.value;
   const edit = history.set;
+  // Every edit and undo, also an undo back to the start; not the design it opened with.
+  const opening = useRef(true);
+  useEffect(() => {
+    if (opening.current) opening.current = false;
+    else onDesignChange?.(design);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new design is news; the callback may be new each render
+  }, [design]);
 
   const selection = useSelection(design.symbols, selectedId, setSelectedId);
   const placing = usePlacing();
@@ -172,6 +183,8 @@ export function EditorShell({
   // The 3D camera moves on commands; `n` counts them, so the same one can repeat.
   const [camera3d, setCamera3d] = useState<CameraCommand>();
   const [flyout, setFlyout] = useState<Flyout | null>(null);
+  // On a narrow canvas the dock and the layer preview overlap: the one the pointer or focus is on comes to the front.
+  const [front, setFront] = useState<'dock' | 'layers'>('dock');
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const { selected } = selection;
@@ -362,7 +375,6 @@ export function EditorShell({
           onLogIn={onLogIn}
           onAccount={onAccount}
           onLogOut={onLogOut}
-          onShowHistory={() => openRight('history')}
           onShowInfo={() => openRight('info')}
           actions={headerActions}
         />
@@ -377,8 +389,11 @@ export function EditorShell({
           onActiveChange={(id) => setLeftPanel(id as LeftPanelId)}
           items={leftPanels({
             design,
+            name: projectName,
             selectedId,
+            selectedIds: ids,
             onSelect: actions.selectPart,
+            onSelectParts: (picked) => select(picked),
             placingId: placing.entry?.id,
             onPick: (id) => {
               const entry = libraryEntry(id);
@@ -443,12 +458,14 @@ export function EditorShell({
 
           {/* The dock floats at the bottom of the canvas, CAD style, centred in the canvas the panel leaves free. */}
           <Box
+            onPointerEnter={() => setFront('dock')}
+            onFocus={() => setFront('dock')}
             sx={(t) => ({
               position: 'absolute',
               left: panelOut ? `calc(50% - (${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(1)}) / 2)` : '50%',
               bottom: t.spacing(2),
               transform: 'translateX(-50%)',
-              zIndex: 2,
+              zIndex: front === 'dock' ? 2 : 1,
               transition: `left ${STEP_ASIDE}`,
             })}
           >
@@ -482,11 +499,13 @@ export function EditorShell({
 
           {/* Where the current layer sits in the whole design, in the corner. */}
           <Box
+            onPointerEnter={() => setFront('layers')}
+            onFocus={() => setFront('layers')}
             sx={(t) => ({
               position: 'absolute',
               right: panelOut ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(2),
               bottom: t.spacing(2),
-              zIndex: 1,
+              zIndex: front === 'layers' ? 2 : 1,
               transition: `right ${STEP_ASIDE}`,
             })}
           >

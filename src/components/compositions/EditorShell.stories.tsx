@@ -25,9 +25,9 @@ const meta = {
   },
   argTypes: {
     leftState: { name: 'Left panel', control: 'inline-radio', options: PANEL_STATES },
-    leftPanel: { name: 'Left panel shows', control: 'inline-radio', options: ['palette', 'layers', 'parts', 'files'] },
+    leftPanel: { name: 'Left panel shows', control: 'inline-radio', options: ['palette', 'layers', 'parts', 'bom'] },
     rightState: { name: 'Right panel', control: 'inline-radio', options: PANEL_STATES },
-    rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'history', 'info'] },
+    rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'info'] },
     selectedId: { name: 'Selected part', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
     view: { name: 'Canvas view', control: 'inline-radio', options: ['2d', '3d'] },
     headerVariant: { name: 'Header style', control: 'inline-radio', options: ['navy', 'light'] },
@@ -42,7 +42,8 @@ const meta = {
       </Box>
     ),
   ],
-  render: function Render({ density: _density, ...args }: ShellArgs) {
+  // `density` is for the theme (see .storybook/preview.tsx); the shell ignores it.
+  render: function Render(args: ShellArgs) {
     const [, updateArgs] = useArgs<ShellArgs>();
     return (
       <EditorShell

@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { demoUser } from '../../demo/user';
 import { StatusBar } from './StatusBar';
-import { TAB_LABELS, type WorkspaceTab } from './Ribbon';
+import { TAB_LABELS, type WorkspaceTab } from './tabs';
 import { WorkspaceShell } from './WorkspaceShell';
 
 const meta = {

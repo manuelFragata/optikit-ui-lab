@@ -1,6 +1,6 @@
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import type { EditorView } from '../../editor/CanvasToolbar';
+import type { EditorView } from '../../editor/viewOptions';
 import type { Schematic, SchematicSymbol } from '../../editor/model';
 import { StatusBar } from '../StatusBar';
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { CanvasTool, EditorView } from '../../editor/CanvasToolbar';
+import type { CanvasTool, EditorView } from '../../editor/viewOptions';
 import type { EditorActions } from './actions';
 
 const TOOL_KEYS: Record<string, CanvasTool> = { v: 'select', h: 'pan', z: 'zoom', m: 'measure' };
