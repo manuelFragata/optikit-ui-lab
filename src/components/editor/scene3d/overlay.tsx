@@ -4,7 +4,7 @@
  * text sharp and themed. `Projector` (inside the canvas) moves the pinned
  * elements to where their points land on screen as the camera moves.
  */
-import { useEffect, type ReactNode, type RefObject } from 'react';
+import { useEffect, type ReactNode, type Ref, type RefObject } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -103,6 +103,39 @@ export function ActionBar({ pins, pinKey, children }: { pins: Pins; pinKey: stri
   return (
     <Box ref={pin(pins, pinKey)} sx={{ ...pinnedSx, zIndex: 3 }}>
       <Box sx={{ transform: 'translate(-50%, 16px)' }}>{children}</Box>
+    </Box>
+  );
+}
+
+/** The name of the component under the pointer (the lens, its holder, the cube), and its part's; moved by the scene. */
+export function ComponentTag({ ref, part, children }: { ref: Ref<HTMLDivElement>; part?: string; children: ReactNode }) {
+  return (
+    <Box
+      ref={ref}
+      sx={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        zIndex: 4,
+        px: 1,
+        py: 0.5,
+        borderRadius: 1,
+        bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 92%, transparent)',
+        border: 1,
+        borderColor: 'divider',
+        boxShadow: 1,
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <Typography variant="caption" component="div" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+        {children}
+      </Typography>
+      {part && (
+        <Typography variant="caption" component="div" sx={{ color: 'text.secondary', lineHeight: 1.3 }}>
+          {part}
+        </Typography>
+      )}
     </Box>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -30,6 +31,15 @@ export interface SidePanelItem {
   footer?: ReactNode;
 }
 
+/** A rail button that switches something on and off instead of opening a panel (the close-up split). */
+export interface SidePanelRailToggle {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  on: boolean;
+  onToggle: () => void;
+}
+
 export interface SidePanelProps {
   items: SidePanelItem[];
   /** Controlled state. Omit it to let the panel manage its own. */
@@ -40,6 +50,8 @@ export interface SidePanelProps {
   activeId?: string;
   defaultActiveId?: string;
   onActiveChange?: (id: string) => void;
+  /** Under the panels' buttons, after a divider: buttons that switch something on and off. */
+  railToggles?: SidePanelRailToggle[];
   /** Rendered at the bottom of the rail (e.g. settings). */
   railFooter?: ReactNode;
   /** Which edge the panel sits on; the rail is always on the outside. */
@@ -56,6 +68,7 @@ export function SidePanel({
   activeId: activeIdProp,
   defaultActiveId,
   onActiveChange,
+  railToggles,
   railFooter,
   side = 'left',
   'aria-label': ariaLabel = 'Side panel',
@@ -130,6 +143,19 @@ export function SidePanel({
             </Tooltip>
           );
         })}
+        {railToggles?.length ? <Divider flexItem sx={{ mx: 1.5, my: 0.5 }} /> : null}
+        {railToggles?.map((t) => (
+          <Tooltip key={t.id} title={t.label} placement={left ? 'right' : 'left'}>
+            <IconButton
+              aria-label={t.label}
+              aria-pressed={t.on}
+              onClick={t.onToggle}
+              sx={{ borderRadius: 1, color: t.on ? 'primary.onSoft' : 'text.secondary', bgcolor: t.on ? 'primary.soft' : 'transparent' }}
+            >
+              {t.icon}
+            </IconButton>
+          </Tooltip>
+        ))}
         <Box sx={{ flex: 1 }} />
         {railFooter}
       </Stack>

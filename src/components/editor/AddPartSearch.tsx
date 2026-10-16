@@ -11,16 +11,21 @@ import BlurOnIcon from '@mui/icons-material/BlurOn';
 import SearchIcon from '@mui/icons-material/Search';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { dragPart } from './dragPart';
-import type { SymbolKind } from './model';
+import type { FragmentSurface } from './holders/optic';
+import type { SymbolKind, SymbolParam } from './model';
 
-/** A part that can be added: a module that comes in a cube, or a bare optic. */
+/** A part that can be added: a module that comes in a cube, a bare optic, or an ideal one (the sketch). */
 export interface PartEntry {
   id: string;
   label: string;
   kind: SymbolKind;
-  mount: 'mounted' | 'unmounted';
+  mount: 'mounted' | 'unmounted' | 'ideal' | 'designed';
   /** The box or catalogue it comes from. */
   source: string;
+  /** Its inputs as it is placed, when not the kind's own. */
+  inputs?: SymbolParam[];
+  /** A lens or mirror designed here: its surfaces. */
+  prescription?: FragmentSurface[];
 }
 
 export interface AddPartSearchProps {

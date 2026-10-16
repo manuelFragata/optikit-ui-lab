@@ -7,9 +7,11 @@ import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { useLightFor, type Light, type Point } from './light';
-import { facing, samplePoint, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
+import { facing, samplePoint, specLine, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
+import { OpticOutline } from './OpticProfile';
+import type { FragmentSurface } from './holders/optic';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
 import { VIEW_LABELS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from './viewOptions';
 
@@ -36,6 +38,8 @@ export interface SchematicCanvasProps {
   onSelectMany?: (ids: string[], add: boolean) => void;
   /** A part double-clicked: open its properties. */
   onInspect?: (id: string) => void;
+  /** A lens or mirror's real glass (designed here, or its catalogue record's): drawn as it is, at its true size, instead of its symbol. */
+  opticFor?: (s: SchematicSymbol) => FragmentSurface[] | undefined;
   view?: EditorView;
   options: Pick<ViewOptions, 'showRayLabels'> & Partial<Pick<ViewOptions, 'showCages' | 'onionSkin' | 'showRays' | 'showPartLabels'>>;
   /** Label size and wheel direction (Settings); the defaults when omitted. */
@@ -182,6 +186,7 @@ export function SchematicCanvas({
   onSelect,
   onSelectMany,
   onInspect,
+  opticFor,
   view = '2d',
   options,
   prefs = DEFAULT_PREFERENCES,
@@ -555,11 +560,25 @@ export function SchematicCanvas({
                     '&:hover .glyph, &:focus-visible .glyph': { color: 'primary.main' },
                   }}
                 >
-                  {/* Mounted: the cube around the part. Not mounted yet: a dashed outline, no holder. */}
+                  {/* Mounted: the cube around the part. Not mounted yet: a dashed outline, no holder. Ideal: a dotted ring, no part yet. */}
                   {(() => {
                     const mounted = s.placement.state === 'in-cube';
                     if (mounted && !options.showCages) return null;
                     const cage = cageOf(b);
+                    if (s.placement.state === 'ideal') {
+                      return (
+                        <circle
+                          cx={cage.x + cage.side / 2}
+                          cy={cage.y + cage.side / 2}
+                          r={(cage.side / 2) * 1.05}
+                          strokeWidth={1}
+                          strokeDasharray="1 4"
+                          strokeLinecap="round"
+                          {...line}
+                          stroke="var(--mui-palette-primary-main)"
+                        />
+                      );
+                    }
                     return (
                       <rect
                         x={cage.x}
@@ -584,7 +603,17 @@ export function SchematicCanvas({
                     strokeWidth={1.5}
                     fill="none"
                   >
-                    <SymbolGlyphNonScaling kind={s.kind} />
+                    {(() => {
+                      // Real glass at its true size (1 unit = one cube); a mirror lies at 45°, as its symbol does.
+                      const glass = (s.kind === 'lens' || s.kind === 'mirror') && s.placement.state !== 'ideal' ? opticFor?.(s) : undefined;
+                      return glass ? (
+                        <g transform={`scale(${1 / schematic.unitMm})${s.kind === 'mirror' ? ' rotate(45)' : ''}`}>
+                          <OpticOutline surfaces={glass} strokeWidth={1.5} nonScaling />
+                        </g>
+                      ) : (
+                        <SymbolGlyphNonScaling kind={s.kind} />
+                      );
+                    })()}
                   </g>
                   {options.showPartLabels !== false && (
                     <Box
@@ -597,12 +626,15 @@ export function SchematicCanvas({
                         fill:
                           s.placement.state === 'unmounted'
                             ? 'var(--mui-palette-warning-main)'
+                            : s.placement.state === 'ideal'
+                              ? 'var(--mui-palette-primary-main)'
                             : isSelected
                               ? 'var(--mui-palette-text-primary)'
                               : 'var(--mui-palette-text-secondary)',
                       }}
                     >
                       {s.label}
+                      {s.placement.state === 'ideal' && specLine(s) && <tspan opacity={0.7}>{` · ${specLine(s)}`}</tspan>}
                     </Box>
                   )}
                   {/* A locked part wears a small padlock. */}

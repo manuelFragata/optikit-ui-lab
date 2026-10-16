@@ -2,7 +2,7 @@ import type { PartEntry } from '../../editor/AddPartSearch';
 import type { Size } from '../../../settings/preferences';
 import type { CanvasTool, EditorView, ViewOptions } from '../../editor/viewOptions';
 
-export type LeftPanelId = 'palette' | 'layers' | 'parts' | 'bom';
+export type LeftPanelId = 'sketch' | 'palette' | 'layers' | 'parts' | 'bom';
 export type RightPanelId = 'properties' | 'info';
 
 /** View options that switch on and off. */
@@ -53,6 +53,8 @@ export interface EditorActions {
   // Panels.
   openLeft: (id: LeftPanelId) => void;
   openRight: (id: RightPanelId) => void;
+  /** Split the canvas, with the selected part up close beside it; again: close it. */
+  toggleCloseup: () => void;
   openPalette: () => void;
   openSettings: () => void;
 

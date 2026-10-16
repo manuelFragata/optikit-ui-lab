@@ -2,12 +2,14 @@
  * What things look like in 3D. These only draw what they are given (in the
  * document frame: mm, z up); what to draw where is decided in layout3d.ts.
  */
-import { Component, Suspense, useMemo, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useMemo, type ReactNode, type Ref } from 'react';
 import { Line, Outlines } from '@react-three/drei';
-import { DoubleSide, Quaternion, Vector3 } from 'three';
+import { DoubleSide, Quaternion, Vector3, type Group } from 'three';
 import type { SymbolKind } from '../model';
 import { CUBE_MM, type Floor, type MeshRef, type PlacedRay, type Vec3 } from './layout3d';
-import { poseMatrix, useModuleMesh } from './meshes';
+import { glassGeometries, glassMaterial, useHolderComponents } from './holderMesh';
+import type { FragmentSurface } from '../holders/optic';
+import { COMPONENT_KEY, poseMatrix, useModuleMesh, type MeshComponent } from './meshes';
 
 const H = CUBE_MM / 2;
 
@@ -107,6 +109,25 @@ export function Glyph({ kind, turns, color, outline, scale = 1 }: { kind: Symbol
   );
 }
 
+/**
+ * A lens or mirror as its real glass, where the part sits: a lens across the
+ * beam (its axis along +x before the seat turns it), a mirror at 45° as its
+ * glyph lies.
+ */
+export function Glass({ surfaces, mirror, turns, outline }: { surfaces: FragmentSurface[]; mirror: boolean; turns: number; outline: string | null }) {
+  const geometries = useMemo(() => glassGeometries(surfaces), [surfaces]);
+  useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries]);
+  return (
+    <group rotation={[0, 0, (turns * Math.PI) / 2 + (mirror ? -Math.PI / 4 : 0)]}>
+      {geometries.map((g, i) => (
+        <mesh key={i} geometry={g} material={glassMaterial(i, mirror)}>
+          <Outline color={outline} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** A translucent cube: the part at "cubes" fidelity, with its glyph inside. */
 export function GlassCube({ color }: { color: string }) {
   return (
@@ -129,34 +150,81 @@ export function Placeholder({ color, outline }: { color: string; outline: string
 }
 
 /** One failed mesh shows its placeholder; the rest of the scene carries on. */
-class MeshBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+export class MeshBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError = () => ({ failed: true });
   render = () => (this.state.failed ? this.props.fallback : this.props.children);
 }
 
-function ModuleMesh({ mesh, turns, outline }: { mesh: MeshRef; turns: number; outline: string | null }) {
-  const { pieces } = useModuleMesh(mesh.url);
-  const quaternion = useMemo(() => new Quaternion().setFromRotationMatrix(poseMatrix(mesh.axes, turns)), [mesh.axes, turns]);
+/** What draws a module's components: their outlines, and the one under the pointer. */
+export interface ComponentHighlight {
+  /** The component the pointer is on, by key. */
+  key: string | null;
+  /** Its outline, when the module is not selected (the selection outlines all of it). */
+  outline: string;
+  tint: string;
+}
+
+/** Drawn over a component the pointer is on: a tint that shows through its own material, on top of the outline. */
+const tint = (color: string) => <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />;
+
+/** Never picked: the tint is not part of the module. */
+const noPick = () => null;
+
+/** One component of a module, as its pieces; outlined, and tinted when the pointer is on it. */
+export function ComponentMesh({ component, outline, tinted, visible = true }: { component: MeshComponent; outline: string | null; tinted: string | null; visible?: boolean }) {
+  const key = component.info.key;
   return (
-    <group quaternion={quaternion}>
-      {pieces.map((p, i) => (
-        <mesh key={i} geometry={p.geometry} material={p.material}>
+    <group visible={visible}>
+      {component.pieces.map((p, i) => (
+        <mesh key={i} geometry={p.geometry} material={p.material} userData={{ [COMPONENT_KEY]: key }}>
           <Outline color={outline} />
         </mesh>
       ))}
+      {tinted &&
+        component.pieces.map((p, i) => (
+          <mesh key={`tint-${i}`} geometry={p.geometry} raycast={noPick} renderOrder={1}>
+            {tint(tinted)}
+          </mesh>
+        ))}
+    </group>
+  );
+}
+
+interface ModuleMeshProps {
+  mesh: MeshRef;
+  turns: number;
+  outline: string | null;
+  highlight?: ComponentHighlight;
+  /** The group the components are drawn in, for picking one under the pointer (see Part). */
+  pickRef?: Ref<Group>;
+}
+
+function ModuleMesh({ mesh, turns, outline, highlight, pickRef }: ModuleMeshProps) {
+  const { components: store } = useModuleMesh(mesh.url);
+  // A holder generated here: its parts, in the empty cube.
+  const holder = useHolderComponents(mesh.holder);
+  const components = useMemo(() => (holder.length ? [...store, ...holder] : store), [store, holder]);
+  const quaternion = useMemo(() => new Quaternion().setFromRotationMatrix(poseMatrix(mesh.axes, turns)), [mesh.axes, turns]);
+  return (
+    <group quaternion={quaternion} ref={pickRef}>
+      {components.map((c) => {
+        const on = highlight?.key === c.info.key;
+        // The selection outlines the whole module; the pointer, only what it is on.
+        return <ComponentMesh key={c.info.key} component={c} outline={outline ?? (on ? highlight.outline : null)} tinted={on ? highlight.tint : null} />;
+      })}
     </group>
   );
 }
 
 /** The module's real mesh, turned into its seat; a plain box while it loads or if it fails. */
-export function Solid({ mesh, turns, outline, placeholder }: { mesh: MeshRef; turns: number; outline: string | null; placeholder: string }) {
+export function Solid({ mesh, turns, outline, placeholder, highlight, pickRef }: ModuleMeshProps & { placeholder: string }) {
   const box = <Placeholder color={placeholder} outline={outline} />;
   // Keyed by file: a part switched to another module tries its new mesh afresh.
   return (
     <MeshBoundary key={mesh.url} fallback={box}>
       <Suspense fallback={box}>
-        <ModuleMesh mesh={mesh} turns={turns} outline={outline} />
+        <ModuleMesh mesh={mesh} turns={turns} outline={outline} highlight={highlight} pickRef={pickRef} />
       </Suspense>
     </MeshBoundary>
   );

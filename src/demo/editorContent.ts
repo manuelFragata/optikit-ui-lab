@@ -2,6 +2,9 @@
  * Placeholder design for the editor stories: the BF+Fluor FRAME optical core.
  * Not part of the component set; replace freely.
  */
+import { designedValues, designLens, designMirror } from '../components/editor/holders/designs';
+import type { FragmentSurface } from '../components/editor/holders/optic';
+import type { SketchEntry, SketchGroup } from '../components/editor/panels/SketchPanel';
 import type { ModuleOption, Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
 import type { VersionEntryData } from '../components/editor/panels/HistoryPanel';
 import type { ProjectFileData } from '../components/views/file/ProjectFiles';
@@ -231,3 +234,69 @@ export const demoModules: Record<SymbolKind, ModuleOption[]> = {
   objective: [{ module: 'RMS objective insert', source: 'openUC2 Core Box', version: '2.3.0' }],
   camera: [{ module: 'IMX477 camera', source: 'openUC2 Core Box', version: '1.0.4' }],
 };
+
+/** An input list with some values replaced: a designed optic's, as its prescription has them. */
+const withValues = (inputs: SymbolParam[], values: Readonly<Record<string, number>>) => inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i));
+
+/** A lens or mirror designed here, as a sketch tile: its prescription, and its inputs following from it. */
+function designedEntry(id: string, label: string, kind: 'lens' | 'mirror', spec: string, prescription: FragmentSurface[]): SketchEntry {
+  const inputs = kind === 'lens' ? withValues(demoInputs.lens, designedValues(prescription)) : demoInputs.mirror;
+  return { id, label, kind, spec, mount: 'designed', prescription, inputs };
+}
+
+/**
+ * The sketch (the left rail's Sketch panel): real lenses and mirrors designed
+ * here, from a form and a focal length and then by every radius and glass;
+ * ideal elements where only the specification matters yet; sources and
+ * detectors.
+ */
+export const demoSketch: SketchGroup[] = [
+  {
+    id: 'lenses',
+    label: 'Lenses',
+    entries: [
+      designedEntry('lens-biconvex', 'Biconvex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('biconvex', 50, 25.4)),
+      designedEntry('lens-planoconvex', 'Plano-convex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('plano-convex', 50, 25.4)),
+      designedEntry('lens-achromat', 'Achromat', 'lens', 'Doublet · f = 50 · Ø25.4', designLens('achromat', 50, 25.4)),
+      { id: 'ideal-lens', label: 'Ideal lens', kind: 'lens', spec: 'f = 50 mm · no glass yet' },
+    ],
+  },
+  {
+    id: 'mirrors',
+    label: 'Mirrors',
+    entries: [
+      designedEntry('mirror-flat', 'Flat mirror', 'mirror', 'Ø25.4 · at 45°', designMirror('flat', 0, 25.4)),
+      designedEntry('mirror-concave', 'Concave mirror', 'mirror', 'R = 200 · f = 100 · Ø25.4', designMirror('concave', 200, 25.4)),
+    ],
+  },
+  {
+    id: 'optics',
+    label: 'Other optics',
+    entries: [
+      { id: 'ideal-dichroic', label: 'Dichroic', kind: 'dichroic', spec: 'Cut-on 505 nm' },
+      { id: 'ideal-objective', label: 'Objective', kind: 'objective', spec: '10× · NA 0.25' },
+    ],
+  },
+  {
+    id: 'sources',
+    label: 'Sources',
+    entries: [
+      { id: 'ideal-laser', label: 'Laser', kind: 'laser', spec: 'λ = 488 nm · 10 mW' },
+      {
+        id: 'ideal-led',
+        label: 'LED',
+        kind: 'laser',
+        spec: 'λ = 470 nm · 200 mW',
+        inputs: [
+          { label: 'Wavelength', value: 470, unit: 'nm', min: 360, max: 940, step: 1 },
+          { label: 'Power', value: 200, unit: 'mW', min: 0, max: 1000, step: 10 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'detectors',
+    label: 'Detectors',
+    entries: [{ id: 'ideal-camera', label: 'Camera', kind: 'camera', spec: 'An image plane' }],
+  },
+];

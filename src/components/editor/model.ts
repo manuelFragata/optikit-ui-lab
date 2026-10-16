@@ -3,22 +3,45 @@
  * (1 unit = 1 cube), x to the right, y up, z = layer.
  */
 
+import type { FragmentSurface } from './holders/optic';
+
 export type SymbolKind = 'laser' | 'mirror' | 'dichroic' | 'lens' | 'objective' | 'camera';
 
 /** Quarter turns of a part in its cube: 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°. */
 export type Seat = 0 | 1 | 2 | 3;
 
 /**
- * Where a part physically sits (UI-V4 §1.2). Every part is in one of two
- * states; realize, freeze and unbind move it between them.
+ * Where a part physically sits (UI-V4 §1.2), from a sketch to a cube:
+ *
+ *   ideal ──snap──▶ unmounted ──freeze / realize──▶ in a cube
+ *     └────────────realize─────────────────────────────▲
+ *
+ * An ideal part is an optic by its specification only (a lens of f = 50,
+ * Ø 25): it sits where it is drawn and traces as an ideal element, but is
+ * no part yet (optikit-v2 WP-376). Snapping chooses a catalogue part for it;
+ * realize, freeze and unbind work as before.
  */
 export type Placement =
-  /** Housed in a cube on the grid: an existing module, or a holder frozen for it. */
-  | { state: 'in-cube'; module: string; source: string; version?: string; seat: Seat; frozen?: boolean }
+  /** Sketched: a specification at a place, no part chosen yet. */
+  | { state: 'ideal' }
+  /** Housed in a cube on the grid: an existing module, or a holder frozen for it (`holder`: how it was generated). */
+  | { state: 'in-cube'; module: string; source: string; version?: string; seat: Seat; frozen?: boolean; holder?: HolderSpec }
   /** An optic placed freely, with no holder yet. */
   | { state: 'unmounted'; part: string; source: string };
 
+/**
+ * How a frozen holder was generated: the generator and its parameters, as
+ * optikit-v2 keeps them beside a published holder (`generator.json`), so the
+ * service can build the same parts again.
+ */
+export interface HolderSpec {
+  /** The generator's script name, e.g. `lens_cartridge_v4`. */
+  generator: string;
+  params: Record<string, unknown>;
+}
+
 export const isMounted = (s: { placement: Placement }) => s.placement.state === 'in-cube';
+export const isIdeal = (s: { placement: Placement }) => s.placement.state === 'ideal';
 
 /** An existing module a part can be realized as. */
 export interface ModuleOption {
@@ -29,8 +52,8 @@ export interface ModuleOption {
   fixes?: Readonly<Record<string, number>>;
 }
 
-/** The name the part has in the catalogue: its module, or the optic on its own. */
-export const catalogueName = (p: Placement) => (p.state === 'in-cube' ? p.module : p.part);
+/** The name the part has in the catalogue: its module, or the optic on its own; an ideal part has none. */
+export const catalogueName = (p: Placement) => (p.state === 'in-cube' ? p.module : p.state === 'unmounted' ? p.part : '');
 
 /**
  * Realize: swap the part for an existing module, in its cube (a part already in a cube keeps its seat).
@@ -60,9 +83,62 @@ export function holderMismatch(s: Pick<SchematicSymbol, 'placement' | 'inputs'>,
   return { inputs: off.map((i) => ({ label: i.label, unit: i.unit, part: i.value, module: fixes[i.label] })), fits };
 }
 
-/** Freeze: generate a holder for an unmounted optic, here. */
-export const frozen = (p: Placement): Placement =>
-  p.state === 'unmounted' ? { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: 0, frozen: true } : p;
+/** Freeze: generate a holder for an unmounted optic, here; `holder`: as designed in the close-up. A frozen holder takes a new design. */
+export const frozen = (p: Placement, holder?: HolderSpec): Placement =>
+  p.state === 'unmounted'
+    ? { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: 0, frozen: true, ...(holder && { holder }) }
+    : p.state === 'in-cube' && p.frozen && holder
+      ? { ...p, holder }
+      : p;
+
+/** The catalogue part a holder is for: the optic of an unmounted part or of a frozen holder; none for a module. */
+export const holderPart = (p: Placement): string | undefined =>
+  p.state === 'unmounted' ? p.part : p.state === 'in-cube' && p.frozen ? p.module.replace(/^Holder for /, '') : undefined;
+
+/**
+ * Snap: an ideal part becomes the catalogue part chosen for it, still with no
+ * holder. Its inputs take the part's own values (the focal length it really
+ * has), so the light is traced through what will be built.
+ */
+export function snapped(s: Pick<SchematicSymbol, 'placement' | 'inputs'> & { label?: string }, part: string, source: string, values: Readonly<Record<string, number>> = {}): Partial<SchematicSymbol> {
+  if (s.placement.state !== 'ideal') return {};
+  return {
+    placement: { state: 'unmounted', part, source },
+    prescription: undefined,
+    // Still called as the sketch named it ("Ideal lens"): now it has a name of its own.
+    ...(s.label?.startsWith('Ideal ') && { label: part }),
+    ...(s.inputs && { inputs: s.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }),
+  };
+}
+
+/** Short names for the inputs that specify an ideal part. */
+const SPEC_NAMES: Readonly<Record<string, string>> = { 'Focal length': 'f =', Diameter: 'Ø', Wavelength: 'λ =', 'Numerical aperture': 'NA', Magnification: '' };
+
+/** What an ideal part is, in a line: "f = 50 mm · Ø 25 mm". */
+export const specLine = (s: Pick<SchematicSymbol, 'inputs'>) =>
+  (s.inputs ?? [])
+    .filter((i) => i.label in SPEC_NAMES)
+    .map((i) => (i.unit === 'NA' ? `NA ${i.value}` : `${SPEC_NAMES[i.label]} ${i.value}${i.unit === '×' ? '×' : ` ${i.unit}`}`.trim()))
+    .join(' · ');
+
+/** Where a designed optic comes from, in the catalogue's place. */
+export const DESIGNED_HERE = 'Designed here';
+
+/**
+ * Design it: an ideal part becomes a real optic designed here, from its
+ * prescription; its inputs follow from it.
+ */
+export function designed(s: Pick<SchematicSymbol, 'placement' | 'inputs' | 'kind'>, prescription: FragmentSurface[], values: Readonly<Record<string, number>>): Partial<SchematicSymbol> {
+  if (s.placement.state === 'in-cube') return {};
+  return {
+    placement: { state: 'unmounted', part: s.kind === 'mirror' ? 'Designed mirror' : 'Designed lens', source: DESIGNED_HERE },
+    prescription,
+    ...(s.inputs && { inputs: s.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }),
+  };
+}
+
+/** Back to the sketch: a catalogue part no holder holds yet goes back to its specification. */
+export const sketched = (p: Placement): Placement => (p.state === 'unmounted' ? { state: 'ideal' } : p);
 
 /** Unbind: take the optic out of its cube; a frozen holder goes away. */
 export const unbound = (s: { label: string; placement: Placement }): Placement => {
@@ -96,6 +172,11 @@ export interface SchematicSymbol {
   placement: Placement;
   /** The part's inputs, each a slider in the inspector. */
   inputs?: SymbolParam[];
+  /**
+   * A lens or mirror designed here: its surfaces (Optiland's form, as a
+   * library record's `optics.fragment.surfaces`). Its inputs follow from it.
+   */
+  prescription?: FragmentSurface[];
   /** Axes the part may not move along (and `turn`: its seat stays). */
   locks?: Partial<Record<Lock, boolean>>;
   notes: string;

@@ -6,7 +6,7 @@
  * for the panel and the CSV, so the two never disagree; a price is never
  * invented, so a line with no price stays unpriced and out of the total.
  */
-import type { Schematic } from './model';
+import { specLine, type Schematic } from './model';
 
 export interface BomLine {
   /** The module, or the optic's part number. */
@@ -40,8 +40,14 @@ export function buildBom(design: Schematic, prices: PriceList): Bom {
   const byName = new Map<string, BomLine>();
   for (const s of design.symbols) {
     const p = s.placement;
-    const [name, kind] = p.state === 'in-cube' ? [p.module, 'module' as const] : [p.part, 'optic' as const];
-    const line = byName.get(name) ?? { name, kind, source: p.source, qty: 0, partIds: [], unitPrice: prices[name] ?? null };
+    // An ideal part has no part yet: its own line, by its specification, with no price.
+    const [name, kind, source] =
+      p.state === 'in-cube'
+        ? [p.module, 'module' as const, p.source]
+        : p.state === 'unmounted'
+          ? [p.part, 'optic' as const, p.source]
+          : [`${s.label} (${specLine(s) || 'ideal'}), no part chosen`, 'optic' as const, 'Sketch'];
+    const line = byName.get(name) ?? { name, kind, source, qty: 0, partIds: [], unitPrice: p.state === 'ideal' ? null : (prices[name] ?? null) };
     line.qty += 1;
     line.partIds.push(s.id);
     byName.set(name, line);

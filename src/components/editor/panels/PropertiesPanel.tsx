@@ -14,6 +14,9 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AcUnitIcon from '@mui/icons-material/AcUnit';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
+import DrawOutlinedIcon from '@mui/icons-material/DrawOutlined';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import UndoIcon from '@mui/icons-material/Undo';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -27,7 +30,8 @@ import { DisclosureSection } from '../../panels/DisclosureSection';
 import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
 import { Vec3Field } from '../../primitives/Vec3Field';
-import { frozen, holderMismatch, isLocked, realize, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
+import { ShapeSection } from './ShapeSection';
+import { frozen, holderMismatch, isLocked, realize, sketched, specLine, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
 
 export type { ModuleOption };
 
@@ -36,6 +40,10 @@ export interface PropertiesPanelProps {
   onChange: (patch: Partial<SchematicSymbol>) => void;
   /** Existing modules the selected part can be realized as (swapped for). */
   realizeOptions?: ModuleOption[];
+  /** Freeze opens the holder designer (the close-up) instead of freezing on the spot. */
+  onFreeze?: () => void;
+  /** Snap: choose a catalogue part for an ideal one (in the close-up). */
+  onSnap?: () => void;
 }
 
 const SEATS: Seat[] = [0, 1, 2, 3];
@@ -51,16 +59,17 @@ const LOCKS: { value: Lock; label: string }[] = [
  * realize (swap for an existing module), freeze (generate a holder here)
  * and unbind (take the optic out of its cube).
  */
-function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: SchematicSymbol; realizeOptions?: ModuleOption[]; onChange: PropertiesPanelProps['onChange'] }) {
+function PlacementSection({ symbol, realizeOptions = [], onChange, onFreeze, onSnap }: { symbol: SchematicSymbol; realizeOptions?: ModuleOption[]; onChange: PropertiesPanelProps['onChange']; onFreeze?: () => void; onSnap?: () => void }) {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const p = symbol.placement;
   const mounted = p.state === 'in-cube';
+  const ideal = p.state === 'ideal';
 
   const realizeAs = (option: ModuleOption) => {
     setMenu(null);
     onChange(realize(symbol, option));
   };
-  const freeze = () => onChange({ placement: frozen(p) });
+  const freeze = () => (onFreeze ? onFreeze() : onChange({ placement: frozen(p) }));
   const unbind = () => onChange({ placement: unbound(symbol) });
   const mismatch = holderMismatch(symbol, realizeOptions);
 
@@ -78,20 +87,25 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
         })}
       >
         <Box sx={{ display: 'grid', placeItems: 'center', p: 0.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper', color: mounted ? 'text.primary' : 'text.meta' }}>
-          {mounted ? <ViewInArOutlinedIcon sx={{ fontSize: '1rem' }} /> : <BlurOnIcon sx={{ fontSize: '1rem' }} />}
+          {mounted ? <ViewInArOutlinedIcon sx={{ fontSize: '1rem' }} /> : ideal ? <DrawOutlinedIcon sx={{ fontSize: '1rem' }} /> : <BlurOnIcon sx={{ fontSize: '1rem' }} />}
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography variant="body2" noWrap>
-            {p.state === 'in-cube' ? p.module : p.part}
+            {p.state === 'in-cube' ? p.module : p.state === 'unmounted' ? p.part : `Ideal ${symbol.kind}`}
           </Typography>
           <Typography variant="meta" color="text.meta" noWrap component="div">
-            {p.source}
+            {p.state === 'ideal' ? specLine(symbol) || 'No part chosen' : p.source}
             {p.state === 'in-cube' && p.version && ` · v${p.version}`}
           </Typography>
         </Box>
       </Stack>
 
-      <TagChip label={mounted ? (p.state === 'in-cube' && p.frozen ? 'In a cube · frozen holder' : 'In a cube') : 'Not mounted yet'} tone={mounted ? 'success' : 'warning'} dot sx={{ alignSelf: 'flex-start' }} />
+      <TagChip
+        label={mounted ? (p.state === 'in-cube' && p.frozen ? 'In a cube · frozen holder' : 'In a cube') : ideal ? 'Ideal · no part chosen' : 'Not mounted yet'}
+        tone={mounted ? 'success' : ideal ? 'primary' : 'warning'}
+        dot
+        sx={{ alignSelf: 'flex-start' }}
+      />
 
       {mismatch && (
         <Box role="alert" sx={{ p: 1, borderRadius: 1, bgcolor: 'warning.soft', color: 'warning.onSoft' }}>
@@ -134,7 +148,22 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
       )}
 
       <Stack direction="row" spacing={1}>
-        {mounted ? (
+        {ideal ? (
+          <>
+            {onSnap && (
+              <Tooltip title="Choose a catalogue part for it, up close">
+                <Button variant="contained" size="small" startIcon={<TravelExploreIcon fontSize="small" />} onClick={onSnap}>
+                  Snap to a part…
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip title="Swap it for an existing module">
+              <Button variant="outlined" size="small" startIcon={<ViewInArOutlinedIcon fontSize="small" />} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu">
+                Realize…
+              </Button>
+            </Tooltip>
+          </>
+        ) : mounted ? (
           <Tooltip title="Take the optic out of its cube. It stays where it is.">
             <Button variant="outlined" size="small" startIcon={<LinkOffIcon fontSize="small" />} onClick={unbind}>
               Unbind
@@ -147,18 +176,29 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
                 Realize…
               </Button>
             </Tooltip>
-            <Tooltip title="Generate a holder at the current position">
+            <Tooltip title={onFreeze ? 'Design a holder for it, in the close-up' : 'Generate a holder at the current position'}>
               <Button variant="outlined" size="small" startIcon={<AcUnitIcon fontSize="small" />} onClick={freeze}>
-                Freeze
+                {onFreeze ? 'Freeze…' : 'Freeze'}
               </Button>
             </Tooltip>
           </>
         )}
       </Stack>
-      {!mounted && (
+      {p.state === 'unmounted' && (
+        <Button size="small" startIcon={<UndoIcon fontSize="small" />} onClick={() => onChange({ placement: sketched(p), prescription: undefined })} sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}>
+          Back to the sketch
+        </Button>
+      )}
+      {ideal ? (
         <Typography variant="caption" color="text.secondary">
-          Parts that are not mounted yet can be saved and shared, but the design isn't buildable until every part is in a cube.
+          An ideal part traces as an ideal optic of its specification. Snap it to a catalogue part, or realize it as a module, before the design can be built.
         </Typography>
+      ) : (
+        !mounted && (
+          <Typography variant="caption" color="text.secondary">
+            Parts that are not mounted yet can be saved and shared, but the design isn't buildable until every part is in a cube.
+          </Typography>
+        )
       )}
 
       <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
@@ -207,7 +247,7 @@ function NameField({ name, onRename }: { name: string; onRename: (name: string) 
 }
 
 /** Contextual properties of the selected part. */
-export function PropertiesPanel({ symbol, onChange, realizeOptions }: PropertiesPanelProps) {
+export function PropertiesPanel({ symbol, onChange, realizeOptions, onFreeze, onSnap }: PropertiesPanelProps) {
   if (!symbol) {
     return (
       <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', px: 3, py: 6, color: 'text.secondary' }}>
@@ -217,6 +257,9 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions }: Properties
       </Stack>
     );
   }
+
+  // A designed optic's focal length and diameter follow from its shape: set there, not here.
+  const shownInputs = (symbol.inputs ?? []).filter((i) => !symbol.prescription || (i.label !== 'Focal length' && i.label !== 'Diameter'));
 
   return (
     <Box>
@@ -265,13 +308,19 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions }: Properties
       </DisclosureSection>
 
       <DisclosureSection title="Placement">
-        <PlacementSection symbol={symbol} realizeOptions={realizeOptions} onChange={onChange} />
+        <PlacementSection symbol={symbol} realizeOptions={realizeOptions} onChange={onChange} onFreeze={onFreeze} onSnap={onSnap} />
       </DisclosureSection>
 
+      {symbol.prescription && (
+        <DisclosureSection title={symbol.kind === 'mirror' ? 'Shape · mirror' : 'Shape · lens'}>
+          <ShapeSection symbol={{ ...symbol, prescription: symbol.prescription }} onChange={onChange} />
+        </DisclosureSection>
+      )}
+
       <DisclosureSection title="Inputs">
-        {symbol.inputs?.length ? (
+        {shownInputs.length ? (
           <Stack spacing={2}>
-            {symbol.inputs.map((input, i) => (
+            {shownInputs.map((input) => (
               <SliderField
                 key={input.label}
                 label={input.label}
@@ -280,7 +329,7 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions }: Properties
                 max={input.max}
                 step={input.step}
                 unit={input.unit}
-                onChange={(value) => onChange({ inputs: symbol.inputs!.map((x, j) => (j === i ? { ...x, value } : x)) })}
+                onChange={(value) => onChange({ inputs: symbol.inputs!.map((x) => (x.label === input.label ? { ...x, value } : x)) })}
               />
             ))}
           </Stack>

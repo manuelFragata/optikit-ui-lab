@@ -10,6 +10,9 @@
 import type { MeshRef } from '../components/editor/scene3d/layout3d';
 import type { SchematicSymbol } from '../components/editor/model';
 import { STORE_MESHES as M } from './assemblies';
+import { catalogRecord } from './catalogParts';
+import { recordOf } from '../components/editor/holders/designs';
+import type { CartridgeParams } from '../components/editor/holders/cartridge';
 
 const alongX = { z: '+x', x: '+y' } as const;
 
@@ -26,5 +29,11 @@ export const moduleMeshes: Record<string, MeshRef> = {
   'IMX477 camera': { url: M.camera, axes: { z: '-x', x: '+y' } },
 };
 
-/** The mesh of a part's module, if there is one. */
-export const meshForPart = (s: SchematicSymbol): MeshRef | undefined => (s.placement.state === 'in-cube' ? moduleMeshes[s.placement.module] : undefined);
+/** The mesh of a part's module, if there is one; a holder frozen here is drawn in the store's empty cube, from its parameters. */
+export function meshForPart(s: SchematicSymbol): MeshRef | undefined {
+  const p = s.placement;
+  if (p.state !== 'in-cube') return undefined;
+  const record = p.holder?.generator === 'lens_cartridge_v4' ? recordOf(s, catalogRecord) : undefined;
+  if (p.holder && record) return { url: M.empty, axes: { z: '+z', x: '+x' }, holder: { params: p.holder.params as unknown as CartridgeParams, record } };
+  return moduleMeshes[p.module];
+}

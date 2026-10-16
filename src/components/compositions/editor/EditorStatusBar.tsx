@@ -27,12 +27,15 @@ export interface EditorStatusBarProps {
  */
 export function EditorStatusBar({ design, selected, selectedCount, unmounted, view, layer, snap, zoom, misses, onShowParts }: EditorStatusBarProps) {
   const parts = design.symbols.length;
+  const ideal = design.symbols.filter((s) => s.placement.state === 'ideal').length;
+  const loose = unmounted - ideal;
+  const open = [ideal > 0 && `${ideal} ideal`, loose > 0 && `${loose} not mounted yet`].filter(Boolean).join(' · ');
   return (
     <StatusBar
       tone={parts === 0 ? 'neutral' : unmounted > 0 ? 'warning' : 'success'}
       status={
         <ButtonBase onClick={onShowParts} sx={{ borderRadius: 1, px: 0.5, typography: 'caption', '&:hover': { color: 'text.primary' } }}>
-          {parts === 0 ? 'No parts yet' : unmounted > 0 ? `${unmounted} ${unmounted === 1 ? 'part' : 'parts'} not mounted yet` : 'Every part is in a cube · buildable'}
+          {parts === 0 ? 'No parts yet' : unmounted > 0 ? open : 'Every part is in a cube · buildable'}
         </ButtonBase>
       }
       start={

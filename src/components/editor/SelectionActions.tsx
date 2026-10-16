@@ -17,6 +17,7 @@ import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import RotateRightIcon from '@mui/icons-material/RotateRight';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import TuneIcon from '@mui/icons-material/Tune';
 import { floatingCardSx } from '../panels/floatingCard';
 import { frozen, isLocked, realize, shifted, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from './model';
@@ -32,6 +33,10 @@ export interface SelectionActionsProps {
   onProperties: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Freeze opens the holder designer (the close-up) instead of freezing on the spot. */
+  onFreeze?: () => void;
+  /** Snap: choose a catalogue part for an ideal one (in the close-up). */
+  onSnap?: () => void;
 }
 
 function Action({ label, onClick, disabled, children }: { label: string; onClick: (e: MouseEvent<HTMLElement>) => void; disabled?: boolean; children: ReactNode }) {
@@ -53,7 +58,7 @@ const locksAll = (on: boolean) => Object.fromEntries(LOCKS.map((l) => [l, on]));
  * The one-click edits of the selection, floating next to it: turn, move a
  * layer, lock, mount or unmount (one part), duplicate, delete.
  */
-export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties, onDuplicate, onDelete }: SelectionActionsProps) {
+export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties, onDuplicate, onDelete, onFreeze, onSnap }: SelectionActionsProps) {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const one = parts.length === 1 ? parts[0] : null;
   const turnable = parts.some((s) => s.placement.state === 'in-cube' && !isLocked(s, 'turn'));
@@ -92,7 +97,18 @@ export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties
       {one && (
         <>
           <Divider orientation="vertical" flexItem sx={{ my: 0.5, mx: 0.25 }} />
-          {one.placement.state === 'in-cube' ? (
+          {one.placement.state === 'ideal' ? (
+            <>
+              {onSnap && (
+                <Action label="Snap: choose a catalogue part for it, up close" onClick={onSnap}>
+                  <TravelExploreIcon fontSize="small" />
+                </Action>
+              )}
+              <Action label="Realize: swap for an existing module" onClick={(e) => setMenu(e.currentTarget)}>
+                <SwapHorizIcon fontSize="small" />
+              </Action>
+            </>
+          ) : one.placement.state === 'in-cube' ? (
             <Action label="Unbind: take it out of its cube" onClick={() => onUpdate((s) => ({ placement: unbound(s) }))}>
               <LinkOffIcon fontSize="small" />
             </Action>
@@ -101,7 +117,7 @@ export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties
               <Action label="Realize: swap for an existing module" onClick={(e) => setMenu(e.currentTarget)}>
                 <SwapHorizIcon fontSize="small" />
               </Action>
-              <Action label="Freeze: make a holder for it here" onClick={() => onUpdate((s) => ({ placement: frozen(s.placement) }))}>
+              <Action label={onFreeze ? 'Freeze: design a holder for it, up close' : 'Freeze: make a holder for it here'} onClick={() => (onFreeze ? onFreeze() : onUpdate((s) => ({ placement: frozen(s.placement) })))}>
                 <AcUnitIcon fontSize="small" />
               </Action>
             </>

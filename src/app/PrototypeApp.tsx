@@ -151,6 +151,10 @@ export function PrototypeApp() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [afterLogin, setAfterLogin] = useState<Route | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // What the toast's Undo does, for the message it was given with.
+  const [undo, setUndo] = useState<{ message: string; run: () => void } | null>(null);
+  // Projects deleted from the drawer in this visit, by id.
+  const [deleted, setDeleted] = useState<string[]>([]);
   // Designs changed in this visit (an example played with on the landing page, or edited in View), by id:
   // the editor reopens them as they were left, and the other tabs show them.
   const [changed, setChanged] = useState<Record<string, Schematic>>({});
@@ -233,7 +237,7 @@ export function PrototypeApp() {
       cubes: schematic.symbols.filter((s) => s.placement.state === 'in-cube').length,
       status: 'draft',
       pinned: false,
-      unmounted: schematic.symbols.filter((s) => s.placement.state === 'unmounted').length,
+      unmounted: schematic.symbols.filter((s) => s.placement.state !== 'in-cube').length,
     };
     setCreated((all) => [{ summary, schematic }, ...all]);
     navigate({ name: 'workspace', tab: 'view', id });
@@ -243,6 +247,16 @@ export function PrototypeApp() {
     addProject(name, startingSchematic(start), start.kind === 'box' ? [start.id] : []);
     setNewProjectKey(null);
     setToast(`${name} created.`);
+  };
+  /** Take a project out of the drawer, with an Undo in the toast. */
+  const deleteProject = (id: string) => {
+    const project = [...created.map((c) => c.summary), ...demoDrawerProjects].find((p) => p.id === id);
+    if (!project) return;
+    setDeleted((all) => [...all, id]);
+    if (lastOpenId === id) setLastOpenId(undefined);
+    const message = project.sharedBy ? `${project.name} removed from your drawer.` : `${project.name} deleted.`;
+    setToast(message);
+    setUndo({ message, run: () => setDeleted((all) => all.filter((d) => d !== id)) });
   };
   const openEditor = (id: string) => navigate({ name: 'workspace', tab: 'view', id });
   const openFile = (id: string) => navigate({ name: 'workspace', tab: 'file', id });
@@ -293,13 +307,14 @@ export function PrototypeApp() {
       view = (
         <ProjectsView
           owner={user.name}
-          projects={[...created.map((c) => c.summary), ...demoDrawerProjects]}
+          projects={[...created.map((c) => c.summary), ...demoDrawerProjects].filter((p) => !deleted.includes(p.id))}
           drawings={{ ...DRAWINGS, ...Object.fromEntries(created.filter((c) => c.schematic.symbols.length > 0).map((c) => [c.summary.id, c.schematic])) }}
           details={DETAILS}
           renderPreview={designPreview}
           onOpen={openEditor}
           onExport={openFile}
           onShare={openFile}
+          onDelete={deleteProject}
           onNewProject={newProject}
         />
       );
@@ -441,7 +456,22 @@ export function PrototypeApp() {
         key={toast}
         open={toast !== null}
         message={toast}
-        autoHideDuration={3000}
+        action={
+          undo && undo.message === toast ? (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                undo.run();
+                setUndo(null);
+                setToast(null);
+              }}
+            >
+              Undo
+            </Button>
+          ) : undefined
+        }
+        autoHideDuration={undo && undo.message === toast ? 6000 : 3000}
         // A click elsewhere does not close it: that click may be the one that just set a new message.
         onClose={(_, reason) => reason !== 'clickaway' && setToast(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}

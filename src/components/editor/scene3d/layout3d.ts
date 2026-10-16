@@ -7,6 +7,8 @@
  * millimetres, z up. The scene turns it into three.js's y-up frame with one
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
+import type { CartridgeParams } from '../holders/cartridge';
+import type { CatalogRecord, FragmentSurface } from '../holders/optic';
 import type { Light, LightPath, Point } from '../light';
 import { layerShow } from '../layers';
 import { isLocked, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
@@ -40,7 +42,18 @@ export const toThree = ([x, y, z]: Vec3): Vec3 => [x, z, -y];
 export interface MeshRef {
   url: string;
   axes: { z: Axis; x: Axis };
+  /** A holder generated here: drawn from its parameters into the (empty) cube at `url`. */
+  holder?: HolderMeshRef;
 }
+
+/** A frozen lens cartridge, to draw: its parameters and the lens's record. */
+export interface HolderMeshRef {
+  params: CartridgeParams;
+  record: CatalogRecord;
+}
+
+/** A lens or mirror's glass, when known. */
+export type GlassFor = (s: SchematicSymbol) => FragmentSurface[] | undefined;
 
 /** How much the 3D view draws (UI-V4 §1.3, the fidelity dial). Editor state only. */
 export type Fidelity = 'symbols' | 'cubes' | 'solids';
@@ -86,6 +99,8 @@ export interface PlacedPart {
   /** Draw the cube's edges. */
   cage: boolean;
   mesh?: MeshRef;
+  /** A lens or mirror not in a cube whose glass is known (designed here, or its catalogue record's): drawn as it is. */
+  glass?: FragmentSurface[];
   selected: boolean;
   /** Locked along any axis (shown with a padlock). */
   locked: boolean;
@@ -150,14 +165,15 @@ export interface Layout3D {
 
 function lookOf(s: SchematicSymbol, onLayer: boolean, fidelity: Fidelity, mesh: MeshRef | undefined): Look {
   if (!onLayer) return 'ghost';
-  if (fidelity === 'symbols') return 'symbol';
+  // An ideal part is no part yet: its symbol, whatever the fidelity.
+  if (fidelity === 'symbols' || s.placement.state === 'ideal') return 'symbol';
   if (fidelity === 'cubes') return 'cube';
   // Solids: the real module where there is one. An unmounted optic has no holder, so it stays a glyph (in a dashed cube).
   if (s.placement.state !== 'in-cube') return 'symbol';
   return mesh ? 'solid' : 'placeholder';
 }
 
-function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbol) => MeshRef | undefined): PlacedPart {
+function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbol) => MeshRef | undefined, glassFor: GlassFor): PlacedPart {
   const onLayer = layerShow(s.z, view.layer, view.otherLayers) === 'current';
   const mounted = s.placement.state === 'in-cube';
   const mesh = mounted ? meshFor(s) : undefined;
@@ -171,9 +187,11 @@ function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbo
     layer: s.z,
     look,
     mounted,
-    // A cube is its edges; an optic with no holder shows a dashed one; cages add them to mounted parts.
-    cage: look !== 'ghost' && (look === 'cube' || !mounted || view.cages),
+    // A cube is its edges; an optic with no holder shows a dashed one; cages add them to mounted parts. An ideal part has no cube to show.
+    cage: look !== 'ghost' && s.placement.state !== 'ideal' && (look === 'cube' || !mounted || view.cages),
     mesh,
+    // Its glass, where the symbol would be: not in a cube, not ideal, and the view draws more than symbols.
+    glass: look === 'symbol' && view.fidelity !== 'symbols' && s.placement.state === 'unmounted' && (s.kind === 'lens' || s.kind === 'mirror') ? glassFor(s) : undefined,
     selected: view.selectedIds.includes(s.id),
     locked: Boolean(s.locks && Object.values(s.locks).some(Boolean)),
   };
@@ -256,10 +274,11 @@ export function layout3d(
   view: View3D,
   meshFor: (s: SchematicSymbol) => MeshRef | undefined = () => undefined,
   light: Light = { paths: [], misses: [] },
+  glassFor: GlassFor = () => undefined,
 ): Layout3D {
   const parts = schematic.symbols
     .filter((s) => layerShow(s.z, view.layer, view.otherLayers) !== 'hidden')
-    .map((s) => placePart(s, view, meshFor));
+    .map((s) => placePart(s, view, meshFor, glassFor));
   const rays = view.rays ? light.paths.flatMap((p) => placeRay(p, light.misses, view) ?? []) : [];
   const floor = floorOf(view.layer, parts);
 

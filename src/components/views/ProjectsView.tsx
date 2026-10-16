@@ -22,6 +22,8 @@ export interface ProjectsViewProps {
   /** Export or share a project (the File tab). */
   onExport?: (id: string) => void;
   onShare?: (id: string) => void;
+  /** Delete a project, or take a shared one out of the drawer. */
+  onDelete?: (id: string) => void;
   onNewProject: () => void;
 }
 
@@ -49,7 +51,7 @@ function layoutFor(stageWidth: number) {
  * pushes the drawer to the left and unfolds the card into the design's page,
  * as a document, on the right.
  */
-export function ProjectsView({ owner, projects, drawings = {}, details = {}, renderPreview, onOpen, onExport, onShare, onNewProject }: ProjectsViewProps) {
+export function ProjectsView({ owner, projects, drawings = {}, details = {}, renderPreview, onOpen, onExport, onShare, onDelete, onNewProject }: ProjectsViewProps) {
   const titleRef = useRiseIn<HTMLHeadingElement>({ immediate: true });
   const stageRef = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<{ id: string; number: string; from: DOMRect; top: number; docWidth: number; drawerTransform: string } | null>(null);
@@ -91,7 +93,7 @@ export function ProjectsView({ owner, projects, drawings = {}, details = {}, ren
               '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
             }}
           >
-            <ProjectDrawer projects={projects} drawings={drawings} label={`${owner.toLowerCase()}'s projects`} onPreview={preview} onPull={(id, number, from) => doc && setDoc({ ...doc, id, number, from })} hiddenId={doc?.id} />
+            <ProjectDrawer projects={projects} drawings={drawings} label={`${owner.toLowerCase()}'s projects`} onPreview={preview} onPull={(id, number, from) => doc && setDoc({ ...doc, id, number, from })} hiddenId={doc?.id} onDelete={onDelete} />
           </Box>
 
           {doc && project && (

@@ -10,7 +10,7 @@
  * - Camera.tsx    orbit, pan, zoom, preset views, fit;
  * - overlay.tsx   DOM over the canvas: labels, action bar, box select, hint.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as DomPointerEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
@@ -20,9 +20,10 @@ import { withMove, type Move, type Schematic, type SchematicSymbol } from '../mo
 import { useLightFor } from '../light';
 import { Camera, type CameraCommand } from './Camera';
 import { useSceneColors } from './colors';
-import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';
-import { preloadMeshes } from './meshes';
-import { ActionBar, Hint, Labels, Marquee, Projector, type Pins, type Project } from './overlay';
+import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type GlassFor, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';
+import { holderComponentOf } from './holderMesh';
+import { componentOf, preloadMeshes } from './meshes';
+import { ActionBar, ComponentTag, Hint, Labels, Marquee, Projector, type Pins, type Project } from './overlay';
 import { useBoxSelect } from './useBoxSelect';
 import { MoveHandles } from './MoveHandles';
 import { Part } from './Part';
@@ -44,12 +45,16 @@ export interface DesignScene3DProps {
   /** Parts dragged: moved (each along its free axes), or, with Alt, copied there. */
   onMove: (move: Move) => void;
   meshFor?: (s: SchematicSymbol) => MeshRef | undefined;
+  /** A lens or mirror's real glass, drawn where it is not in a cube yet. */
+  glassFor?: GlassFor;
   /** A part clicked, or `null` for empty space; `toggle` with Shift or Ctrl held. */
   onSelect: (id: string | null, toggle?: boolean) => void;
   /** Parts caught in a box dragged on empty space; `add` with Shift held. */
   onSelectMany: (ids: string[], add: boolean) => void;
   /** A part double-clicked. */
   onInspect: (id: string) => void;
+  /** A part pressed (which selects it), and the component of its module it landed on (`null`: none, or not a solid). */
+  onPickComponent?: (partId: string, component: string | null) => void;
   command?: CameraCommand;
   /** Top-left controls (the 2D/3D switch). */
   toolbar?: ReactNode;
@@ -63,7 +68,7 @@ export interface DesignScene3DProps {
 /** The action bar's key among the projected points (label keys are part ids, `ray-…` and `layer`). */
 const ANCHOR = 'selection-anchor';
 
-export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFERENCES, fidelity, selectedIds, tool, snap, onMove, meshFor, onSelect, onSelectMany, onInspect, command, toolbar, selectionActions, hint, hintPlace }: DesignScene3DProps) {
+export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFERENCES, fidelity, selectedIds, tool, snap, onMove, meshFor, glassFor, onSelect, onSelectMany, onInspect, onPickComponent, command, toolbar, selectionActions, hint, hintPlace }: DesignScene3DProps) {
   const colors = useSceneColors();
   const frame = useRef<HTMLDivElement>(null);
 
@@ -90,8 +95,9 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
         },
         meshFor,
         lightFor(shown),
+        glassFor,
       ),
-    [shown, shownLayer, options, fidelity, selectedIds, meshFor, lightFor],
+    [shown, shownLayer, options, fidelity, selectedIds, meshFor, lightFor, glassFor],
   );
   const { parts, rays, labels, floor, anchor, handles, bounds } = layout;
 
@@ -100,7 +106,25 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
     if (fidelity === 'solids') preloadMeshes(parts.flatMap((p) => (p.mesh ? [p.mesh.url] : [])));
   }, [fidelity, parts]);
 
-  const [hovered, setHovered] = useState<string | null>(null);
+  // The part under the pointer, and the component of its module (solids only).
+  const [hover, setHover] = useState<{ id: string; component: string | null } | null>(null);
+  const hovered = hover?.id ?? null;
+  const onHover = (id: string | null, component: string | null = null) =>
+    setHover((h) => (id === null ? null : h?.id === id && h.component === component ? h : { id, component }));
+  // Its name follows the pointer, moved directly (not through state, which would re-render the scene on every move).
+  const hoverPart = parts.find((p) => p.id === hovered);
+  const hoverMesh = hoverPart?.mesh;
+  const hoverName = hover?.component && hoverMesh ? (componentOf(hoverMesh.url, hover.component) ?? (hoverMesh.holder && holderComponentOf(hoverMesh.holder, hover.component)))?.title : undefined;
+  const tag = useRef<HTMLDivElement | null>(null);
+  const pointer = useRef({ x: 0, y: 0 });
+  const placeTag = () => {
+    if (tag.current) tag.current.style.transform = `translate(${pointer.current.x + 14}px, ${pointer.current.y + 18}px)`;
+  };
+  const moveTag = (e: DomPointerEvent) => {
+    const at = frame.current?.getBoundingClientRect();
+    if (at) pointer.current = { x: e.clientX - at.left, y: e.clientY - at.top };
+    placeTag();
+  };
 
   // Overlays: the labels and the action bar follow their points (by key) on screen.
   const project = useRef<Project | null>(null);
@@ -141,6 +165,7 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
         downAt.current = { x: e.clientX, y: e.clientY };
         box.onPointerDown(e);
       }}
+      onPointerMove={moveTag}
       onContextMenu={(e) => e.preventDefault()}
       sx={{ position: 'relative', flex: 1, minWidth: 0, overflow: 'hidden', isolation: 'isolate', bgcolor: 'canvas.ground', cursor, userSelect: 'none' }}
     >
@@ -186,10 +211,12 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
               part={p}
               colors={colors}
               hovered={hovered === p.id}
+              hoveredComponent={hovered === p.id ? (hover?.component ?? null) : null}
               onPress={pressPart}
               onSelect={onSelect}
+              onPickComponent={(id, component) => onPickComponent?.(id, component)}
               onInspect={onInspect}
-              onHover={setHovered}
+              onHover={onHover}
             />
           ))}
           {rays.map((r) => (
@@ -205,6 +232,17 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
       </Canvas>
 
       <Labels labels={labels} pins={pins} rays={colors.rays} size={prefs.labelSize} />
+      {hoverName && !drag.dragging && !box.rect && (
+        <ComponentTag
+          ref={(el) => {
+            tag.current = el;
+            placeTag();
+          }}
+          part={hoverPart?.label}
+        >
+          {hoverName}
+        </ComponentTag>
+      )}
       {box.rect && <Marquee rect={box.rect} />}
       {selectionActions && anchor && !box.rect && (
         <ActionBar pins={pins} pinKey={ANCHOR}>

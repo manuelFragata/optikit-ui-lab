@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
+import DrawOutlinedIcon from '@mui/icons-material/DrawOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -15,7 +16,7 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import TuneIcon from '@mui/icons-material/Tune';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { demoDesignInfo, demoPalette } from '../../../demo/editorContent';
+import { demoDesignInfo, demoPalette, demoSketch } from '../../../demo/editorContent';
 import { demoPrices } from '../../../demo/prices';
 import { bomCsv, bomFileName, buildBom } from '../../editor/bom';
 import type { ModuleOption, Schematic, SchematicSymbol } from '../../editor/model';
@@ -23,6 +24,7 @@ import { BomPanel } from '../../editor/panels/BomPanel';
 import { DesignInfoPanel } from '../../editor/panels/DesignInfoPanel';
 import { LayersPanel } from '../../editor/panels/LayersPanel';
 import { PartsListPanel } from '../../editor/panels/PartsListPanel';
+import { SketchPanel } from '../../editor/panels/SketchPanel';
 import { PropertiesFooter, PropertiesPanel, SelectionSummary } from '../../editor/panels/PropertiesPanel';
 import { SymbolPalettePanel } from '../../editor/panels/SymbolPalettePanel';
 import type { SidePanelItem } from '../../panels/SidePanel';
@@ -57,6 +59,13 @@ export interface LeftPanelsProps {
 export function leftPanels({ design, name, selectedId, selectedIds, onSelect, onSelectParts, placingId, onPick, onDragStart, onDragEnd }: LeftPanelsProps): SidePanelItem[] {
   const bom = buildBom(design, demoPrices);
   return [
+    {
+      id: 'sketch',
+      label: 'Sketch',
+      title: 'Sketch',
+      icon: <DrawOutlinedIcon />,
+      content: <SketchPanel groups={demoSketch} activeEntryId={placingId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />,
+    },
     {
       id: 'palette',
       label: 'Add parts',
@@ -98,9 +107,13 @@ export interface RightPanelsProps {
   onStep: (delta: -1 | 1) => void;
   onDelete: () => void;
   unmounted: number;
+  /** Freeze opens the holder designer. */
+  onFreeze?: () => void;
+  /** Snap opens the catalogue choice for an ideal part. */
+  onSnap?: () => void;
 }
 
-export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted }: RightPanelsProps): SidePanelItem[] {
+export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted, onFreeze, onSnap }: RightPanelsProps): SidePanelItem[] {
   const several = selectedParts.length > 1;
   return [
     {
@@ -112,7 +125,7 @@ export function rightPanels({ design, selected, selectedParts, realizeOptions, o
       content: several ? (
         <SelectionSummary parts={selectedParts} onPick={onSelect} />
       ) : (
-        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} />
+        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} onFreeze={onFreeze} onSnap={onSnap} />
       ),
       footer: !several && selected && (
         <PropertiesFooter symbolId={selected.id} total={design.symbols.length} onPrev={() => onStep(-1)} onNext={() => onStep(1)} onDelete={onDelete} />

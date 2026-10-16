@@ -7,9 +7,10 @@
  * - matte materials, one per source material: the store's GLBs leave
  *   metalness at the glTF default (1), which reads as chrome, so it is not
  *   trusted; glass stays see-through;
- * - the meshes merged into one geometry per material, so a module costs a
- *   few draw calls instead of one per screw. A mesh with several materials
- *   takes its first.
+ * - split into its components (the cube enclosure, the holder, the lens, each
+ *   screw: see components.ts), so each can be hovered and looked at on its
+ *   own; within a component, the meshes merged into one geometry per
+ *   material. A mesh with several materials takes its first.
  *
  * Nothing is cloned per part and nothing per frame: parts render the shared
  * geometry and materials, kept for the session. Ghosts and outlines are drawn
@@ -18,13 +19,35 @@
 import { useGLTF } from '@react-three/drei';
 import { Box3, BufferGeometry, Color, Material, Matrix4, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { describeComponent, numbered, ownerOf, type ComponentInfo } from './components';
 import type { Axis } from './layout3d';
 
-export interface PreparedMesh {
-  pieces: { geometry: BufferGeometry; material: MeshStandardMaterial }[];
+export interface MeshPiece {
+  geometry: BufferGeometry;
+  material: MeshStandardMaterial;
 }
 
+/** One part of a module: the enclosure, the holder, the lens, a screw. */
+export interface MeshComponent {
+  info: ComponentInfo;
+  /** The label, numbered when the module has several ("Screw M3 × 20 (2 of 4)"). */
+  title: string;
+  pieces: MeshPiece[];
+  /** Its extent in the module's frame (mm, centred on the cube). */
+  box: Box3;
+  triangles: number;
+}
+
+export interface PreparedMesh {
+  components: MeshComponent[];
+}
+
+/** Set on every drawn mesh of a component: its key, for picking. */
+export const COMPONENT_KEY = 'componentKey';
+
 const prepared = new WeakMap<Object3D, PreparedMesh>();
+/** The same, by file, for what only reads them (the names under the pointer). */
+const preparedByUrl = new Map<string, PreparedMesh>();
 
 /** Below this size (in file units) a model is taken to be in metres. optikit-v2: meshUnits.ts. */
 const METRES_IF_SMALLER = 2;
@@ -66,23 +89,43 @@ function prepare(scene: Object3D): PreparedMesh {
   const centre = (cube.isEmpty() ? all : cube).getCenter(new Vector3());
   const toCube = new Matrix4().makeScale(scale, scale, scale).multiply(new Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z));
 
-  const byMaterial = new Map<Material, { material: MeshStandardMaterial; geometries: BufferGeometry[] }>();
+  // Meshes by the component they belong to, then by material.
+  const nameOf = (o: Object3D) => (o.userData.name as string | undefined) ?? o.name;
+  const byComponent = new Map<string, { info: ComponentInfo; byMaterial: Map<Material, { material: MeshStandardMaterial; geometries: BufferGeometry[] }> }>();
+  const materials = new Map<Material, MeshStandardMaterial>();
   scene.traverse((o) => {
     const mesh = o as Mesh;
     if (!mesh.isMesh) return;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const src = materials[0];
-    let group = byMaterial.get(src);
-    if (!group) byMaterial.set(src, (group = { material: matte(src), geometries: [] }));
+    const info = describeComponent(nameOf(ownerOf<Object3D>(mesh, nameOf)));
+    let component = byComponent.get(info.key);
+    if (!component) byComponent.set(info.key, (component = { info, byMaterial: new Map() }));
+    const src = (Array.isArray(mesh.material) ? mesh.material : [mesh.material])[0];
+    let material = materials.get(src);
+    if (!material) materials.set(src, (material = matte(src)));
+    let group = component.byMaterial.get(src);
+    if (!group) component.byMaterial.set(src, (group = { material, geometries: [] }));
     group.geometries.push(plain(mesh.geometry, new Matrix4().multiplyMatrices(toCube, mesh.matrixWorld)));
   });
 
-  const pieces = [...byMaterial.values()].flatMap(({ material, geometries }) => {
-    const merged = mergeGeometries(geometries);
-    // Merging only fails on mismatched layouts, which plain() rules out; keep the pieces if it does anyway.
-    return merged ? [{ geometry: merged, material }] : geometries.map((geometry) => ({ geometry, material }));
+  const components = [...byComponent.values()].map(({ info, byMaterial }) => {
+    const pieces = [...byMaterial.values()].flatMap(({ material, geometries }) => {
+      const merged = mergeGeometries(geometries);
+      // Merging only fails on mismatched layouts, which plain() rules out; keep the pieces if it does anyway.
+      return merged ? [{ geometry: merged, material }] : geometries.map((geometry) => ({ geometry, material }));
+    });
+    const box = new Box3();
+    let triangles = 0;
+    for (const { geometry } of pieces) {
+      geometry.computeBoundingBox();
+      box.union(geometry.boundingBox!);
+      triangles += geometry.attributes.position.count / 3;
+    }
+    return { info, pieces, box, triangles };
   });
-  return { pieces };
+  // The enclosure first, then the holders, the optics, the rest; as in the file within each.
+  const order = ['enclosure', 'holder', 'optic', 'electronics', 'part', 'hardware'];
+  components.sort((a, b) => order.indexOf(a.info.role) - order.indexOf(b.info.role));
+  return { components: numbered(components) };
 }
 
 /** A module's mesh, ready to draw. Suspends while the file loads (wrap in Suspense). */
@@ -90,8 +133,12 @@ export function useModuleMesh(url: string): PreparedMesh {
   const { scene } = useGLTF(url);
   let mesh = prepared.get(scene);
   if (!mesh) prepared.set(scene, (mesh = prepare(scene)));
+  preparedByUrl.set(url, mesh);
   return mesh;
 }
+
+/** A loaded module's component, by key; `undefined` while its file has not been drawn. */
+export const componentOf = (url: string, key: string): MeshComponent | undefined => preparedByUrl.get(url)?.components.find((c) => c.info.key === key);
 
 /** Start fetching meshes before they are drawn. */
 export const preloadMeshes = (urls: string[]) => [...new Set(urls)].forEach((u) => useGLTF.preload(u));

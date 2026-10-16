@@ -1,8 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
+import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { Theme } from '@mui/material/styles';
 import type { ProjectSummary } from '../../../api/types';
 import type { Schematic } from '../../editor/model';
@@ -23,6 +26,8 @@ export interface ProjectDrawerProps {
   onPull?: (id: string, number: string, from: DOMRect) => void;
   /** A card whose document is showing; it waits, hidden, in the drawer. */
   hiddenId?: string | null;
+  /** Delete a project (one shared with the user leaves their drawer). The card next to it comes out instead. */
+  onDelete?: (id: string) => void;
 }
 
 /* Sizes in px. Each card shows a strip of STEP above the next one; a card pulled out rises by LIFT. */
@@ -189,7 +194,7 @@ function DrawerBox({ rows }: { rows: number }) {
  * is clicked, when it is dragged up by its tab, or as the mouse wheel turns.
  * Clicking the pulled card shows its document.
  */
-export function ProjectDrawer({ projects, drawings = {}, label, onPreview, onPull, hiddenId }: ProjectDrawerProps) {
+export function ProjectDrawer({ projects, drawings = {}, label, onPreview, onPull, hiddenId, onDelete }: ProjectDrawerProps) {
   const rows = toRows(projects);
   const [pulled, setPulled] = useState<string | null>(() => projects.find((p) => p.pinned)?.id ?? projects[0]?.id ?? null);
   // A card being dragged up: how far, in px.
@@ -200,6 +205,12 @@ export function ProjectDrawer({ projects, drawings = {}, label, onPreview, onPul
   const pulledRow = rows.findIndex((r) => r.kind === 'project' && r.project.id === pulled);
   const ids = rows.flatMap((r) => (r.kind === 'project' ? [r.project.id] : []));
   const numbers = Object.fromEntries(rows.flatMap((r) => (r.kind === 'project' ? [[r.project.id, r.number]] : [])));
+
+  const remove = (id: string) => {
+    const at = ids.indexOf(id);
+    setPulled(ids[at + 1] ?? ids[at - 1] ?? null);
+    onDelete?.(id);
+  };
 
   const pull = (id: string) => {
     setPulled(id);
@@ -376,6 +387,19 @@ export function ProjectDrawer({ projects, drawings = {}, label, onPreview, onPul
                   </Stack>
                 </Stack>
               </ButtonBase>
+              {/* Beside the card's button, not in it (a button cannot hold another), over the face's lower corner. */}
+              {onDelete && isPulled && hiddenId !== project.id && (
+                <Tooltip title={project.sharedBy ? 'Remove from your drawer' : 'Delete project'}>
+                  <IconButton
+                    size="small"
+                    aria-label={project.sharedBy ? `Remove ${project.name} from your drawer` : `Delete ${project.name}`}
+                    onClick={() => remove(project.id)}
+                    sx={{ position: 'absolute', top: LIFT - 36, right: 32, border: 1, borderColor: 'divider', bgcolor: 'background.paper', '&:hover': { color: 'error.main', borderColor: 'error.main', bgcolor: 'background.paper' } }}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
           </Box>
         );

@@ -49,6 +49,7 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'panel-parts', group: 'Panels', label: 'Open the parts list', run: () => a.openLeft('parts') },
     { id: 'panel-bom', group: 'Panels', label: 'Open the bill of materials', run: () => a.openLeft('bom') },
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => a.openRight('info') },
+    { id: 'closeup', group: 'Panels', label: 'Look at a part up close (split the canvas)', run: a.toggleCloseup },
     { id: 'settings', group: 'Panels', label: 'Open settings', shortcut: 'Ctrl ,', run: a.openSettings },
   ];
 }

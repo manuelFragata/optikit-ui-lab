@@ -66,6 +66,13 @@ describe('parts', () => {
     expect(layout3d(design([loose]), view(), () => mesh).parts[0]).toMatchObject({ look: 'symbol', mounted: false, cage: true, mesh: undefined });
   });
 
+  it('draw an ideal part as its symbol alone: no cube, at any fidelity', () => {
+    const ideal = part('A', { placement: { state: 'ideal' } });
+    for (const fidelity of ['symbols', 'cubes', 'solids'] as const) {
+      expect(layout3d(design([ideal]), view({ fidelity, cages: true }), () => mesh).parts[0]).toMatchObject({ look: 'symbol', cage: false, mesh: undefined });
+    }
+  });
+
   it('on the other layers are ghosts, or left out', () => {
     const d = design([part('A'), part('B', { z: 0 })]);
     expect(layout3d(d, view()).parts.map((p) => p.look)).toEqual(['placeholder', 'ghost']);

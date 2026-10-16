@@ -4,7 +4,7 @@
  * each call is one undo step. Tested in designEdits.test.ts.
  */
 import type { PartEntry } from '../../editor/AddPartSearch';
-import { frozen, isLocked, realize, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
+import { DESIGNED_HERE, frozen, isLocked, realize, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
 
 type Patch = (part: SchematicSymbol) => Partial<SchematicSymbol>;
 
@@ -55,7 +55,7 @@ export function copyParts(design: Schematic, ids: string[], by: { x?: number; y?
   return { design: addParts(design, copies), ids: newIds };
 }
 
-/** A new part from the library, at `at` on layer `z`: in a cube when it is a module, loose when it is a bare optic. */
+/** A new part from the library, at `at` on layer `z`: in a cube when it is a module, loose when it is a bare optic, ideal from the sketch. */
 export function newPart(entry: PartEntry, at: { x: number; y: number }, z: number, id: string, inputs: SymbolParam[] = []): SchematicSymbol {
   return {
     id,
@@ -68,16 +68,30 @@ export function newPart(entry: PartEntry, at: { x: number; y: number }, z: numbe
     placement:
       entry.mount === 'mounted'
         ? { state: 'in-cube', module: entry.label, source: entry.source, seat: 0 }
-        : { state: 'unmounted', part: entry.label, source: entry.source },
-    inputs,
+        : entry.mount === 'ideal'
+          ? { state: 'ideal' }
+          : entry.mount === 'designed'
+            ? { state: 'unmounted', part: entry.kind === 'mirror' ? 'Designed mirror' : 'Designed lens', source: DESIGNED_HERE }
+            : { state: 'unmounted', part: entry.label, source: entry.source },
+    inputs: entry.inputs ?? inputs,
+    ...(entry.prescription && { prescription: entry.prescription }),
     notes: '',
   };
 }
 
-/** Every unmounted part realized as the first module that fits it, or frozen into a holder made for it. */
+/**
+ * Every unmounted part realized as the first module that fits it, or frozen
+ * into a holder made for it. An ideal part is realized only by a module that
+ * fixes its inputs as they are (an f = 50 lens holder for an f = 50 lens);
+ * otherwise it waits for a part to be chosen for it.
+ */
 export const mountAll = (design: Schematic, modulesFor: (kind: SymbolKind) => ModuleOption[]): Schematic => ({
   ...design,
   symbols: design.symbols.map((s) => {
+    if (s.placement.state === 'ideal') {
+      const exact = modulesFor(s.kind).find((o) => o.fixes && Object.entries(o.fixes).every(([label, v]) => s.inputs?.find((i) => i.label === label)?.value === v));
+      return exact ? { ...s, ...realize(s, exact) } : s;
+    }
     if (s.placement.state !== 'unmounted') return s;
     const option = modulesFor(s.kind)[0];
     return option ? { ...s, ...realize(s, option) } : { ...s, placement: frozen(s.placement) };

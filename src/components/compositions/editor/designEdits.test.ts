@@ -59,4 +59,19 @@ describe('design edits', () => {
     expect(d.symbols.every((s) => s.placement.state === 'in-cube')).toBe(true);
     expect(mountAll(design(loose('A')), () => []).symbols[0].placement).toMatchObject({ state: 'in-cube', frozen: true });
   });
+
+  it('mount an ideal part only as a module that fixes its inputs as they are; otherwise it waits for a part', () => {
+    const f = (value: number) => [{ label: 'Focal length', value, unit: 'mm', min: 10, max: 300, step: 1 }];
+    const ideal = (id: string, focal: number) => part(id, { placement: { state: 'ideal' }, inputs: f(focal) });
+    const modules = () => [{ module: 'Lens holder, f = 50', source: 'Core Box', fixes: { 'Focal length': 50 } }];
+    const d = mountAll(design(ideal('A', 50), ideal('B', 75)), modules);
+    expect(d.symbols.map((s) => s.placement.state)).toEqual(['in-cube', 'ideal']);
+  });
+
+  it('place a sketched part as ideal, with its own inputs', () => {
+    const led = { id: 'led', label: 'Ideal LED', kind: 'laser' as const, mount: 'ideal' as const, source: 'Sketch', inputs: [{ label: 'Wavelength', value: 470, unit: 'nm', min: 360, max: 940, step: 1 }] };
+    const s = newPart(led, { x: 1, y: 2 }, 0, 'S1');
+    expect(s.placement).toEqual({ state: 'ideal' });
+    expect(s.inputs?.[0].value).toBe(470);
+  });
 });
