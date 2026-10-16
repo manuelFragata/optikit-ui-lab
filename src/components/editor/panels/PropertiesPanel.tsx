@@ -27,7 +27,7 @@ import { DisclosureSection } from '../../panels/DisclosureSection';
 import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
 import { Vec3Field } from '../../primitives/Vec3Field';
-import { frozen, isLocked, realized, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
+import { frozen, holderMismatch, isLocked, realize, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
 
 export type { ModuleOption };
 
@@ -56,12 +56,13 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
   const p = symbol.placement;
   const mounted = p.state === 'in-cube';
 
-  const realize = (option: ModuleOption) => {
+  const realizeAs = (option: ModuleOption) => {
     setMenu(null);
-    onChange({ placement: realized(option) });
+    onChange(realize(symbol, option));
   };
   const freeze = () => onChange({ placement: frozen(p) });
   const unbind = () => onChange({ placement: unbound(symbol) });
+  const mismatch = holderMismatch(symbol, realizeOptions);
 
   return (
     <Stack spacing={1.25}>
@@ -91,6 +92,23 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
       </Stack>
 
       <TagChip label={mounted ? (p.state === 'in-cube' && p.frozen ? 'In a cube · frozen holder' : 'In a cube') : 'Not mounted yet'} tone={mounted ? 'success' : 'warning'} dot sx={{ alignSelf: 'flex-start' }} />
+
+      {mismatch && (
+        <Box role="alert" sx={{ p: 1, borderRadius: 1, bgcolor: 'warning.soft', color: 'warning.onSoft' }}>
+          <Typography variant="body2">
+            {mismatch.inputs.map((i) => `The holder takes ${i.label.toLowerCase()} ${i.module} ${i.unit}; this part is set to ${i.part} ${i.unit}.`).join(' ')}
+          </Typography>
+          {mismatch.fits ? (
+            <Button size="small" variant="outlined" color="inherit" startIcon={<SwapHorizIcon fontSize="small" />} onClick={() => onChange(realize(symbol, mismatch.fits!))} sx={{ mt: 1 }}>
+              Swap for {mismatch.fits.module}
+            </Button>
+          ) : (
+            <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+              No module fits it yet: unbind it, then freeze a holder for it.
+            </Typography>
+          )}
+        </Box>
+      )}
 
       {p.state === 'in-cube' && (
         <Box>
@@ -146,7 +164,7 @@ function PlacementSection({ symbol, realizeOptions = [], onChange }: { symbol: S
       <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
         {realizeOptions.length === 0 && <MenuItem disabled>No matching module</MenuItem>}
         {realizeOptions.map((o) => (
-          <MenuItem key={o.module} onClick={() => realize(o)}>
+          <MenuItem key={o.module} onClick={() => realizeAs(o)}>
             <ListItemText primary={o.module} secondary={`${o.source}${o.version ? ` · v${o.version}` : ''}`} />
           </MenuItem>
         ))}
@@ -166,6 +184,28 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** The part's name, as the views show it: kept on Enter or when the field is left (one undo step), Esc puts it back. */
+function NameField({ name, onRename }: { name: string; onRename: (name: string) => void }) {
+  const [draft, setDraft] = useState(name);
+  const commit = () => (draft.trim() && draft.trim() !== name ? onRename(draft.trim()) : setDraft(name));
+  return (
+    <TextField
+      label="Name"
+      size="small"
+      fullWidth
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        e.stopPropagation(); // the editor's shortcuts are not for this field
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') setDraft(name);
+      }}
+      sx={{ mb: 0.75 }}
+    />
+  );
+}
+
 /** Contextual properties of the selected part. */
 export function PropertiesPanel({ symbol, onChange, realizeOptions }: PropertiesPanelProps) {
   if (!symbol) {
@@ -181,6 +221,8 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions }: Properties
   return (
     <Box>
       <Stack spacing={0.75} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+        {/* Keyed by the name too: renamed from elsewhere (a module swap), the field starts over. */}
+        <NameField key={`${symbol.id}:${symbol.label}`} name={symbol.label} onRename={(label) => onChange({ label })} />
         <Detail label="Part" value={symbol.id} />
         <Detail label="Type" value={symbol.type} />
         <Detail label="Layer" value={`z = ${symbol.z}`} />

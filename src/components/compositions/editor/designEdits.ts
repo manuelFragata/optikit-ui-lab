@@ -4,7 +4,7 @@
  * each call is one undo step. Tested in designEdits.test.ts.
  */
 import type { PartEntry } from '../../editor/AddPartSearch';
-import { frozen, isLocked, realized, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
+import { frozen, isLocked, realize, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
 
 type Patch = (part: SchematicSymbol) => Partial<SchematicSymbol>;
 
@@ -80,6 +80,6 @@ export const mountAll = (design: Schematic, modulesFor: (kind: SymbolKind) => Mo
   symbols: design.symbols.map((s) => {
     if (s.placement.state !== 'unmounted') return s;
     const option = modulesFor(s.kind)[0];
-    return { ...s, placement: option ? realized(option) : frozen(s.placement) };
+    return option ? { ...s, ...realize(s, option) } : { ...s, placement: frozen(s.placement) };
   }),
 });

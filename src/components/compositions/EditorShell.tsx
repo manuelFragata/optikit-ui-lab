@@ -15,6 +15,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import { useTheme, type Theme } from '@mui/material/styles';
 import { demoInputs, demoModules, demoPalette, demoSchematic } from '../../demo/editorContent';
 import { meshForPart } from '../../demo/meshes';
 import { demoUser } from '../../demo/user';
@@ -22,7 +23,7 @@ import { usePreferences } from '../../settings/preferences';
 import { useLightFor } from '../editor/light';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
 import { CanvasToolbar } from '../editor/CanvasToolbar';
-import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type ViewOptions } from '../editor/viewOptions';
+import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from '../editor/viewOptions';
 import { CommandPalette } from '../editor/CommandPalette';
 import { LayerPreview } from '../editor/LayerPreview';
 import type { Move, Schematic, SchematicSymbol } from '../editor/model';
@@ -360,8 +361,20 @@ export function EditorShell({
       ? `Let go to place ${placing.entry.label} on z${layer} · Shift: off the grid`
       : `Click to place ${placing.entry.label} on z${layer} · Shift: off the grid · Ctrl-click to place more · Esc to stop`;
 
-  // The right panel floats over the canvas when expanded: the dock and the layer preview step aside for it.
-  const panelOut = rightState === 'expanded';
+  // An expanded side panel floats over the canvas: the toolbar, the dock and the layer preview step aside for it.
+  const leftOut = leftState === 'expanded';
+  const rightOut = rightState === 'expanded';
+  /** How far an expanded panel reaches into the canvas, with its margin. */
+  const panelReach = (t: Theme) => `(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(1)})`;
+  /** The middle of the canvas the panels leave free. */
+  const freeCentre = (t: Theme) => `calc(50% + ${leftOut ? panelReach(t) : '0px'} / 2 - ${rightOut ? panelReach(t) : '0px'} / 2)`;
+  // The hint, centred in the free canvas; a row lower when the left panel is out, so it clears the toolbar.
+  const theme = useTheme();
+  const hintPlace: HintPlace = {
+    left: freeCentre(theme),
+    top: theme.spacing(leftOut ? 8.5 : 2.5),
+    maxWidth: `calc(100% - ${leftOut ? panelReach(theme) : '0px'} - ${rightOut ? panelReach(theme) : '0px'} - ${theme.spacing(4)})`,
+  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
@@ -425,8 +438,8 @@ export function EditorShell({
                 onSelectMany={onCanvasSelectMany}
                 onInspect={inspect}
                 command={camera3d}
-                toolbar={toolbar}
                 hint={HINT_3D}
+                hintPlace={hintPlace}
                 selectionActions={selectionActions}
               />
             </Suspense>
@@ -444,7 +457,7 @@ export function EditorShell({
               prefs={prefs}
               hint={hint2d}
               hintAt="top"
-              toolbar={toolbar}
+              hintPlace={hintPlace}
               camera={camera2d}
               onCamera={setCamera2d}
               tool={tool}
@@ -456,13 +469,26 @@ export function EditorShell({
             />
           )}
 
-          {/* The dock floats at the bottom of the canvas, CAD style, centred in the canvas the panel leaves free. */}
+          {/* 2D or 3D, and search: top left, beside the left panel when it is out. */}
+          <Box
+            sx={(t) => ({
+              position: 'absolute',
+              top: t.spacing(1.5),
+              left: leftOut ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(1.5),
+              zIndex: 3,
+              transition: `left ${STEP_ASIDE}`,
+            })}
+          >
+            {toolbar}
+          </Box>
+
+          {/* The dock floats at the bottom of the canvas, CAD style, centred in the canvas the panels leave free. */}
           <Box
             onPointerEnter={() => setFront('dock')}
             onFocus={() => setFront('dock')}
             sx={(t) => ({
               position: 'absolute',
-              left: panelOut ? `calc(50% - (${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(1)}) / 2)` : '50%',
+              left: freeCentre(t),
               bottom: t.spacing(2),
               transform: 'translateX(-50%)',
               zIndex: front === 'dock' ? 2 : 1,
@@ -488,6 +514,7 @@ export function EditorShell({
               zoom={zoom}
               onZoom={zoom2d}
               onCamera={move3d}
+              empty={design.symbols.length === 0}
               unmounted={unmounted.map((s) => ({ id: s.id, label: s.label }))}
               onShowPart={(id) => {
                 setFlyout(null);
@@ -503,13 +530,13 @@ export function EditorShell({
             onFocus={() => setFront('layers')}
             sx={(t) => ({
               position: 'absolute',
-              right: panelOut ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(2),
+              right: rightOut ? `calc(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(3)})` : t.spacing(2),
               bottom: t.spacing(2),
               zIndex: front === 'layers' ? 2 : 1,
               transition: `right ${STEP_ASIDE}`,
             })}
           >
-            <LayerPreview schematic={design} layers={layers} layer={layer} onLayer={setLayer} selectedIds={ids} crowded={panelOut} />
+            <LayerPreview schematic={design} layers={layers} layer={layer} onLayer={setLayer} selectedIds={ids} crowded={rightOut} />
           </Box>
         </Box>
 

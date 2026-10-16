@@ -2,7 +2,7 @@
  * Placeholder design for the editor stories: the BF+Fluor FRAME optical core.
  * Not part of the component set; replace freely.
  */
-import type { Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
+import type { ModuleOption, Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
 import type { VersionEntryData } from '../components/editor/panels/HistoryPanel';
 import type { ProjectFileData } from '../components/views/file/ProjectFiles';
 
@@ -217,14 +217,17 @@ export const demoInputs: Record<SymbolKind, SymbolParam[]> = {
 };
 
 /** Existing modules a part of each kind can be realized as (swapped for). */
-export const demoModules: Record<SymbolKind, { module: string; source: string; version?: string }[]> = {
-  laser: [{ module: 'Laser 488 module', source: 'Fluor Box', version: '1.1.0' }, { module: 'Laser cube 520 nm', source: 'Q Box' }],
-  mirror: [{ module: 'Mirror cube 45°', source: 'Core Box', version: '2.0.1' }, { module: 'Kinematic mirror cube', source: 'Q Box' }],
-  dichroic: [{ module: 'Dichroic holder', source: 'Fluor Box', version: '1.2.0' }],
-  lens: [
-    { module: 'Lens holder, f = 50', source: 'Core Box', version: '1.4.0' },
-    { module: 'Lens holder, f = 100', source: 'Core Box', version: '1.4.0' },
+export const demoModules: Record<SymbolKind, ModuleOption[]> = {
+  laser: [
+    { module: 'Laser 488 module', source: 'openUC2 Fluor Box', version: '1.1.0', fixes: { Wavelength: 488 } },
+    { module: 'Laser cube 520 nm', source: 'openUC2 Q Box', fixes: { Wavelength: 520 } },
   ],
-  objective: [{ module: 'RMS objective insert', source: 'Core Box', version: '2.3.0' }],
-  camera: [{ module: 'IMX477 camera', source: 'Core Box', version: '1.0.4' }],
+  mirror: [{ module: 'Mirror cube 45°', source: 'openUC2 Core Box', version: '2.0.1' }, { module: 'Kinematic mirror cube', source: 'openUC2 Q Box' }],
+  dichroic: [{ module: 'Dichroic holder', source: 'openUC2 Fluor Box', version: '1.2.0' }],
+  lens: [
+    { module: 'Lens holder, f = 50', source: 'openUC2 Core Box', version: '1.4.0', fixes: { 'Focal length': 50 } },
+    { module: 'Lens holder, f = 100', source: 'openUC2 Core Box', version: '1.4.0', fixes: { 'Focal length': 100 } },
+  ],
+  objective: [{ module: 'RMS objective insert', source: 'openUC2 Core Box', version: '2.3.0' }],
+  camera: [{ module: 'IMX477 camera', source: 'openUC2 Core Box', version: '1.0.4' }],
 };

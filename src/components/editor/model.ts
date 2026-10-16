@@ -25,10 +25,40 @@ export interface ModuleOption {
   module: string;
   source: string;
   version?: string;
+  /** Inputs the module fixes, by label: a lens holder's focal length. */
+  fixes?: Readonly<Record<string, number>>;
 }
 
-/** Realize: swap the part for an existing module, in its cube. */
-export const realized = (option: ModuleOption): Placement => ({ state: 'in-cube', ...option, seat: 0 });
+/** The name the part has in the catalogue: its module, or the optic on its own. */
+export const catalogueName = (p: Placement) => (p.state === 'in-cube' ? p.module : p.part);
+
+/**
+ * Realize: swap the part for an existing module, in its cube (a part already in a cube keeps its seat).
+ * The part takes the inputs the module fixes, and its name and type follow the module unless they were changed.
+ */
+export function realize(s: Pick<SchematicSymbol, 'label' | 'type' | 'placement' | 'inputs'>, option: ModuleOption): Partial<SchematicSymbol> {
+  const { fixes, ...module } = option;
+  const old = catalogueName(s.placement);
+  const seat = s.placement.state === 'in-cube' ? s.placement.seat : 0;
+  return {
+    placement: { state: 'in-cube', ...module, seat },
+    ...(s.label === old && { label: option.module }),
+    ...(s.type === old && { type: option.module }),
+    ...(fixes && s.inputs && { inputs: s.inputs.map((i) => (i.label in fixes ? { ...i, value: fixes[i.label] } : i)) }),
+  };
+}
+
+/** Where the part's inputs differ from what its module fixes: a lens set to f = 100 in an f = 50 holder. */
+export function holderMismatch(s: Pick<SchematicSymbol, 'placement' | 'inputs'>, options: ModuleOption[]) {
+  const p = s.placement;
+  const fixes = p.state === 'in-cube' ? options.find((o) => o.module === p.module)?.fixes : undefined;
+  if (!fixes) return null;
+  const off = (s.inputs ?? []).filter((i) => i.label in fixes && i.value !== fixes[i.label]);
+  if (!off.length) return null;
+  // The module that fixes the inputs as the part has them, when there is one.
+  const fits = options.find((o) => o.fixes && Object.entries(o.fixes).every(([label, v]) => s.inputs?.find((i) => i.label === label)?.value === v));
+  return { inputs: off.map((i) => ({ label: i.label, unit: i.unit, part: i.value, module: fixes[i.label] })), fits };
+}
 
 /** Freeze: generate a holder for an unmounted optic, here. */
 export const frozen = (p: Placement): Placement =>
@@ -171,7 +201,7 @@ export function samplePoint(objective: SchematicSymbol) {
   return { x: objective.x + f.x * SAMPLE_OFFSET, y: objective.y + f.y * SAMPLE_OFFSET };
 }
 
-export function symbolBounds(s: SchematicSymbol) {
+export function symbolBounds(s: Pick<SchematicSymbol, 'kind' | 'x' | 'y'>) {
   const b = GLYPH_BOUNDS[s.kind];
   return { x: s.x + b.x, y: -s.y + b.y, w: b.w, h: b.h };
 }

@@ -29,10 +29,10 @@ export function EditorStatusBar({ design, selected, selectedCount, unmounted, vi
   const parts = design.symbols.length;
   return (
     <StatusBar
-      tone={unmounted > 0 ? 'warning' : 'success'}
+      tone={parts === 0 ? 'neutral' : unmounted > 0 ? 'warning' : 'success'}
       status={
         <ButtonBase onClick={onShowParts} sx={{ borderRadius: 1, px: 0.5, typography: 'caption', '&:hover': { color: 'text.primary' } }}>
-          {unmounted > 0 ? `${unmounted} ${unmounted === 1 ? 'part' : 'parts'} not mounted yet` : 'Every part is in a cube · buildable'}
+          {parts === 0 ? 'No parts yet' : unmounted > 0 ? `${unmounted} ${unmounted === 1 ? 'part' : 'parts'} not mounted yet` : 'Every part is in a cube · buildable'}
         </ButtonBase>
       }
       start={

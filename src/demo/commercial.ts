@@ -5,7 +5,8 @@
  */
 import type { Bom } from '../components/editor/bom';
 import type { Light } from '../components/editor/light';
-import type { Schematic } from '../components/editor/model';
+import { holderMismatch, type Schematic } from '../components/editor/model';
+import { demoModules } from './editorContent';
 import type { QuoteCheck, SupplyList } from '../components/views/commercial/quote';
 
 /** What each module or optic costs us, and how long it takes to get. The Laser 488 module has no price (see prices.ts), but a cost. */
@@ -59,12 +60,19 @@ function nyquist(design: Schematic): QuoteCheck {
 
 /** The checks before a quote goes out. */
 export function demoChecks(design: Schematic, bom: Bom, light: Light): QuoteCheck[] {
+  if (design.symbols.length === 0) return [{ label: 'Parts', state: 'warn', detail: 'The design has no parts yet.' }];
   const unmounted = design.symbols.filter((s) => s.placement.state === 'unmounted');
+  const misfits = design.symbols.filter((s) => holderMismatch(s, demoModules[s.kind]));
   return [
     {
       label: 'Every part is in a cube',
       state: unmounted.length ? 'warn' : 'ok',
       detail: unmounted.length ? `${unmounted.map((s) => s.label).join(', ')} still ${unmounted.length === 1 ? 'needs' : 'need'} a holder.` : 'Buildable as it is.',
+    },
+    {
+      label: 'Every holder fits its optic',
+      state: misfits.length ? 'warn' : 'ok',
+      detail: misfits.length ? `${misfits.map((s) => s.label).join(', ')}: set differently from ${misfits.length === 1 ? 'its holder' : 'their holders'}.` : 'Each module matches what its part is set to.',
     },
     {
       label: 'Every line has a price',
@@ -73,8 +81,13 @@ export function demoChecks(design: Schematic, bom: Bom, light: Light): QuoteChec
     },
     {
       label: 'Light reaches every part',
-      state: light.misses.length ? 'warn' : 'ok',
-      detail: light.misses.length ? light.misses.map((m) => `${m.ray.label} misses ${m.label}`).join('; ') + '.' : 'Every light path is complete.',
+      state: design.rays.length === 0 || light.misses.length ? 'warn' : 'ok',
+      detail:
+        design.rays.length === 0
+          ? 'The design has no light path yet.'
+          : light.misses.length
+            ? light.misses.map((m) => `${m.ray.label} misses ${m.label}`).join('; ') + '.'
+            : 'Every light path is complete.',
     },
     nyquist(design),
     { label: 'Clear aperture', state: 'later', detail: 'Checked by the optics engine.' },

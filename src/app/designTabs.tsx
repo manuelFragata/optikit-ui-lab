@@ -2,7 +2,9 @@
  * The File and Commercial tabs for the open design: the views wired to the
  * lab's demo data. In the product these are where the services come in
  * (accounts, versions, the shop); the views themselves stay as they are.
+ * A project made in this visit has no demo history: it shows its own.
  */
+import type { ProjectSummary } from '../api/types';
 import { demoChecks, demoCustomer, demoLabourRate, demoSupply } from '../demo/commercial';
 import { demoDesignInfo, demoFiles, demoHistory } from '../demo/editorContent';
 import { demoPeople, demoShareLink } from '../demo/fileContent';
@@ -22,6 +24,8 @@ interface DesignTabProps {
   version?: string;
   /** The design as it is now, with the edits made in View. */
   schematic: Schematic;
+  /** Set for a project made in this visit (new, a copy or imported). */
+  project?: ProjectSummary;
   /** Tell the person what happened. */
   onNotice: (text: string) => void;
 }
@@ -34,15 +38,27 @@ export interface FileTabProps extends DesignTabProps {
   onAddProject: (name: string, schematic: Schematic) => void;
 }
 
-export function FileTab({ id, name, version, schematic, onNotice, onAddProject, ...actions }: FileTabProps) {
+/** What a project made in this visit starts with: itself, one version, its owner, its design file, and no licence chosen yet. */
+function newProjectFile(project: ProjectSummary, name: string, schematic: Schematic) {
+  const size = `${Math.max(1, Math.round(designFileText(schematic).length / 1024))} KB`;
+  return {
+    info: { description: project.description, maintainer: project.maintainer, created: 'today', license: '', tags: project.tags },
+    files: [{ id: 'design', name: `${name}${DESIGN_FILE_EXTENSION}`, kind: 'design' as const, size, updated: project.updated }],
+    versions: [{ version: project.version, hash: project.id.slice(-7), message: 'Created', when: project.updated, author: project.maintainer, changes: [`${schematic.symbols.length} parts`] }],
+    people: demoPeople.filter((p) => p.role === 'owner'),
+  };
+}
+
+export function FileTab({ id, name, version, schematic, project, onNotice, onAddProject, ...actions }: FileTabProps) {
+  const own = project && newProjectFile(project, name, schematic);
   return (
     <FileView
       name={name}
       version={version}
-      info={demoDesignInfo}
-      files={demoFiles}
-      versions={demoHistory}
-      people={demoPeople}
+      info={own?.info ?? demoDesignInfo}
+      files={own?.files ?? demoFiles}
+      versions={own?.versions ?? demoHistory}
+      people={own?.people ?? demoPeople}
       link={demoShareLink(id)}
       {...actions}
       onRename={(newName) => {
@@ -73,7 +89,7 @@ export function FileTab({ id, name, version, schematic, onNotice, onAddProject, 
   );
 }
 
-export function CommercialTab({ name, version, schematic, onNotice }: DesignTabProps) {
+export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {
   const lightFor = useLightFor();
   const bom = buildBom(schematic, demoPrices);
   return (
@@ -84,7 +100,7 @@ export function CommercialTab({ name, version, schematic, onNotice }: DesignTabP
       supply={demoSupply}
       labourRate={demoLabourRate}
       checks={demoChecks(schematic, bom, lightFor(schematic))}
-      customer={demoCustomer}
+      customer={project ? undefined : demoCustomer}
       onSend={({ customer, total }) => onNotice(`Quote for ${formatEur(total)} sent to ${customer.email}, with a 3D link.`)}
       onCreateOdoo={() => onNotice('A draft quotation would be made in Odoo, with the design attached.')}
       onDownloadCsv={() => download(bomFileName(name), bomCsv(bom), 'text/csv')}

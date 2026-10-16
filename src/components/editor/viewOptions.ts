@@ -28,3 +28,10 @@ export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
   showRayLabels: true,
   showCages: true,
 };
+
+/** Where a canvas puts its hint, in CSS: `left` is its centre, `top` its top edge; wider than `maxWidth`, it wraps. The editor moves it clear of the side panels and the toolbar. */
+export interface HintPlace {
+  left: string;
+  top: string;
+  maxWidth: string;
+}

@@ -13,6 +13,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { RayColors } from '../../../theme/tokens';
 import type { Size } from '../../../settings/preferences';
+import type { HintPlace } from '../viewOptions';
 import { toThree, type PlacedLabel, type Vec3 } from './layout3d';
 import type { Rect } from './useBoxSelect';
 
@@ -126,14 +127,16 @@ export function Marquee({ rect }: { rect: Rect }) {
 }
 
 /** The hint at the top of the canvas. */
-export function Hint({ children }: { children: ReactNode }) {
+export function Hint({ children, place }: { children: ReactNode; place?: HintPlace }) {
   return (
     <Paper
       variant="outlined"
       sx={{
         position: 'absolute',
-        left: '50%',
-        top: (t) => t.spacing(2.5),
+        left: place?.left ?? '50%',
+        top: (t) => place?.top ?? t.spacing(2.5),
+        maxWidth: place?.maxWidth,
+        width: place ? 'max-content' : undefined,
         transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
@@ -142,7 +145,7 @@ export function Hint({ children }: { children: ReactNode }) {
         py: 1,
         borderRadius: (t) => `${t.radius.tile}px`,
         pointerEvents: 'none',
-        whiteSpace: 'nowrap',
+        whiteSpace: place ? 'normal' : 'nowrap',
         zIndex: 3,
       }}
     >

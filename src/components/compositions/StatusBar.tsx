@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 export interface StatusBarProps {
   status?: ReactNode;
   /** Colour of the status dot. */
-  tone?: 'success' | 'warning';
+  tone?: 'success' | 'warning' | 'neutral';
   /** Left-aligned readouts (e.g. cursor position). */
   start?: ReactNode;
   /** Right-aligned readouts (e.g. zoom, units). */
@@ -34,7 +34,7 @@ export function StatusBar({ status = 'Ready', tone = 'success', start, end }: St
       <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
         <Box
           aria-hidden
-          sx={{ width: (theme) => theme.spacing(1), height: (theme) => theme.spacing(1), borderRadius: '50%', bgcolor: `${tone}.main` }}
+          sx={{ width: (theme) => theme.spacing(1), height: (theme) => theme.spacing(1), borderRadius: '50%', bgcolor: tone === 'neutral' ? 'text.disabled' : `${tone}.main` }}
         />
         {typeof status === 'string' ? <Typography variant="caption">{status}</Typography> : status}
       </Stack>

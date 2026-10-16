@@ -15,7 +15,7 @@ import Box from '@mui/material/Box';
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../../settings/preferences';
-import type { CanvasTool, ViewOptions } from '../viewOptions';
+import type { CanvasTool, HintPlace, ViewOptions } from '../viewOptions';
 import { withMove, type Move, type Schematic, type SchematicSymbol } from '../model';
 import { useLightFor } from '../light';
 import { Camera, type CameraCommand } from './Camera';
@@ -56,12 +56,14 @@ export interface DesignScene3DProps {
   /** Floats above the selection (see SelectionActions). */
   selectionActions?: ReactNode;
   hint?: string;
+  /** Where the hint sits, when the editor places it. */
+  hintPlace?: HintPlace;
 }
 
 /** The action bar's key among the projected points (label keys are part ids, `ray-…` and `layer`). */
 const ANCHOR = 'selection-anchor';
 
-export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFERENCES, fidelity, selectedIds, tool, snap, onMove, meshFor, onSelect, onSelectMany, onInspect, command, toolbar, selectionActions, hint }: DesignScene3DProps) {
+export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFERENCES, fidelity, selectedIds, tool, snap, onMove, meshFor, onSelect, onSelectMany, onInspect, command, toolbar, selectionActions, hint, hintPlace }: DesignScene3DProps) {
   const colors = useSceneColors();
   const frame = useRef<HTMLDivElement>(null);
 
@@ -211,11 +213,11 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
       )}
       {toolbar && <Box sx={{ position: 'absolute', top: (t) => t.spacing(1.5), left: (t) => t.spacing(1.5), zIndex: 3 }}>{toolbar}</Box>}
       {drag.dragging ? (
-        <Hint>{`${drag.dragging.free ? 'Off the grid' : 'On the grid'} · Shift: ${drag.dragging.free ? 'snap' : 'off the grid'} · Alt: drop copies · Esc: put back`}</Hint>
+        <Hint place={hintPlace}>{`${drag.dragging.free ? 'Off the grid' : 'On the grid'} · Shift: ${drag.dragging.free ? 'snap' : 'off the grid'} · Alt: drop copies · Esc: put back`}</Hint>
       ) : box.rect ? (
-        <Hint>Everything the box covers · Shift adds to the selection</Hint>
+        <Hint place={hintPlace}>Everything the box covers · Shift adds to the selection</Hint>
       ) : (
-        hint && selectedIds.length === 0 && <Hint>{hint}</Hint>
+        hint && selectedIds.length === 0 && <Hint place={hintPlace}>{hint}</Hint>
       )}
     </Box>
   );

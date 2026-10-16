@@ -71,6 +71,8 @@ export interface ViewDockProps {
   /** 3D: move the camera to a view, or fit. */
   onCamera?: (move: CameraMove) => void;
 
+  /** No parts at all: nothing to build yet. */
+  empty?: boolean;
   /** The parts not mounted yet; none means buildable. */
   unmounted: { id: string; label: string }[];
   onShowPart: (id: string) => void;
@@ -212,6 +214,7 @@ export function ViewDock(props: ViewDockProps) {
   const schematic = view === '2d';
   const currentDetail = DETAILS.find((d) => d.value === detail) ?? DETAILS[2];
   const buildable = unmounted.length === 0;
+  const empty = props.empty ?? false;
 
   return (
     <ClickAwayListener onClickAway={() => flyout && onFlyout(null)}>
@@ -308,7 +311,7 @@ export function ViewDock(props: ViewDockProps) {
           content={
             <Box sx={{ width: 260 }}>
               <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.75 }}>
-                {buildable ? 'Every part is in a cube. The design can be built.' : 'These parts have no holder yet. Pick one to go to it.'}
+                {empty ? 'No parts yet. Add one with + (or A).' : buildable ? 'Every part is in a cube. The design can be built.' : 'These parts have no holder yet. Pick one to go to it.'}
               </Typography>
               {unmounted.map((u) => (
                 <FlyoutRow key={u.id} label={u.label} icon={<WarningAmberIcon fontSize="small" sx={{ color: 'warning.main' }} />} hint={u.id} onClick={() => props.onShowPart(u.id)} />
@@ -323,10 +326,16 @@ export function ViewDock(props: ViewDockProps) {
             </Box>
           }
         >
-          <DockButton label={buildable ? 'Buildable' : 'Not mounted yet'} flyout on={flyout === 'build'} onClick={() => toggle('build')} sx={{ px: 1, gap: 0.75 }}>
-            {buildable ? <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} /> : <WarningAmberIcon fontSize="small" sx={{ color: 'warning.main' }} />}
-            <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-              {buildable ? 'Buildable' : `${unmounted.length} not mounted`}
+          <DockButton label={empty ? 'No parts yet' : buildable ? 'Buildable' : 'Not mounted yet'} flyout on={flyout === 'build'} onClick={() => toggle('build')} sx={{ px: 1, gap: 0.75 }}>
+            {empty ? (
+              <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+            ) : buildable ? (
+              <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} />
+            ) : (
+              <WarningAmberIcon fontSize="small" sx={{ color: 'warning.main' }} />
+            )}
+            <Typography variant="body2" sx={{ color: empty ? 'text.secondary' : 'text.primary', whiteSpace: 'nowrap' }}>
+              {empty ? 'No parts yet' : buildable ? 'Buildable' : `${unmounted.length} not mounted`}
             </Typography>
           </DockButton>
         </WithFlyout>

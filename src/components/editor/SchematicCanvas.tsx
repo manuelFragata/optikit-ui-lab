@@ -11,7 +11,7 @@ import { facing, samplePoint, symbolBounds, withMove, type Move, type Schematic,
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
-import { VIEW_LABELS, type CanvasTool, type EditorView, type ViewOptions } from './viewOptions';
+import { VIEW_LABELS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from './viewOptions';
 
 /** What the editor looks at: the zoom (1 = 100%) and the point in the middle, in grid units (y down). */
 export interface Camera {
@@ -53,6 +53,8 @@ export interface SchematicCanvasProps {
   hint?: string | false;
   /** Where the hint sits: the bottom, or the top when something else (the view dock) holds the bottom. */
   hintAt?: 'top' | 'bottom';
+  /** Where exactly, when the editor places it (over `hintAt`). */
+  hintPlace?: HintPlace;
 
   /**
    * The editor's camera, moved with the pan tool, the zoom tool and the
@@ -187,6 +189,7 @@ export function SchematicCanvas({
   fit = false,
   hint = 'Select a part to see its properties',
   hintAt = 'bottom',
+  hintPlace,
   layer,
   camera,
   onCamera,
@@ -655,15 +658,18 @@ export function SchematicCanvas({
               );
             })()}
 
-            {/* the part being placed, under the cursor */}
-            {placing && pointer && (
-              <Box component="g" sx={{ color: 'primary.main', pointerEvents: 'none' }} opacity={0.7}>
-                <rect x={pointer.x - 1.1} y={pointer.y - 1.1} width={2.2} height={2.2} rx={0.15} stroke="currentColor" strokeDasharray="3 3" strokeWidth={1} {...line} />
-                <g transform={`translate(${pointer.x} ${pointer.y})`} stroke="currentColor" strokeWidth={1.5} fill="none">
-                  <SymbolGlyphNonScaling kind={placing.kind} />
-                </g>
-              </Box>
-            )}
+            {/* the part being placed, under the cursor, in the cube it will have */}
+            {placing && pointer && (() => {
+              const cage = cageOf(symbolBounds({ kind: placing.kind, x: pointer.x, y: -pointer.y }));
+              return (
+                <Box component="g" sx={{ color: 'primary.main', pointerEvents: 'none' }} opacity={0.7}>
+                  <rect x={cage.x} y={cage.y} width={cage.side} height={cage.side} rx={0.15} stroke="currentColor" strokeDasharray="3 3" strokeWidth={1} {...line} />
+                  <g transform={`translate(${pointer.x} ${pointer.y})`} stroke="currentColor" strokeWidth={1.5} fill="none">
+                    <SymbolGlyphNonScaling kind={placing.kind} />
+                  </g>
+                </Box>
+              );
+            })()}
 
             {/* the measure: from the first click to the second, or to the cursor */}
             {tool === 'measure' && measure && <Measure a={measure.a} b={measure.b ?? pointer} unitMm={schematic.unitMm} />}
@@ -730,8 +736,8 @@ export function SchematicCanvas({
           variant="outlined"
           sx={{
             position: 'absolute',
-            left: '50%',
-            [hintAt]: (t: Theme) => t.spacing(2.5),
+            left: hintPlace?.left ?? '50%',
+            ...(hintPlace ? { top: hintPlace.top, maxWidth: hintPlace.maxWidth, width: 'max-content' } : { [hintAt]: (t: Theme) => t.spacing(2.5) }),
             transform: 'translateX(-50%)',
             display: 'flex',
             alignItems: 'center',
@@ -740,7 +746,7 @@ export function SchematicCanvas({
             py: 1,
             borderRadius: (t) => `${t.radius.tile}px`,
             pointerEvents: 'none',
-            whiteSpace: 'nowrap',
+            whiteSpace: hintPlace ? 'normal' : 'nowrap',
           }}
         >
           <NearMeOutlinedIcon fontSize="small" sx={{ transform: 'scaleX(-1)', color: 'text.secondary' }} />

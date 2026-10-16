@@ -19,7 +19,7 @@ import RotateRightIcon from '@mui/icons-material/RotateRight';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import TuneIcon from '@mui/icons-material/Tune';
 import { floatingCardSx } from '../panels/floatingCard';
-import { frozen, isLocked, realized, shifted, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from './model';
+import { frozen, isLocked, realize, shifted, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from './model';
 
 export interface SelectionActionsProps {
   /** The selected parts: one, or several. */
@@ -129,7 +129,7 @@ export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties
             key={o.module}
             onClick={() => {
               setMenu(null);
-              onUpdate(() => ({ placement: realized(o) }));
+              onUpdate((s) => realize(s, o));
             }}
           >
             <ListItemText primary={o.module} secondary={o.source} />

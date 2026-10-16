@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -73,9 +74,10 @@ function startingSchematic(start: ProjectStart): Schematic {
   return DRAWINGS[start.id] ?? demoSchematic;
 }
 
-function findDesign(id: string, created: CreatedProject[] = []): { name: string; version: string; schematic: Schematic; empty: boolean } | null {
+/** A design to open: `project` is set for one made in this visit (new, a copy or imported), which has no demo history. */
+function findDesign(id: string, created: CreatedProject[] = []): { name: string; version: string; schematic: Schematic; empty: boolean; project?: ProjectSummary } | null {
   const made = created.find((c) => c.summary.id === id);
-  if (made) return { name: made.summary.name, version: made.summary.version, schematic: made.schematic, empty: made.schematic.symbols.length === 0 };
+  if (made) return { name: made.summary.name, version: made.summary.version, schematic: made.schematic, empty: made.schematic.symbols.length === 0, project: made.summary };
   if (id === 'new') return { name: 'Untitled design', version: '0.0.1', schematic: emptySchematic, empty: true };
   const example = exampleDesigns.find((e) => e.id === id);
   if (example) return { name: example.title, version: '1.0.0', schematic: example.schematic, empty: false };
@@ -116,6 +118,25 @@ function UpcomingView({ tab }: { tab: WorkspaceTab }) {
     <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', height: '100%', p: 4, textAlign: 'center' }}>
       <Typography variant="h5">{TAB_LABELS[tab]}</Typography>
       <Typography color="text.secondary">{UPCOMING[tab]}</Typography>
+    </Stack>
+  );
+}
+
+/** Projects, signed out: they live in an account; Explore is open to everyone. */
+function SignInForProjects({ onAuth, onExplore }: { onAuth: (mode: AuthMode) => void; onExplore: () => void }) {
+  return (
+    <Stack spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'center', height: '100%', p: 4, textAlign: 'center' }}>
+      <Typography variant="h5">Your projects live in your account</Typography>
+      <Typography color="text.secondary">Log in to open them, or sign up to start your first one.</Typography>
+      <Stack direction="row" spacing={1} sx={{ pt: 1 }}>
+        <Button variant="contained" onClick={() => onAuth('login')}>
+          Log in
+        </Button>
+        <Button variant="outlined" onClick={() => onAuth('signup')}>
+          Sign up
+        </Button>
+      </Stack>
+      <Button onClick={onExplore}>Or explore designs</Button>
     </Stack>
   );
 }
@@ -282,6 +303,16 @@ export function PrototypeApp() {
           onNewProject={newProject}
         />
       );
+    } else if (tab === 'projects') {
+      view = (
+        <SignInForProjects
+          onAuth={(mode) => {
+            setAfterLogin({ name: 'workspace', tab: 'projects' });
+            openAuth(mode);
+          }}
+          onExplore={() => navigate({ name: 'explore' })}
+        />
+      );
     } else if (tab === 'view' && design && openId) {
       view = (
         <EditorShell
@@ -300,6 +331,7 @@ export function PrototypeApp() {
           name={design.name}
           version={design.version}
           schematic={changed[openId] ?? design.schematic}
+          project={design.project}
           onNotice={setToast}
           onRename={(name) => setNames((all) => ({ ...all, [openId]: name }))}
           onNewProject={newProject}
@@ -308,7 +340,9 @@ export function PrototypeApp() {
         />
       );
     } else if (tab === 'commercial' && design && openId) {
-      view = <CommercialTab key={openId} id={openId} name={design.name} version={design.version} schematic={changed[openId] ?? design.schematic} onNotice={setToast} />;
+      view = (
+        <CommercialTab key={openId} id={openId} name={design.name} version={design.version} schematic={changed[openId] ?? design.schematic} project={design.project} onNotice={setToast} />
+      );
     } else {
       view = <UpcomingView tab={tab} />;
     }

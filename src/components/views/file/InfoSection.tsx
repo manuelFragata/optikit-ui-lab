@@ -27,7 +27,7 @@ export interface InfoSectionProps {
   name: string;
   info: DesignInfo;
   files: ProjectFileData[];
-  /** The licence's SPDX id (see licenses.ts). */
+  /** The licence's SPDX id (see licenses.ts); empty while none is chosen. */
   license: string;
   onLicense: (id: string) => void;
   onRename: (name: string) => void;
@@ -65,14 +65,18 @@ export function InfoSection({ name, info, files, license, onLicense, onRename, o
             onKeyDown={(e) => e.key === 'Enter' && rename()}
             fullWidth
           />
-          <Typography color="text.secondary" sx={{ mt: 2 }}>
-            {info.description}
-          </Typography>
-          <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-            {info.tags.map((t) => (
-              <TagChip key={t} label={t} />
-            ))}
-          </Stack>
+          {info.description && (
+            <Typography color="text.secondary" sx={{ mt: 2 }}>
+              {info.description}
+            </Typography>
+          )}
+          {info.tags.length > 0 && (
+            <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+              {info.tags.map((t) => (
+                <TagChip key={t} label={t} />
+              ))}
+            </Stack>
+          )}
           <Typography variant="meta" color="text.meta" sx={{ display: 'block', mt: 1.5 }}>
             @{info.maintainer} · created {info.created}
           </Typography>
@@ -81,9 +85,22 @@ export function InfoSection({ name, info, files, license, onLicense, onRename, o
 
       <Titled title="Licence">
         <Box sx={cardSx}>
-          <Select size="small" fullWidth value={license} onChange={(e) => onLicense(e.target.value)} renderValue={(id) => licenseById(id)?.name ?? id} aria-label="Licence">
+          <Select
+            size="small"
+            fullWidth
+            displayEmpty
+            value={license}
+            onChange={(e) => onLicense(e.target.value)}
+            renderValue={(id) => licenseById(id)?.name ?? 'Not chosen yet'}
+            aria-label="Licence"
+          >
             {options}
           </Select>
+          {!chosen && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+              Until you choose one, the design is yours alone: others may look at what you share, but not build or change it.
+            </Typography>
+          )}
           {chosen && (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
