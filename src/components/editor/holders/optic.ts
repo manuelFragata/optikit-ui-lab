@@ -15,6 +15,8 @@ export interface FragmentSurface {
   material_post?: string;
   /** A mirror's face: the light turns back here (Optiland's `is_reflective`). */
   is_reflective?: boolean;
+  /** Its coating, for an optic designed here (a lab id, optics/coatings.ts); a catalogue part's are the vendor's. */
+  coating?: string;
 }
 
 /** A catalogue optic as optikit-v2's library records carry it (`ComponentRecord`, the parts holders read). */

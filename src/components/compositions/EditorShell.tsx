@@ -12,9 +12,10 @@
  * - panels.tsx         what the left and right panels hold;
  * - EditorHeader.tsx, EditorStatusBar.tsx, SearchButton.tsx.
  */
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import { useTheme, type Theme } from '@mui/material/styles';
 import { demoInputs, demoModules, demoPalette, demoSchematic, demoSketch } from '../../demo/editorContent';
@@ -58,9 +59,12 @@ export type { LeftPanelId, RightPanelId };
 // three.js and its helpers load only when the 3D view (or the close-up) is first opened.
 const DesignScene3D = lazy(() => import('../editor/scene3d/DesignScene3D').then((m) => ({ default: m.DesignScene3D })));
 const Closeup = lazy(() => import('../editor/scene3d/Closeup').then((m) => ({ default: m.Closeup })));
+const OptimizePane = lazy(() => import('../editor/optimize/OptimizePane').then((m) => ({ default: m.OptimizePane })));
 
 /** A lens or mirror's real glass: designed here, or its catalogue record's. One function, so the views' layouts keep. */
 const glassOf = (s: SchematicSymbol) => recordOf(s, catalogRecord)?.fragmentSurfaces;
+/** A part's optic: designed here, or the demo catalogue's record behind its name. */
+const recordForPart = (s: SchematicSymbol) => recordOf(s, catalogRecord);
 
 /** Every part the library offers, in one list for the Add search and the command palette. */
 const LIBRARY: PartEntry[] = [
@@ -207,11 +211,16 @@ export function EditorShell({
   const [front, setFront] = useState<'dock' | 'layers'>('dock');
   const [paletteOpen, setPaletteOpen] = useState(false);
   // The close-up: the canvas split, the selected part beside it; the component picked in it, for that part.
-  const [closeup, setCloseup] = useState(false);
+  // What the split's second pane holds: the close-up, Optimize, or nothing (the canvas alone).
+  const [pane, setPane] = useState<'closeup' | 'optimize' | null>(null);
+  const closeup = pane === 'closeup';
+  const setCloseup = (on: boolean) => setPane(on ? 'closeup' : null);
   const [split, setSplit] = useState(0.55);
   const [closeupFocus, setCloseupFocus] = useState<{ partId: string; key: string | null } | null>(null);
 
   const { selected } = selection;
+  // The design's sources' wavelengths, for the close-up's Optical side.
+  const wavelengths = [...new Set(design.symbols.flatMap((s) => (s.kind === 'laser' ? (s.inputs ?? []).filter((i) => i.label === 'Wavelength').map((i) => i.value) : [])))].sort((a, b) => a - b);
   // Every part not in a cube yet: the ideal ones (sketched) and the unmounted ones (no holder).
   const unmounted = design.symbols.filter((s) => s.placement.state !== 'in-cube');
   // Every layer from the ground to one above the highest part, so there is always a free layer to stack into.
@@ -246,6 +255,12 @@ export function EditorShell({
   const toggleCloseup = () => {
     if (!closeup && rightState === 'expanded') setRightState('collapsed');
     setCloseup(!closeup);
+  };
+  /** Optimize takes the same place beside the canvas. */
+  const toggleOptimize = () => {
+    if (pane !== 'optimize' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'optimize') setSplit((f) => Math.min(f, 0.45));
+    setPane(pane === 'optimize' ? null : 'optimize');
   };
   /** Freeze: the holder is designed in the close-up, on the selected part. */
   const designHolder = () => {
@@ -348,6 +363,7 @@ export function EditorShell({
     openLeft,
     openRight,
     toggleCloseup,
+    toggleOptimize,
     openPalette: () => setPaletteOpen(true),
     openSettings: () => setSettingsOpen(true),
 
@@ -361,7 +377,9 @@ export function EditorShell({
 
   useShortcuts(actions, { view, hasSelection: ids.length > 0, paused: paletteOpen });
   // Light paths that miss a part, for the status bar.
-  const misses = useLightFor()(design).misses.map((m) => `${m.ray.label} misses ${m.label}`);
+  const lightFor = useLightFor();
+  const light = useMemo(() => lightFor(design), [lightFor, design]);
+  const misses = light.misses.map((m) => `${m.ray.label} misses ${m.label}`);
 
   const commands = paletteCommands(actions, { library: LIBRARY, symbols: design.symbols, layers, unmounted: unmounted.length, options });
 
@@ -404,7 +422,7 @@ export function EditorShell({
   // An expanded side panel floats over the canvas: the toolbar, the dock and the layer preview step aside for it.
   const leftOut = leftState === 'expanded';
   // With the close-up open, the right panel floats over the close-up, not the canvas.
-  const rightOut = rightState === 'expanded' && !closeup;
+  const rightOut = rightState === 'expanded' && !pane;
   /** How far an expanded panel reaches into the canvas, with its margin. */
   const panelReach = (t: Theme) => `(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(1)})`;
   /** The middle of the canvas the panels leave free. */
@@ -413,7 +431,7 @@ export function EditorShell({
   const theme = useTheme();
   const hintPlace: HintPlace = {
     left: freeCentre(theme),
-    top: theme.spacing(leftOut || closeup ? 8.5 : 2.5),
+    top: theme.spacing(leftOut || pane ? 8.5 : 2.5),
     maxWidth: `calc(100% - ${leftOut ? panelReach(theme) : '0px'} - ${rightOut ? panelReach(theme) : '0px'} - ${theme.spacing(4)})`,
   };
 
@@ -585,11 +603,16 @@ export function EditorShell({
                   transition: `right ${STEP_ASIDE}`,
                 })}
               >
-                <LayerPreview schematic={design} layers={layers} layer={layer} onLayer={setLayer} selectedIds={ids} crowded={rightOut || closeup} />
+                <LayerPreview schematic={design} layers={layers} layer={layer} onLayer={setLayer} selectedIds={ids} crowded={rightOut || Boolean(pane)} />
               </Box>
             </Box>
           }
           second={
+            pane === 'optimize' ? (
+              <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+                <OptimizePane design={design} light={light} recordFor={recordForPart} onApply={(next) => edit(() => next)} onSelect={actions.selectPart} onClose={() => setPane(null)} />
+              </Suspense>
+            ) : (
             closeup && (
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
                 <Closeup
@@ -598,7 +621,7 @@ export function EditorShell({
                   focus={selected && closeupFocus?.partId === selected.id ? closeupFocus.key : null}
                   onFocus={(key) => selected && setCloseupFocus({ partId: selected.id, key })}
                   onClose={() => setCloseup(false)}
-                  opticFor={(s) => recordOf(s, catalogRecord)}
+                  opticFor={recordForPart}
                   cubeMesh={STORE_MESHES.empty}
                   onHolder={(spec) => selected && edit((d) => updateParts(d, [selected.id], (s) => ({ placement: frozen(s.placement, spec) })))}
                   catalogue={catalogList}
@@ -606,8 +629,11 @@ export function EditorShell({
                   modules={selected ? demoModules[selected.kind] : []}
                   onRealize={(option) => selected && edit((d) => updateParts(d, [selected.id], (s) => realize(s, option)))}
                   onDesign={(prescription) => selected && edit((d) => updateParts(d, [selected.id], (s) => designed(s, prescription, designedValues(prescription))))}
+                  wavelengths={wavelengths}
+                  onPrescription={(prescription) => selected && edit((d) => updateParts(d, [selected.id], () => ({ prescription })))}
                 />
               </Suspense>
+            )
             )
           }
         />
@@ -619,7 +645,10 @@ export function EditorShell({
           onStateChange={setRightState}
           activeId={rightPanel}
           onActiveChange={(id) => setRightPanel(id as RightPanelId)}
-          railToggles={[{ id: 'closeup', label: closeup ? 'Close the close-up' : 'Close-up: split the canvas to look at a part', icon: <CenterFocusStrongOutlinedIcon />, on: closeup, onToggle: toggleCloseup }]}
+          railToggles={[
+            { id: 'closeup', label: closeup ? 'Close the close-up' : 'Close-up: split the canvas to look at a part', icon: <CenterFocusStrongOutlinedIcon />, on: closeup, onToggle: toggleCloseup },
+            { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
+          ]}
           items={rightPanels({
             design,
             selected,

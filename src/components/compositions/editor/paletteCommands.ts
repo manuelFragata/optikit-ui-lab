@@ -50,6 +50,7 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'panel-bom', group: 'Panels', label: 'Open the bill of materials', run: () => a.openLeft('bom') },
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => a.openRight('info') },
     { id: 'closeup', group: 'Panels', label: 'Look at a part up close (split the canvas)', run: a.toggleCloseup },
+    { id: 'optimize', group: 'Panels', label: 'Optimize (split the canvas)', run: a.toggleOptimize },
     { id: 'settings', group: 'Panels', label: 'Open settings', shortcut: 'Ctrl ,', run: a.openSettings },
   ];
 }

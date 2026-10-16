@@ -55,6 +55,7 @@ export interface EditorActions {
   openRight: (id: RightPanelId) => void;
   /** Split the canvas, with the selected part up close beside it; again: close it. */
   toggleCloseup: () => void;
+  toggleOptimize: () => void;
   openPalette: () => void;
   openSettings: () => void;
 

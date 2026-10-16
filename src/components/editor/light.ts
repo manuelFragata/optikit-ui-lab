@@ -20,6 +20,12 @@ export interface LightPath {
   points: Point[];
   /** Its last run goes into nothing (drawn fading). */
   open: boolean;
+  /**
+   * What the light meets, in order, by part id ('sample' for the sample):
+   * `parts[i]` is where `points[i]` is, the first being where it starts. An
+   * open path has one point more, where it runs out.
+   */
+  parts?: string[];
 }
 
 /** The light does not reach a part meant to be on its path: a dashed hint from the last part it reached. */

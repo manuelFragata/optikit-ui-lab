@@ -19,6 +19,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CenterFocusWeakOutlinedIcon from '@mui/icons-material/CenterFocusWeakOutlined';
@@ -46,6 +48,9 @@ import { cartridgeComponents, disposeComponents, lensComponent } from './holderM
 import { SnapPanel } from './SnapPanel';
 import { HolderDesigner, PREVIEWED_ROAD, type HolderDraft } from './HolderDesigner';
 import { ComponentMesh, CubeEdges, Glyph, MeshBoundary } from './shapes';
+import { surfaceInfo, withCoating } from '../optics/coatings';
+import { OpticalView } from '../optics/OpticalView';
+import { OpticsPanel } from '../optics/OpticsPanel';
 
 export interface CloseupProps {
   /** The part to look at; `null` until one is picked. */
@@ -71,7 +76,14 @@ export interface CloseupProps {
   onRealize?: (option: ModuleOption) => void;
   /** An ideal part designed as a real optic, from this prescription. */
   onDesign?: (prescription: FragmentSurface[]) => void;
+  /** The wavelengths of the design's sources, nm: what the Optical side checks coatings against. */
+  wavelengths?: number[];
+  /** A designed optic's prescription changed here (its coatings). */
+  onPrescription?: (prescription: FragmentSurface[]) => void;
 }
+
+/** What the close-up looks at: how the part is made and held, or what it does to the light. */
+type Side = 'mechanical' | 'optical';
 
 /** The section's cut, as a share of the cube's half width: 0 through the middle. */
 const SECTION_MAX = 1;
@@ -89,7 +101,7 @@ function initialDraft(saved: HolderSpec | undefined, component: string, roads: R
   return { road: open.includes(PREVIEWED_ROAD) ? PREVIEWED_ROAD : (open[0] ?? PREVIEWED_ROAD), params: cartridgeDefaults(component), beamMm: DEFAULT_BEAM_MM };
 }
 
-export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, catalogue = [], onSnap, modules = [], onRealize, onDesign }: CloseupProps) {
+export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, catalogue = [], onSnap, modules = [], onRealize, onDesign, wavelengths = [], onPrescription }: CloseupProps) {
   const colors = useSceneColors();
   const [hover, setHover] = useState<string | null>(null);
   const [xray, setXray] = useState(false);
@@ -133,13 +145,29 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   const focused = components.find((c) => c.info.key === focus);
   const shown = components.find((c) => c.info.key === hover) ?? focused;
 
+  // The Optical side: any part whose glass is known (designed here, or a catalogue part), whatever holds it.
+  const [side, setSide] = useState<Side>('mechanical');
+  const optic = part ? opticFor?.(part) : undefined;
+  const opticalShape = useMemo(() => (optic ? opticShape(optic) : null), [optic]);
+  const infos = useMemo(() => (optic && opticalShape ? surfaceInfo(optic) : []), [optic, opticalShape]);
+  const optical = side === 'optical' && infos.length > 0;
+  const [surface, setSurface] = useState(0);
+  const [surfaceHover, setSurfaceHover] = useState<number | null>(null);
+  const opticRef = useRef<Group>(null);
+
   // Another part: start from the whole of it again.
-  useEffect(() => setHover(null), [part?.id]);
+  useEffect(() => {
+    setHover(null);
+    setSurface(0);
+    setSurfaceHover(null);
+  }, [part?.id]);
 
   const view = { colors, focus, hover, xray, isolate, section, fitAll, onHover: setHover, onFocus };
   const module = part?.placement.state === 'in-cube' ? part.placement.module : undefined;
   const subtitle = module ?? (partName ? `${partName} · not mounted yet` : ideal && part ? `Ideal ${part.kind} · ${specLine(part) || 'no part chosen'}` : undefined);
-  const tools = (
+  const tools = optical ? (
+    <ToolButton label="Fit the optic" onClick={() => setFitAll((n) => n + 1)} icon={<FitScreenOutlinedIcon fontSize="small" />} />
+  ) : (
     <>
       <ToolButton label="X-ray: the others faint" on={xray} disabled={!focused} onClick={() => setXray(!xray)} icon={<OpacityOutlinedIcon fontSize="small" />} />
       <ToolButton label="Isolate: the picked one alone" on={isolate} disabled={!focused} onClick={() => setIsolate(!isolate)} icon={<CenterFocusWeakOutlinedIcon fontSize="small" />} />
@@ -164,6 +192,20 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
             </Typography>
           )}
         </Box>
+        {part && (
+          <ToggleButtonGroup exclusive size="small" value={optical ? 'optical' : 'mechanical'} onChange={(_, v: Side | null) => v && setSide(v)} aria-label="Look at" sx={{ mr: 0.5 }}>
+            <ToggleButton value="mechanical" sx={{ textTransform: 'none', py: 0.25, px: 1.25 }}>
+              Mechanical
+            </ToggleButton>
+            <Tooltip title={infos.length ? 'What it does to the light: surfaces and coatings' : part.placement.state === 'ideal' ? 'An ideal part has no glass yet: design it or snap it to a catalogue part' : 'No prescription known for this part'}>
+              <span>
+                <ToggleButton value="optical" disabled={!infos.length} sx={{ textTransform: 'none', py: 0.25, px: 1.25, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, ml: '-1px' }}>
+                  Optical
+                </ToggleButton>
+              </span>
+            </Tooltip>
+          </ToggleButtonGroup>
+        )}
         {tools}
         <Tooltip title="Close the close-up">
           <IconButton aria-label="Close the close-up" onClick={onClose}>
@@ -173,7 +215,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
       </Stack>
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <Box sx={{ position: 'relative', flex: 1, minWidth: 0, cursor: hover ? 'pointer' : 'default' }}>
+        <Box sx={{ position: 'relative', flex: 1, minWidth: 0, cursor: (optical ? surfaceHover !== null : hover) ? 'pointer' : 'default' }}>
           {part ? (
             <Canvas frameloop="demand" dpr={[1, 2]} camera={{ position: [-160, 140, 200], fov: 30, near: 0.5, far: 5000 }} onPointerMissed={(e) => e.type === 'click' && onFocus(null)}>
               <color attach="background" args={[colors.ground]} />
@@ -181,7 +223,24 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
               <directionalLight position={[-300, 500, 400]} intensity={1.5} />
               <directionalLight position={[300, 150, -300]} intensity={0.5} />
               <group rotation={Z_UP}>
-                {preview ? (
+                {optical && optic && opticalShape ? (
+                  <>
+                    <OpticalView
+                      key={part.id}
+                      record={optic}
+                      shape={opticalShape}
+                      infos={infos}
+                      surface={surface}
+                      hover={surfaceHover}
+                      onHover={setSurfaceHover}
+                      onPick={setSurface}
+                      accent={colors.accent}
+                      meta={colors.meta}
+                      groupRef={opticRef}
+                    />
+                    <Framing key={`optic ${part.id}`} target={() => opticRef.current} fitAll={fitAll} />
+                  </>
+                ) : preview ? (
                   <>
                     <HolderView
                       key={part.id}
@@ -218,7 +277,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
             <Empty>Click a part on the canvas to look at it up close. In 3D, click the lens, its holder or the cube itself.</Empty>
           )}
 
-          {part && !mesh && !preview && !ideal && (
+          {part && !optical && !mesh && !preview && !ideal && (
             <Note>
               {designing
                 ? draft?.road === PREVIEWED_ROAD
@@ -230,13 +289,13 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
             </Note>
           )}
 
-          {components.length > 0 && (
+          {!optical && components.length > 0 && (
             <ComponentList key={designing ? 'designing' : 'looking'} initiallyOpen={!designing} components={components} focus={focus} hover={hover} onHover={setHover} onFocus={(key) => onFocus(key === focus ? null : key)} />
           )}
 
-          {shown && <ComponentCard component={shown} picked={shown === focused} />}
+          {!optical && shown && <ComponentCard component={shown} picked={shown === focused} />}
 
-          {section !== null && (
+          {!optical && section !== null && (
             <Paper variant="outlined" sx={{ position: 'absolute', right: (t) => t.spacing(1.5), top: (t) => t.spacing(1.5), display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 0.5, width: 260, zIndex: 2 }}>
               <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                 Cut at
@@ -249,7 +308,19 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
           )}
         </Box>
 
-        {ideal && part && onSnap && (
+        {optical && optic && (
+          <OpticsPanel
+            record={optic}
+            infos={infos}
+            wavelengths={wavelengths}
+            surface={surface}
+            onSurface={setSurface}
+            onHoverSurface={setSurfaceHover}
+            onCoating={part?.prescription && onPrescription ? (i, id) => onPrescription(withCoating(part.prescription!, i, id)) : undefined}
+          />
+        )}
+
+        {!optical && ideal && part && onSnap && (
           <SnapPanel
             label={part.label}
             spec={specLine(part)}
@@ -266,7 +337,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
           />
         )}
 
-        {designing && draft && facts && partName && (
+        {!optical && designing && draft && facts && partName && (
           <HolderDesigner
             partName={partName}
             record={record}

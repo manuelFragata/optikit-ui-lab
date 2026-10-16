@@ -113,7 +113,7 @@ export function traceRay(ray: SchematicRay, symbols: SchematicSymbol[]): { path:
     d = on;
   }
 
-  return { path: { ray, z, points, open }, reached, miss: missOf(ray, reached, symbols, sample) };
+  return { path: { ray, z, points, open, parts: reached }, reached, miss: missOf(ray, reached, symbols, sample) };
 }
 
 /** The first part the path names that the light does not reach (parts since deleted do not count). */

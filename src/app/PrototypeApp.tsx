@@ -29,7 +29,7 @@ import type { ProjectSummary } from '../api/types';
 import { scrollToSection } from '../components/pages/landingSections';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { SettingsButton } from '../settings/SettingsDialog';
-import { CommercialTab, FileTab } from './designTabs';
+import { CommercialTab, FileTab, SimulateTab } from './designTabs';
 import { useHashRoute, useSession, type Route } from './routing';
 
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
@@ -336,6 +336,18 @@ export function PrototypeApp() {
           schematic={changed[openId] ?? design.schematic}
           onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
           defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+        />
+      );
+    } else if (tab === 'simulate' && design && openId) {
+      view = (
+        <SimulateTab
+          key={openId}
+          id={openId}
+          name={design.name}
+          version={design.version}
+          schematic={changed[openId] ?? design.schematic}
+          project={design.project}
+          onNotice={setToast}
         />
       );
     } else if (tab === 'file' && design && openId) {
