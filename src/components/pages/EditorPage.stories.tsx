@@ -46,7 +46,7 @@ export const Empty: Story = {
   args: {
     projectName: 'Untitled design',
     version: '0.0.1',
-    schematic: { ...demoSchematic, symbols: [], rays: [] },
+    schematic: { ...demoSchematic, symbols: [] },
     defaultLeftState: 'expanded',
   },
 };

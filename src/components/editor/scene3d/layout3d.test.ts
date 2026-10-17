@@ -16,7 +16,7 @@ const part = (id: string, patch: Partial<SchematicSymbol> = {}): SchematicSymbol
   ...patch,
 });
 
-const design = (symbols: SchematicSymbol[], rays: Schematic['rays'] = []): Schematic => ({ symbols, rays, groups: [], unitMm: 50 });
+const design = (symbols: SchematicSymbol[]): Schematic => ({ symbols, groups: [], unitMm: 50 });
 
 const view = (patch: Partial<View3D> = {}): View3D => ({
   layer: 1,
@@ -31,7 +31,7 @@ const view = (patch: Partial<View3D> = {}): View3D => ({
 });
 
 const mesh = { url: 'lens.glb', axes: { z: '+x', x: '+y' } } as const;
-const ray = { id: 'r', label: 'excitation', color: 'ray1' as const, path: ['A', 'B'], offset: 0, arrowSegment: 0, labelAt: 0 };
+const ray = { id: 'r', label: 'A → B', color: 'ray1' as const, offset: 0, arrowSegment: 0, labelAt: 0 };
 /** The light the app's light source would give: from A (0, 0) to B (2, 0), on layer 1. */
 const light = (patch: Partial<LightPath> = {}, misses: Light['misses'] = []): Light => ({
   paths: [{ ray, z: 1, points: [{ x: 0, y: 0 }, { x: 2, y: 0 }], open: false, ...patch }],
@@ -91,7 +91,7 @@ describe('parts', () => {
 });
 
 describe('rays', () => {
-  const d = design([part('A'), part('B', { x: 2 })], [ray]);
+  const d = design([part('A'), part('B', { x: 2 })]);
 
   it('go where the light source says, at the height of their layer, and are ghosts on another layer', () => {
     expect(layout3d(d, view(), undefined, light()).rays[0]).toMatchObject({ points: [[0, 0, 80], [100, 0, 80]], open: false, miss: null, ghost: false });
@@ -123,8 +123,8 @@ describe('labels', () => {
   });
 
   it('name the rays over their first leg, unless their labels are off', () => {
-    const d = design([part('A'), part('B', { x: 2 })], [ray]);
-    expect(layout3d(d, view(), undefined, light()).labels.find((l) => l.tone === 'ray')).toMatchObject({ text: 'excitation', at: [50, 0, 90], color: 'ray1' });
+    const d = design([part('A'), part('B', { x: 2 })]);
+    expect(layout3d(d, view(), undefined, light()).labels.find((l) => l.tone === 'ray')).toMatchObject({ text: 'A → B', at: [50, 0, 90], color: 'ray1' });
     expect(layout3d(d, view({ rayLabels: false }), undefined, light()).labels.some((l) => l.tone === 'ray')).toBe(false);
   });
 });

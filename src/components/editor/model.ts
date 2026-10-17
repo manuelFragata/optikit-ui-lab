@@ -260,28 +260,9 @@ export interface SchematicGroup {
 
 export type RayColorKey = 'ray1' | 'ray2' | 'ray3' | 'ray4' | 'ray5' | 'ray6';
 
-/**
- * A light path: where the light starts and the parts it is meant to go
- * through, in order. Where it actually goes comes from the app's light source (light.ts).
- */
-export interface SchematicRay {
-  id: string;
-  label: string;
-  color: RayColorKey;
-  /** Part ids, or 'sample' for the sample in front of the objective; the first is where the light starts. */
-  path: string[];
-  /** Offset (grid units, y up) so parallel rays sit side by side. */
-  offset: number;
-  /** Which leg of the traced light carries the direction arrow. */
-  arrowSegment: number;
-  /** The traced point near which the label sits. */
-  labelAt: number;
-}
-
 export interface Schematic {
   symbols: SchematicSymbol[];
   groups: SchematicGroup[];
-  rays: SchematicRay[];
   /** Grid pitch: one unit in mm. */
   unitMm: number;
 }

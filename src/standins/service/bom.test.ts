@@ -6,7 +6,7 @@ import type { Placement, Schematic, SchematicSymbol } from '../../components/edi
 const part = (id: string, placement: Placement): SchematicSymbol => ({ id, label: id, kind: 'lens', type: 'lens', x: 0, y: 0, z: 1, placement, notes: '' });
 const cube = (module: string): Placement => ({ state: 'in-cube', module, source: 'Core Box', seat: 0 });
 const loose = (part: string): Placement => ({ state: 'unmounted', part, source: 'Thorlabs' });
-const design = (symbols: SchematicSymbol[]): Schematic => ({ symbols, rays: [], groups: [], unitMm: 50 });
+const design = (symbols: SchematicSymbol[]): Schematic => ({ symbols, groups: [], unitMm: 50 });
 
 describe('bill of materials', () => {
   const d = design([part('A', cube('Mirror cube')), part('B', cube('Lens holder')), part('C', cube('Mirror cube')), part('D', loose('AC254-050-A'))]);

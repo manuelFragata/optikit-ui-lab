@@ -25,7 +25,7 @@ The views and the app (`src/components/`, `src/app/`) get the stand-ins only thr
 
 | Field | Lab stand-in | App |
 | --- | --- | --- |
-| `LightFor(design)`: the light paths and the parts that each path meets | `standins/kernel/light.ts`: straight lines on the grid | oc-wasm traces the Scene3 from `POST /v1/scene3` (`loadScene3JSON`, `traceWorld3D`). Paths come from `/v1/sequence`. |
+| `LightFor(design)`: the light paths and the parts that each path meets, in time (`Promise`) | `standins/kernel/light.ts`: straight lines on the grid, over the stand-in network | oc-wasm traces the Scene3 from `POST /v1/scene3` (`loadScene3JSON`, `traceWorld3D`). Paths come from `/v1/sequence`. |
 
 ### Library (`src/ports/library.ts`)
 
@@ -63,7 +63,7 @@ In the lab, the stand-ins answer over a stand-in network (`src/standins/network.
 | `?fail=1` | Every request fails, to see the error states and Try again |
 | `?latency=0` | Answers at once (as Storybook does) |
 
-**Not async yet:** the light (`LightFor`). oc-wasm traces in a worker, so the app needs the last trace while a new one runs. This is the next step.
+- **Light:** `LightFor` returns a `Promise`. Views ask through `useLight` (`src/ports/light.ts`). It keeps the last light while the next trace runs, and it shares one trace per design between the views that draw it. While parts are dragged, the canvas and the 3D view show the light from before, faded, and the light is traced again when the parts are let go. Thus the app does not call `POST /v1/scene3` at each pointer move. The status bar says "Tracing the light…" for a long trace, and it offers Try again for a failed one. Simulate waits for the first trace.
 
 ## Not behind a port yet
 
@@ -85,6 +85,7 @@ The stand-in data uses the library's real format where it can:
 These are lab inventions. They are not in the real format:
 
 - `Schematic` (grid symbols, `SymbolKind`, `Placement`) is the lab's model. The app works on `optikit-design.yml` (`DesignDecl`). `CATEGORY_OF` in `model.ts` maps a lab kind to the file's `category`.
+- **Light paths are not in the lab design.** The stand-in tracer finds them from the parts (each source, beam splitters both ways, the sample shining back when lit through the objective) and names them from start to end. The real format names `paths: {name: {from, to}}`, and `/v1/sequence` finds each route. Only the start and end are written, never the parts between.
 - `Placement.state: 'ideal'` is the sketch state. In optikit-app-v1, a sketched part is a primitive with only `optics`.
 - `seat` on a sketched or unmounted part is the lab's turn. In the file, this is the part's grid rotation.
 - `ModuleOption.fixes` is the lab's short way to tell what a module's optic is. The app reads this from the record that the module holds.

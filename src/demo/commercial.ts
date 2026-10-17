@@ -80,14 +80,14 @@ export function demoChecks(design: Schematic, bom: Bom, light: Light): QuoteChec
       detail: bom.unpriced ? `${bom.lines.filter((l) => l.unitPrice === null).map((l) => l.name).join(', ')}: ask sales.` : 'All list prices are known.',
     },
     {
-      label: 'Light reaches every part',
-      state: design.rays.length === 0 || light.misses.length ? 'warn' : 'ok',
+      label: 'Light reaches every detector',
+      state: light.paths.length === 0 || light.misses.length ? 'warn' : 'ok',
       detail:
-        design.rays.length === 0
-          ? 'The design has no light path yet.'
+        light.paths.length === 0
+          ? 'The design has no light source yet.'
           : light.misses.length
-            ? light.misses.map((m) => `${m.ray.label} misses ${m.label}`).join('; ') + '.'
-            : 'Every light path is complete.',
+            ? `No light reaches ${light.misses.map((m) => m.label).join(', ')}.`
+            : 'Light reaches every detector.',
     },
     nyquist(design),
     { label: 'Clear aperture', state: 'later', detail: 'Checked by the optics engine.' },

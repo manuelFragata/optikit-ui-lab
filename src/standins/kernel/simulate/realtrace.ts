@@ -36,9 +36,9 @@ export interface RealTrace {
   vignetted: number;
 }
 
-/** The pupil of a beam as it starts: a laser's beam, or the emission's cone at the objective's NA. */
+/** The pupil of a beam as it starts: a laser's beam, or the sample's cone at the objective's NA. */
 export function pupilOf(beam: Beam, beamMm: number, naOverride?: number): Pupil {
-  if (!beam.emission) return { kind: 'collimated', radiusMm: beamMm / 2 };
+  if (!beam.fromSample) return { kind: 'collimated', radiusMm: beamMm / 2 };
   const objective = beam.elements.find((e) => e.role === 'objective');
   const na = naOverride ?? objective?.symbol?.inputs?.find((i) => i.label === 'Numerical aperture')?.value ?? 0.1;
   return { kind: 'point', na };

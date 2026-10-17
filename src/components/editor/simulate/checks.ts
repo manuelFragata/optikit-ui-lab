@@ -87,8 +87,8 @@ export function focusCheck(target: Target, t: RealTrace, plane: Plane): Check {
 
 export function clippingCheck(beam: Beam, t: RealTrace, beamMm: number): Check {
   const r = results(beam, trace(beam, startRay(beam, beamMm)), beamMm);
-  // The emission's cone is the objective's own NA: it fills the objective by definition, so the objective is not read for clipping.
-  const sets = (role: string) => beam.emission && role === 'objective';
+  // The sample's cone is the objective's own NA: it fills the objective by definition, so the objective is not read for clipping.
+  const sets = (role: string) => beam.fromSample && role === 'objective';
   const fills = beam.elements.flatMap((e, i) => (e.apertureMm && !sets(e.role) ? [{ label: e.label, fill: r.elements[i].beamMm / e.apertureMm }] : []));
   const fullest = fills.reduce<{ label: string; fill: number } | null>((a, b) => (!a || b.fill > a.fill ? b : a), null);
   const stopped = t.vignetted;

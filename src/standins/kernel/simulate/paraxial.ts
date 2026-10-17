@@ -36,9 +36,9 @@ export interface Trace {
   end: RayState & { z: number };
 }
 
-/** The ray the beam starts with: a laser's collimated beam of `beamMm`, or the emission's cone at the objective's NA. */
+/** The ray the beam starts with: a laser's collimated beam of `beamMm`, or the sample's cone at the objective's NA. */
 export function startRay(beam: Beam, beamMm: number): RayState {
-  if (!beam.emission) return { y: beamMm / 2, u: 0 };
+  if (!beam.fromSample) return { y: beamMm / 2, u: 0 };
   const objective = beam.elements.find((e) => e.role === 'objective');
   const na = objective?.symbol?.inputs?.find((i) => i.label === 'Numerical aperture')?.value ?? 0.1;
   return { y: 0, u: na };
@@ -117,7 +117,7 @@ export interface BeamResult {
   out: { collimated: boolean; focusMm: number | null; beamMm: number };
   /** The image or focus against the detector, mm along the beam: + behind it. `null` with no detector or no focus. */
   focusOffsetMm: number | null;
-  /** Emission: the image's size over the object's (paraxial, from the ray angles). */
+  /** The sample's light: the image's size over the object's (paraxial, from the ray angles). */
   magnification: number | null;
   /** A laser's beam: Ø out over Ø in, when it leaves collimated. */
   expansion: number | null;
@@ -145,8 +145,8 @@ export function results(beam: Beam, t: Trace, startMm: number): BeamResult {
     foci: foci(t),
     out: { collimated, focusMm, beamMm: 2 * Math.abs(after.y) },
     focusOffsetMm: detector && focusMm !== null ? focusMm - detector.atMm : null,
-    magnification: beam.emission && !collimated && after.u !== 0 ? start.u / after.u : null,
-    expansion: !beam.emission && collimated && start.y ? Math.abs(after.y / start.y) : null,
+    magnification: beam.fromSample && !collimated && after.u !== 0 ? start.u / after.u : null,
+    expansion: !beam.fromSample && collimated && start.y ? Math.abs(after.y / start.y) : null,
     budget: {
       fraction,
       known: known.length,

@@ -32,7 +32,7 @@ import { SettingsButton } from '../settings/SettingsDialog';
 import { CommercialTab, FileTab } from './designTabs';
 import { useHashRoute, useSession, type Route } from './routing';
 
-const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
+const emptySchematic: Schematic = { ...demoSchematic, symbols: [], groups: [] };
 
 /** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
 const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield', g7: 'ex-fluor' };

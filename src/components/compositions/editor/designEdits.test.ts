@@ -14,7 +14,7 @@ const part = (id: string, patch: Partial<SchematicSymbol> = {}): SchematicSymbol
   notes: '',
   ...patch,
 });
-const design = (...symbols: SchematicSymbol[]): Schematic => ({ symbols, rays: [], groups: [], unitMm: 50 });
+const design = (...symbols: SchematicSymbol[]): Schematic => ({ symbols, groups: [], unitMm: 50 });
 
 describe('design edits', () => {
   it('number new parts after the highest id', () => {

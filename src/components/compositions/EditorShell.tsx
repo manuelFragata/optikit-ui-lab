@@ -28,7 +28,7 @@ import { useService } from '../../ports/service';
 import { STORE_MESHES } from '../../demo/assemblies';
 import { demoUser } from '../../demo/user';
 import { usePreferences } from '../../settings/preferences';
-import { useLightFor } from '../../ports/light';
+import { useLight } from '../../ports/light';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
 import { CanvasToolbar } from '../editor/CanvasToolbar';
 import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from '../editor/viewOptions';
@@ -418,9 +418,10 @@ export function EditorShell({
 
   useShortcuts(actions, { view, hasSelection: ids.length > 0, paused: paletteOpen });
   // Light paths that miss a part, for the status bar.
-  const lightFor = useLightFor();
-  const light = useMemo(() => lightFor(design), [lightFor, design]);
-  const misses = light.misses.map((m) => `${m.ray.label} misses ${m.label}`);
+  // The design's light, traced in time: the last one stays while the next is traced.
+  const trace = useLight(design);
+  const { light } = trace;
+  const misses = light.misses.map((m) => `No light reaches ${m.label}`);
 
   const commands = paletteCommands(actions, { library: LIBRARY, symbols: design.symbols, layers, unmounted: unmounted.length, options });
 
@@ -659,6 +660,7 @@ export function EditorShell({
                 <SimulatePane
                   design={design}
                   light={light}
+                  trace={trace}
                   recordFor={recordForPart}
                   selectedId={selected?.id ?? null}
                   onSelect={actions.selectPart}
@@ -764,7 +766,9 @@ export function EditorShell({
         layer={layer}
         snap={options.snapToGrid}
         zoom={zoom}
+        lightPaths={light.paths.length}
         misses={misses}
+        trace={trace}
         onShowParts={() => openLeft('parts')}
       />
 

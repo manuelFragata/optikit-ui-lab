@@ -158,7 +158,6 @@ export function rightPanels({ design, selected, selectedParts, realizeOptions, o
           stats={[
             { label: 'parts', value: design.symbols.length },
             { label: 'not mounted yet', value: unmounted },
-            { label: 'rays', value: design.rays.length },
             { label: 'groups', value: design.groups.length },
           ]}
         />

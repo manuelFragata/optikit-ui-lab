@@ -10,7 +10,7 @@ import { demoDesignInfo, demoFiles, demoHistory } from '../demo/editorContent';
 import { demoPeople, demoShareLink } from '../demo/fileContent';
 import { bomCsv, bomFileName } from '../components/editor/bomCsv';
 import { DESIGN_FILE_EXTENSION, designFileText, readDesignFile } from '../components/editor/designFile';
-import { useLightFor } from '../ports/light';
+import { useLight } from '../ports/light';
 import { errorText, useRequest } from '../ports/request';
 import { useService } from '../ports/service';
 import { PageContainer } from '../components/compositions/PageContainer';
@@ -98,13 +98,15 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
 }
 
 export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {
-  const lightFor = useLightFor();
   const request = useRequest(schematic, useService().bom, { keep: true });
+  // The checks read the light: the quote waits for both.
+  const trace = useLight(schematic);
   const bom = request.data;
-  if (!bom) {
+  if (!bom || !trace.known) {
+    const failed = request.status === 'error' ? request : trace.error ? { error: trace.error, retry: trace.retry } : null;
     return (
       <PageContainer sx={{ pt: 3, pb: 8, maxWidth: 720 }}>
-        {request.status === 'error' ? <Failed message={request.error ?? ''} onRetry={request.retry} /> : request.slow && <Waiting label="Getting the quote's parts list" rows={6} height={52} />}
+        {failed ? <Failed message={failed.error ?? ''} onRetry={failed.retry} /> : (request.slow || trace.slow) && <Waiting label="Getting the quote's parts list" rows={6} height={52} />}
       </PageContainer>
     );
   }
@@ -115,7 +117,7 @@ export function CommercialTab({ name, version, schematic, project, onNotice }: D
       bom={bom}
       supply={demoSupply}
       labourRate={demoLabourRate}
-      checks={demoChecks(schematic, bom, lightFor(schematic))}
+      checks={demoChecks(schematic, bom, trace.light)}
       customer={project ? undefined : demoCustomer}
       onSend={({ customer, total }) => onNotice(`Quote for ${formatEur(total)} sent to ${customer.email}, with a 3D link.`)}
       onCreateOdoo={() => onNotice('A draft quotation would be made in Odoo, with the design attached.')}

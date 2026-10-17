@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { EMPTY_LIBRARY, LibraryProvider, type Library } from '../ports/library';
-import { LightProvider } from '../ports/light';
+import { LightProvider, type LightFor } from '../ports/light';
 import { ServiceProvider } from '../ports/service';
 import { demoLight } from './kernel/light';
 import { standinLibrary } from './library';
@@ -39,8 +39,9 @@ function useLibraryOver(net: Network): Library {
 export function StandinsProvider({ network = NO_NETWORK, children }: { network?: Network; children: ReactNode }) {
   const library = useLibraryOver(network);
   const service = useMemo(() => standinService(library, network), [library, network]);
+  const light = useMemo<LightFor>(() => (design) => overNetwork(network, 'the light', () => demoLight(design)), [network]);
   return (
-    <LightProvider value={demoLight}>
+    <LightProvider value={light}>
       <LibraryProvider value={library}>
         <ServiceProvider value={service}>{children}</ServiceProvider>
       </LibraryProvider>

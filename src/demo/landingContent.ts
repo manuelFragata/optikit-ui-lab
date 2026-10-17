@@ -78,17 +78,6 @@ const brightfield: Schematic = {
     },
     { id: 'S7', placement: cube('IMX477 camera'), label: 'Camera', kind: 'camera', type: 'camera', group: 'detection', x: 1, y: 4, z: 1, notes: '' },
   ],
-  rays: [
-    {
-      id: 'light',
-      label: 'transmitted light',
-      color: 'ray3',
-      path: ['S1', 'S2', 'S3', 'S4', 'sample', 'S5', 'S6', 'S7'],
-      offset: 0,
-      arrowSegment: 0,
-      labelAt: 1,
-    },
-  ],
 };
 
 const beamExpander: Schematic = {
@@ -136,9 +125,6 @@ const beamExpander: Schematic = {
     { id: 'S4', placement: cube('Mirror cube 45°'), label: 'Mirror M1', kind: 'mirror', type: 'mirror 45°', x: 18, y: 4, z: 1, notes: '' },
     { id: 'S5', placement: cube('Mirror cube 45°', 'Core Box', 1), label: 'Mirror M2', kind: 'mirror', type: 'mirror 45°', group: 'profiler', x: 18, y: 11, z: 1, notes: '' },
     { id: 'S6', placement: cube('IMX477 camera'), label: 'Camera', kind: 'camera', type: 'camera', group: 'profiler', x: 9, y: 11, z: 1, notes: '' },
-  ],
-  rays: [
-    { id: 'beam', label: 'beam', color: 'ray4', path: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'], offset: 0, arrowSegment: 1, labelAt: 1 },
   ],
 };
 

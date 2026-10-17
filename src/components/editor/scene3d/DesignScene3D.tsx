@@ -17,7 +17,7 @@ import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../../settings/preferences';
 import type { CanvasTool, HintPlace, ViewOptions } from '../viewOptions';
 import { withMove, type Move, type Schematic, type SchematicSymbol } from '../model';
-import { useLightFor } from '../../../ports/light';
+import { useLight } from '../../../ports/light';
 import { Camera, type CameraCommand } from './Camera';
 import { useSceneColors } from './colors';
 import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type GlassFor, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';
@@ -78,7 +78,8 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
   // Dragged up or down, the parts take the view's layer with them (as they will once let go).
   const shownLayer = layer + (drag.dragging?.by.z ?? 0);
 
-  const lightFor = useLightFor();
+  // The light from before while parts are dragged; traced again once they are let go.
+  const { light } = useLight(drag.dragging ? null : schematic);
   const layout = useMemo(
     () =>
       layout3d(
@@ -94,10 +95,10 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
           selectedIds,
         },
         meshFor,
-        lightFor(shown),
+        light,
         glassFor,
       ),
-    [shown, shownLayer, options, fidelity, selectedIds, meshFor, lightFor, glassFor],
+    [shown, shownLayer, options, fidelity, selectedIds, meshFor, light, glassFor],
   );
   const { parts, rays, labels, floor, anchor, handles, bounds } = layout;
 

@@ -59,11 +59,11 @@ export interface Beam {
   endMm: number;
   /** It runs out into nothing. */
   open: boolean;
-  /** The source's wavelength, nm (emission: the dichroic's emission band, when it states one). */
+  /** The source's wavelength, nm (the sample's light: the dichroic's emission band, when it states one). */
   wavelengthNm: number | null;
   /** The source's power, mW. */
   powerMw: number | null;
-  emission: boolean;
+  fromSample: boolean;
 }
 
 const inputOf = (s: SchematicSymbol | undefined, label: string) => s?.inputs?.find((i) => i.label === label)?.value;
@@ -160,14 +160,14 @@ export function beamOf(design: Schematic, path: LightPath, recordFor: (s: Schema
   const endMm = path.open ? along + dist(path.points[last - 1], path.points[last]) * unit : along;
 
   // The sample sits at the objective's focus, wherever the drawing puts it (its symbol is not to scale):
-  // in front of it for the emission, behind it for the light sent onto the sample.
-  const emission = parts[0] === 'sample';
+  // in front of it for the light it sends back, behind it for the light sent onto the sample.
+  const fromSample = parts[0] === 'sample';
   const objective = elements.find((e) => e.role === 'objective');
   let end = endMm;
   if (objective?.focalMm) {
-    if (emission) elements[0] = { ...elements[0], atMm: objective.atMm - objective.focalMm, assumed: ['at the objective’s focus'] };
+    if (fromSample) elements[0] = { ...elements[0], atMm: objective.atMm - objective.focalMm, assumed: ['at the objective’s focus'] };
     const last = elements.length - 1;
-    if (!emission && elements[last].role === 'sample') {
+    if (!fromSample && elements[last].role === 'sample') {
       elements[last] = { ...elements[last], atMm: objective.atMm + objective.focalMm, assumed: ['at the objective’s focus'] };
       end = elements[last].atMm;
     }
@@ -181,9 +181,9 @@ export function beamOf(design: Schematic, path: LightPath, recordFor: (s: Schema
     elements: elements.map((e) => ({ ...e, atMm: e.atMm - zero })),
     endMm: end - zero,
     open: path.open,
-    emission,
-    wavelengthNm: emission ? (inputOf(dichroic, 'Emission band') ?? null) : (inputOf(source, 'Wavelength') ?? null),
-    powerMw: emission ? null : (inputOf(source, 'Power') ?? null),
+    fromSample,
+    wavelengthNm: fromSample ? (inputOf(dichroic, 'Emission band') ?? null) : (inputOf(source, 'Wavelength') ?? null),
+    powerMw: fromSample ? null : (inputOf(source, 'Power') ?? null),
   };
 }
 
@@ -215,7 +215,7 @@ export function targetsOf(beams: Beam[]): Target[] {
         ? detectors.map((e) => ({ part: e.id, label: e.label }))
         : last.role === 'sample' && beam.elements.length > 1
           ? [{ part: last.id, label: 'Sample' }]
-          : [{ part: 'end', label: `End of ${beam.ray.label}` }];
+          : [{ part: 'end', label: 'Open end' }];
       return ends.map((t) => ({ ...t, key: `${beam.ray.id}:${t.part}`, beam }));
     })
     .sort((a, b) => rank(a) - rank(b));

@@ -35,7 +35,7 @@ export const errorText = (e: unknown) => (e instanceof Error ? e.message : typeo
 
 /**
  * Ask `ask(input)` whenever `input` or `ask` changes (by identity); `null`
- * input asks nothing and gives `ready` with no data.
+ * input asks nothing and gives `ready`, with the last answer if `keep`.
  */
 export function useRequest<I, T>(input: I | null, ask: (input: I) => Promise<T>, { keep = false }: { keep?: boolean } = {}): Request<T> {
   // `for`: the question the state answers. Until the effect has asked a new one, the old answer is not shown as this one's.
@@ -46,7 +46,7 @@ export function useRequest<I, T>(input: I | null, ask: (input: I) => Promise<T>,
 
   useEffect(() => {
     if (input === null) {
-      setState({ for: null, status: 'ready', data: undefined, error: null });
+      setState((s) => ({ for: null, status: 'ready', data: keep ? s.data : undefined, error: null }));
       return;
     }
     const n = ++asked.current;

@@ -13,8 +13,9 @@ export const designFileText = (design: Schematic) => JSON.stringify(design, null
 export function readDesignFile(text: string): Schematic | null {
   try {
     const d = JSON.parse(text) as Partial<Schematic> | null;
-    if (!d || !Array.isArray(d.symbols) || !Array.isArray(d.rays)) return null;
-    return { ...d, symbols: d.symbols, rays: d.rays, groups: d.groups ?? [], unitMm: d.unitMm ?? 50 };
+    if (!d || !Array.isArray(d.symbols)) return null;
+    // Only the design's own fields: older files also name light paths (`rays`), but the light comes from the parts now.
+    return { symbols: d.symbols, groups: d.groups ?? [], unitMm: d.unitMm ?? 50 };
   } catch {
     return null;
   }

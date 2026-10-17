@@ -12,7 +12,7 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { floatingCardSx } from '../panels/floatingCard';
-import { useLightFor, type Light } from '../../ports/light';
+import { useLight, type Light } from '../../ports/light';
 import { samplePoint, type Schematic } from './model';
 
 export interface LayerPreviewProps {
@@ -95,8 +95,8 @@ export function LayerPreview({ schematic, layers, layer, onLayer, selectedIds = 
   const shown = open && (!crowded || pinned || peek);
   const [size, setSize] = useState({ w: SIZE.w, h: SIZE.h });
   const drag = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-  const lightFor = useLightFor();
-  const { project, path, plate, rayPaths, viewBox, labelAt } = projection(schematic, lightFor(schematic), layers);
+  const { light } = useLight(schematic);
+  const { project, path, plate, rayPaths, viewBox, labelAt } = projection(schematic, light, layers);
   const at = layers.indexOf(layer);
 
   // Anchored bottom-right, so dragging the top-left corner up and left grows it.

@@ -24,8 +24,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { ApertureFill, RayFan, RmsFocusPlot, SpectrumPlot, SpotDiagram } from '../../analysis/Plots';
 import { NumberInput } from '../../primitives/NumberInput';
+import { Failed, Refreshing, Waiting } from '../../primitives/RequestState';
 import type { CatalogRecord } from '../holders/optic';
-import type { Light } from '../../../ports/light';
+import type { Light, LightState } from '../../../ports/light';
 import type { Schematic, SchematicSymbol } from '../model';
 import { spectrum } from '../../../standins/kernel/simulate/analysis';
 import { beamOf, DEFAULT_BEAM_MM, targetsOf, type Target } from '../../../standins/kernel/simulate/beam';
@@ -37,6 +38,8 @@ import { ANALYSES, assumptionsOf, checksAt, focusReach, length, worst, type Anal
 export interface SimulatePaneProps {
   design: Schematic;
   light: Light;
+  /** Where the light's trace is: the pane waits for the first, and shows when a newer one is on its way. */
+  trace?: Pick<LightState, 'known' | 'slow' | 'error' | 'retry'>;
   /** The optic behind a part: designed here, or its catalogue record. */
   recordFor: (s: SchematicSymbol) => CatalogRecord | undefined;
   /** The part selected on the canvas. */
@@ -105,7 +108,7 @@ function CheckTile({ check, on, onClick }: { check: Check; on: boolean; onClick:
   );
 }
 
-export function SimulatePane({ design, light, recordFor, selectedId, onSelect, onFocusRay, onOptimize, onSendToOptiland, onClose }: SimulatePaneProps) {
+export function SimulatePane({ design, light, trace: traced, recordFor, selectedId, onSelect, onFocusRay, onOptimize, onSendToOptiland, onClose }: SimulatePaneProps) {
   const beams = useMemo(() => light.paths.flatMap((p) => beamOf(design, p, recordFor) ?? []), [design, light, recordFor]);
   const targets = useMemo(() => targetsOf(beams), [beams]);
   const [targetKey, setTargetKey] = useState<string | null>(null);
@@ -186,9 +189,21 @@ export function SimulatePane({ design, light, recordFor, selectedId, onSelect, o
   const frame = (body: ReactNode) => (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, bgcolor: 'canvas.ground' }}>
       {header}
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', scrollbarWidth: 'thin' }}>{body}</Box>
+      <Box sx={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'auto', scrollbarWidth: 'thin' }}>
+        <Refreshing on={Boolean(traced?.known && traced.slow)} />
+        {body}
+      </Box>
     </Box>
   );
+
+  // No trace yet: wait for it (or say why it did not come), not "no light".
+  if (traced && !traced.known) {
+    return frame(
+      <Box sx={{ p: 2 }}>
+        {traced.error ? <Failed message={traced.error} onRetry={traced.retry} /> : traced.slow && <Waiting label="Tracing the light" rows={4} height={56} />}
+      </Box>,
+    );
+  }
 
   if (!target) {
     return frame(

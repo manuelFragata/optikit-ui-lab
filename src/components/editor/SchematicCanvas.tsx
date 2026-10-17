@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { useLightFor, type Light, type Point } from '../../ports/light';
+import { useLight, type Light, type Point } from '../../ports/light';
 import { facing, samplePoint, seatOf, specLine, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
@@ -218,9 +218,8 @@ export function SchematicCanvas({
   const justMoved = useRef(false);
   const { groups } = schematic;
   const symbols = moving ? withMove(schematic, moving).symbols : schematic.symbols;
-  // The light, from the app's light source, for the parts where they are: moving a part never drags it along.
-  const lightFor = useLightFor();
-  const light = lightFor({ ...schematic, symbols });
+  // The light, from the app's light source. While parts are dragged it is the light from before, faded: it is traced again once they are let go.
+  const { light } = useLight(moving ? null : schematic);
   const objective = symbols.find((s) => s.kind === 'objective');
   // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
   const others = options.onionSkin !== false;
@@ -495,7 +494,7 @@ export function SchematicCanvas({
               const endsRight = lp.x >= prev.x;
               const faint = focusRay !== null && focusRay !== ray.id;
               return (
-                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show] * (faint ? 0.25 : 1)} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show] * (faint ? 0.25 : 1) * (moving ? 0.35 : 1)} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
                   <polyline points={lit.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={focusRay === ray.id ? 3.5 : 2} strokeLinejoin="round" {...line} />
                   {open && <RunOut from={pts[pts.length - 2]} to={pts[pts.length - 1]} id={`run-out-${ray.id}`} />}
                   {miss && <MissHint from={toScreen(miss.from)} to={toScreen(miss.at)} />}

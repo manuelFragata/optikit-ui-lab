@@ -23,9 +23,9 @@ export const part = (
   notes: '',
 });
 
-/** A design with one straight path through its parts, in order along +x ('sample' first for emission). */
+/** A design with one straight path through its parts, in order along +x ('sample' first for the sample's light). */
 export function straight(symbols: SchematicSymbol[], sampleAt?: number): { design: Schematic; path: LightPath } {
-  const design: Schematic = { symbols, rays: [], groups: [], unitMm: 50 };
+  const design: Schematic = { symbols, groups: [], unitMm: 50 };
   const ids = [...(sampleAt === undefined ? [] : ['sample']), ...symbols.map((s) => s.id)];
   const points = [...(sampleAt === undefined ? [] : [{ x: sampleAt, y: 0 }]), ...symbols.map((s) => ({ x: s.x, y: 0 }))];
   const ray = { id: 'r', label: 'r', color: 'ray1' as const, path: ids, offset: 0, arrowSegment: 0, labelAt: 0 };

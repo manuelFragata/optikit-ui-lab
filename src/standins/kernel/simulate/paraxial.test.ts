@@ -77,7 +77,7 @@ describe('where the light is read', () => {
     expect(targetsOf(beams).map((t) => [t.label, t.part])).toEqual([
       ['C', 'C'],
       ['Sample', 'sample'],
-      ['End of beam', 'end'],
+      ['Open end', 'end'],
     ]);
   });
 });

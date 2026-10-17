@@ -105,10 +105,6 @@ export const demoSchematic: Schematic = {
       notes: '',
     },
   ],
-  rays: [
-    { id: 'excitation', label: 'excitation', color: 'ray1', path: ['S1', 'S2', 'S3', 'S4', 'sample'], offset: 0.2, arrowSegment: 2, labelAt: 4 },
-    { id: 'emission', label: 'emission', color: 'ray2', path: ['sample', 'S4', 'S3', 'S5', 'S6'], offset: -0.2, arrowSegment: 2, labelAt: 4 },
-  ],
 };
 
 export const demoHistory: VersionEntryData[] = [
