@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { divergenceRad, sketchShape } from './sketchShapes';
-import { stageOf, specLine, type SymbolParam } from './model';
+import { sketchShape } from './sketchShapes';
+import { divergenceRad, stageOf, specLine, type SymbolParam } from './model';
 
 const input = (label: string, value: number, unit = 'mm'): SymbolParam => ({ label, value, unit, min: -1000, max: 1000, step: 1 });
 

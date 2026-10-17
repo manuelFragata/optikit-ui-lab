@@ -22,7 +22,7 @@ import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { ScrubNumber } from '../../primitives/ScrubNumber';
+import { ScrubNumber, type ScrubNumberProps } from '../../primitives/ScrubNumber';
 import { designChecks, designedValues, designLens, designMirror, focalLength, LENS_FORMS, MIRROR_FORMS, mirrorForm, withDiameter, withFocalLength, type MirrorForm } from '../holders/designs';
 import { GLASS_ND, opticShape, type FragmentSurface } from '../holders/optic';
 import type { SchematicSymbol } from '../model';
@@ -31,6 +31,8 @@ import { OpticProfileSvg } from '../OpticProfile';
 export interface ShapeSectionProps {
   symbol: SchematicSymbol & { prescription: FragmentSurface[] };
   onChange: (patch: Partial<SchematicSymbol>) => void;
+  /** Optimize mode: the V of a radius or a thickness (by surface), when the optimizer may change it. */
+  vary?: (kind: 'radius' | 'thickness', surface: number) => ScrubNumberProps['vary'];
 }
 
 const GLASSES = Object.keys(GLASS_ND);
@@ -49,7 +51,7 @@ function Head({ children, action }: { children: string; action?: ReactNode }) {
   );
 }
 
-export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
+export function ShapeSection({ symbol, onChange, vary }: ShapeSectionProps) {
   const [forms, setForms] = useState<HTMLElement | null>(null);
   /** The row the pointer is on (R1, t1…): shown in the picture. */
   const [active, setActive] = useState<string | null>(null);
@@ -108,6 +110,7 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
           {radiusOf(surfaces[0]) !== null && (
             <ScrubNumber
               label="Radius"
+              vary={vary?.('radius', 0)}
               value={Math.abs(radiusOf(surfaces[0])!)}
               min={diameter / 2}
               step={1}
@@ -154,6 +157,7 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
                   ) : (
                     <ScrubNumber
                       label={`R${i + 1}`}
+                      vary={vary?.('radius', i)}
                       value={r}
                       step={0.1}
                       unit="mm"
@@ -176,6 +180,7 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
                   <Box {...point(`t${i + 1}`)} sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 104px', alignItems: 'center', columnGap: 0.5, pr: 0.25 }}>
                     <ScrubNumber
                       label={`t${i + 1}`}
+                      vary={vary?.('thickness', i)}
                       value={s.thickness ?? 0}
                       min={0.1}
                       step={0.05}

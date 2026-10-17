@@ -11,11 +11,10 @@
  * Simulate tab can show it: an objective's focal length from its
  * magnification on a 180 mm tube lens; a mirror or plate an inch across.
  */
-import { divergenceRad, sourceDiameterMm } from '../../../components/editor/sketchShapes';
 import { focalLength } from '../../../components/editor/holders/designs';
 import { opticFacts, type CatalogRecord, type FragmentSurface } from '../../../components/editor/holders/optic';
 import type { LightPath, Point } from '../../../ports/light';
-import { isLocked, type Placement, type Schematic, type SchematicSymbol, type SymbolKind } from '../../../components/editor/model';
+import { divergenceRad, isLocked, sourceDiameterMm, type Placement, type Schematic, type SchematicSymbol, type SymbolKind } from '../../../components/editor/model';
 
 /** The tube lens an objective's magnification is stated for (Nikon, Leica, Mitutoyo, openUC2's FRAME). */
 export const TUBE_LENS_MM = 180;

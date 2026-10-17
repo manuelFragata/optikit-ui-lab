@@ -18,7 +18,7 @@
  * seat turns it and before a 45° part is laid at 45° (`at45`). Pure.
  */
 import { liesAt45 } from './holders/designs';
-import type { SchematicSymbol, SymbolKind } from './model';
+import { divergenceRad, sourceDiameterMm, type SchematicSymbol, type SymbolKind } from './model';
 import { nmColor } from './optics/nmColor';
 
 export type Pt = [number, number];
@@ -74,16 +74,6 @@ const CONE_FLARE_MM = 2.5;
 const TUBE_LENS_MM = 180;
 
 const inputOf = (s: Pick<SchematicSymbol, 'inputs'>, label: string) => s.inputs?.find((i) => i.label === label)?.value;
-
-/** A source's full divergence angle, radians: its input is in mrad (a laser) or in degrees (an LED). */
-export function divergenceRad(s: Pick<SchematicSymbol, 'inputs'>): number {
-  const d = s.inputs?.find((i) => i.label === 'Divergence');
-  if (!d) return 0;
-  return d.unit === '°' ? (d.value * Math.PI) / 180 : d.value / 1000;
-}
-
-/** A source's beam Ø where it leaves it, mm: a laser's waist, an LED's emitter. `null`: not given. */
-export const sourceDiameterMm = (s: Pick<SchematicSymbol, 'inputs'>) => inputOf(s, 'Waist diameter') ?? inputOf(s, 'Emitter size') ?? null;
 
 const rect = (x0: number, x1: number, y0: number, y1: number, extra: Partial<SketchLine> = {}): SketchLine => ({
   points: [

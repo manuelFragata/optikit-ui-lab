@@ -11,13 +11,13 @@
  */
 import { recordOf } from '../../../components/editor/holders/designs';
 import type { SchematicSymbol } from '../../../components/editor/model';
-import type { Analysis, Detail, Envelope, Objective, OptimizeAsk, OptimizeJob, OptimizeRun, OptimizeView, Place, PlaceNumbers, Plane, SimulateAsk, Variable } from '../../../ports/analysis';
+import type { Analysis, Detail, Envelope, Goal, OptimizeAsk, OptimizeJob, OptimizeRun, OptimizeView, Place, PlaceNumbers, Plane, SimulateAsk, Variable } from '../../../ports/analysis';
 import type { Library } from '../../../ports/library';
 import type { Light } from '../../../ports/light';
 import type { Schematic } from '../../../components/editor/model';
 import { spectrum } from './analysis';
 import { beamOf, DEFAULT_BEAM_MM, startDiameter, targetsOf, type Beam, type Target } from './beam';
-import { MERIT_RAYS, measure, OBJECTIVES, planeZ, search, toDesign, variablesOf, withValues } from './optimize';
+import { MERIT_RAYS, measure, meritOf, OBJECTIVES, planeZ, search, toDesign, variablesOf, withValues } from './optimize';
 import { results, startRay, trace } from './paraxial';
 import { airyRadius, bestFocus, heightsAt, pupilOf, realTrace, rmsAngle, rmsAt, rmsThroughFocus, spotAt, type Pupil, type RealTrace } from './realtrace';
 
@@ -83,17 +83,20 @@ function envelopeOf(beam: Beam): Envelope {
   };
 }
 
-/** The plane an objective is read at; else the place itself. */
-const planeOf = (o: Objective, target: Target): Plane => (o.kind === 'rms-spot' || o.kind === 'beam-diameter' ? o.plane : { part: target.part, offsetMm: 0 });
+/** The plane the targets are read at: the first that has one; else the place itself. */
+const planeOf = (goals: Goal[], target: Target): Plane => {
+  const o = goals.map((g) => g.objective).find((x) => x.kind === 'rms-spot' || x.kind === 'beam-diameter');
+  return o && (o.kind === 'rms-spot' || o.kind === 'beam-diameter') ? o.plane : { part: target.part, offsetMm: 0 };
+};
 
-function viewOf(beam: Beam, target: Target, objective: Objective): OptimizeView {
+function viewOf(beam: Beam, target: Target, goals: Goal[]): OptimizeView {
   const pupil = pupilOf(beam, DEFAULT_BEAM_MM);
-  const plane = planeOf(objective, target);
+  const plane = planeOf(goals, target);
   const rt = realTrace(beam, pupil, MERIT_RAYS);
   const z = planeZ(beam, plane);
   const at = plane.part === 'end' ? 'the end' : (beam.elements.find((e) => e.id === plane.part)?.label ?? target.label);
   return {
-    value: measure(beam, objective, pupil),
+    values: goals.map((g) => measure(beam, g.objective, pupil)),
     envelope: envelopeOf(beam),
     spot: { points: spotAt(rt, z), rmsMm: rmsAt(rt, z), airyMm: plane.part === 'end' ? null : airyRadius(rt, beam.wavelengthNm ?? DEFAULT_NM), at },
   };
@@ -117,21 +120,33 @@ function find(design: Schematic, light: Light, key: string, record: RecordFor): 
 export type RunAsk = OptimizeAsk & { variables: Variable[] };
 
 /** A run a step at a time: the best so far after each step, then the run. */
-export function* optimizeSteps({ design, light, place, objective, variables }: RunAsk, record: RecordFor): Generator<OptimizeRun, OptimizeRun> {
+export function* optimizeSteps({ design, light, place, goals, variables }: RunAsk, record: RecordFor): Generator<OptimizeRun, OptimizeRun> {
+  if (!goals.length) throw new Error('Add a target to run.');
   const t = find(design, light, place, record);
   const pupil = pupilOf(t.beam, DEFAULT_BEAM_MM);
-  const before = measure(t.beam, objective, pupil);
-  const history = [before];
+  const m = meritOf(t.beam, goals, pupil);
+  const before = goals.map((g) => measure(t.beam, g.objective, pupil));
+  const start = m(t.beam);
+  const history = [start];
   const snapshot = (values: Record<string, number>, steps: number): OptimizeRun => {
     const proposed = withValues(t.beam, variables, values);
-    const after = measure(proposed, objective, pupil);
-    return { values, before, after, history: [...history, after], steps, stopped: false, design: toDesign(design, t.beam, variables, values), proposed: viewOf(proposed, t, objective) };
+    const after = m(proposed);
+    return {
+      values,
+      goals: goals.map((g, i) => ({ before: before[i], after: measure(proposed, g.objective, pupil) })),
+      merit: { before: start, after },
+      history: [...history, after],
+      steps,
+      stopped: false,
+      design: toDesign(design, t.beam, variables, values),
+      proposed: viewOf(proposed, t, goals),
+    };
   };
-  const it = search(t.beam, variables, objective, pupil);
+  const it = search(t.beam, variables, goals, pupil);
   for (let r = it.next(); ; r = it.next()) {
     const best = snapshot(r.value.values, r.value.steps);
     if (r.done) return best;
-    history.push(best.after);
+    history.push(best.merit.after);
     yield best;
   }
 }
@@ -270,9 +285,9 @@ export function standinAnalysis(library: Pick<Library, 'record'>): Analysis {
       };
     },
 
-    view: ({ design, light, place, objective }) => {
+    view: ({ design, light, place, goals }) => {
       const t = find(design, light, place, library.record);
-      return viewOf(t.beam, t, objective);
+      return viewOf(t.beam, t, goals);
     },
 
     // The worker reads the parts from the lab's library itself: the same records as the page's.

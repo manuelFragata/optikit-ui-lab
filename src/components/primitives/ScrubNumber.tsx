@@ -8,6 +8,7 @@
  */
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { NumberInput } from './NumberInput';
@@ -29,6 +30,35 @@ export interface ScrubNumberProps {
   /** The label column's width; `compact`: a one-letter label, as x, y and z. */
   compact?: boolean;
   ariaLabel?: string;
+  /** Optimize mode: a V before the label frees the number for the optimizer (the Zemax convention); the row is tinted while free. */
+  vary?: { on: boolean; onToggle: () => void; next?: number };
+}
+
+/** The V of a number the optimizer may change: filled while it is free. */
+export function VaryToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <ButtonBase
+      onClick={onToggle}
+      aria-pressed={on}
+      aria-label={`${on ? 'Fix' : 'Free'} ${label} for the optimizer`}
+      title={on ? 'Free: the optimizer may change it. Click to fix it.' : 'Fixed. Click to let the optimizer change it.'}
+      sx={{
+        width: 16,
+        height: 16,
+        borderRadius: 0.5,
+        typography: 'mono',
+        fontSize: 10,
+        fontWeight: 700,
+        border: 1,
+        borderColor: on ? 'primary.main' : 'divider',
+        bgcolor: on ? 'primary.main' : 'transparent',
+        color: on ? 'primary.contrastText' : 'text.meta',
+        '&:hover': { borderColor: 'primary.main', color: on ? undefined : 'primary.main' },
+      }}
+    >
+      V
+    </ButtonBase>
+  );
 }
 
 /** Pixels of drag for one step. */
@@ -36,7 +66,7 @@ const PX_PER_STEP = 4;
 
 const decimals = (step: number) => (Number.isInteger(step) ? 0 : Math.min(4, String(step).split('.')[1]?.length ?? 2));
 
-export function ScrubNumber({ label, value, onChange, min = -Infinity, max = Infinity, step = 1, unit, hint, readOnly = false, text, compact = false, ariaLabel }: ScrubNumberProps) {
+export function ScrubNumber({ label, value, onChange, min = -Infinity, max = Infinity, step = 1, unit, hint, readOnly = false, text, compact = false, ariaLabel, vary }: ScrubNumberProps) {
   const start = useRef<{ x: number; value: number } | null>(null);
   const [scrubbing, setScrubbing] = useState(false);
   const precision = decimals(step);
@@ -85,6 +115,11 @@ export function ScrubNumber({ label, value, onChange, min = -Infinity, max = Inf
       }}
     >
       {label}
+      {vary?.on && vary.next !== undefined && Math.abs(vary.next - value) >= step / 2 && (
+        <Box component="span" sx={{ ml: 0.75, typography: 'mono', fontSize: 11, color: 'primary.main' }} title="Proposed by the optimizer">
+          {`→ ${Number(vary.next.toFixed(Math.max(precision, 2)))}`}
+        </Box>
+      )}
     </Typography>
   );
 
@@ -92,12 +127,14 @@ export function ScrubNumber({ label, value, onChange, min = -Infinity, max = Inf
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: compact ? '10px minmax(0, 1fr)' : text !== undefined ? 'minmax(0, 1fr) auto' : 'minmax(0, 1fr) 76px',
+        gridTemplateColumns: `${vary ? '16px ' : ''}${compact ? '10px minmax(0, 1fr)' : text !== undefined ? 'minmax(0, 1fr) auto' : 'minmax(0, 1fr) 76px'}`,
         alignItems: 'center',
         columnGap: compact ? 0.5 : 1,
         minHeight: 28,
+        ...(vary?.on && { bgcolor: 'primary.soft', borderRadius: 0.75, mx: -0.75, px: 0.75 }),
       }}
     >
+      {vary && <VaryToggle on={vary.on} onToggle={vary.onToggle} label={typeof label === 'string' ? label : 'this number'} />}
       {name}
       {editable ? (
         <NumberInput

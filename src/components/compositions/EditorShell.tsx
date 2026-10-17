@@ -24,6 +24,9 @@ import { demoInputs, demoSchematic, demoSketch } from '../../demo/editorContent'
 import { useLibrary, type PaletteGroup } from '../../ports/library';
 import { snappedValues } from '../editor/holders/optic';
 import type { MakeReal } from '../editor/scene3d/SnapPanel';
+import { toggled, type VaryMap, type Varying } from '../editor/optimize/vary';
+import { NEW_SESSION, type OptimizeSession } from '../editor/optimize/session';
+import type { PartVariables } from '../../ports/analysis';
 import { useRequest } from '../../ports/request';
 import { useService } from '../../ports/service';
 import { STORE_MESHES } from '../../demo/assemblies';
@@ -70,7 +73,9 @@ const SimulatePane = lazy(() => import('../editor/simulate/SimulatePane').then((
 export type EditorPane = 'closeup' | 'optimize' | 'choose' | 'simulate';
 
 /** The sketch's entries, as parts to place. */
-const SKETCH: PartEntry[] = demoSketch.flatMap((g) => g.entries.map((e) => ({ id: e.id, kind: e.kind, inputs: e.inputs, label: `Ideal ${e.label.toLowerCase()}`, mount: 'ideal' as const, source: 'Sketch' })));
+const SKETCH: PartEntry[] = demoSketch.flatMap((g) =>
+  g.entries.map((e) => ({ id: e.id, kind: e.kind, inputs: e.inputs, label: `Ideal ${e.label.toLowerCase()}`, mount: 'ideal' as const, source: 'Sketch' })),
+);
 
 /** Every part there is to place, in one list for the Add search and the command palette: the sketch's, then the library's. */
 const partsOf = (palette: readonly PaletteGroup[]): PartEntry[] => [...SKETCH, ...palette.flatMap((g) => g.entries.map((e) => ({ ...e, mount: g.mount, source: g.label })))];
@@ -133,6 +138,13 @@ export interface EditorShellProps {
   openPane?: EditorPane;
   /** Tell the person something the editor cannot show itself (a hand-off to another app). */
   onNotice?: (text: string) => void;
+  /**
+   * The workspace tab the editor is: View, or Optimize (the optimizer beside
+   * the canvas, the V on Properties rows). With `onModeChange`, opening or
+   * closing Optimize changes the tab; without it, Optimize is a pane of View.
+   */
+  mode?: 'view' | 'optimize';
+  onModeChange?: (mode: 'view' | 'optimize') => void;
 }
 
 export function EditorShell({
@@ -162,6 +174,8 @@ export function EditorShell({
   headerActions,
   openPane,
   onNotice,
+  mode = 'view',
+  onModeChange,
 }: EditorShellProps) {
   /* ---------------------------------------------------------------- */
   /* State                                                             */
@@ -182,7 +196,7 @@ export function EditorShell({
   useEffect(() => {
     if (opening.current) opening.current = false;
     else onDesignChange?.(design);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new design is news; the callback may be new each render
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new design is news; the callback may be new each render
   }, [design]);
 
   const selection = useSelection(design.symbols, selectedId, setSelectedId);
@@ -205,7 +219,7 @@ export function EditorShell({
   const [paletteOpen, setPaletteOpen] = useState(false);
   // The close-up: the canvas split, the selected part beside it; the component picked in it, for that part.
   // What the split's second pane holds: the close-up, Optimize, Choose parts, Simulate, or nothing (the canvas alone).
-  const [pane, setPane] = useState<EditorPane | null>(openPane ?? null);
+  const [pane, setPane] = useState<EditorPane | null>(openPane ?? (mode === 'optimize' ? 'optimize' : null));
   // The light path Simulate looks at: the canvas draws it stronger.
   const [focusRay, setFocusRay] = useState<string | null>(null);
   const closeup = pane === 'closeup';
@@ -261,11 +275,19 @@ export function EditorShell({
     if (!closeup) stepAside();
     setCloseup(!closeup);
   };
-  /** Optimize takes the same place beside the canvas. */
+  /** Optimize takes the same place beside the canvas, with Properties open for the V on its rows. */
+  const openOptimize = () => {
+    stepAside();
+    setSplit((f) => Math.min(f, 0.45));
+    setPane('optimize');
+    if (prefs.sidebar !== 'right') openPanel('properties');
+  };
+  /** Optimize on or off: in the workspace, the Optimize tab; on its own, a pane of the editor. */
   const toggleOptimize = () => {
-    if (pane !== 'optimize') stepAside();
-    if (pane !== 'optimize') setSplit((f) => Math.min(f, 0.45));
-    setPane(pane === 'optimize' ? null : 'optimize');
+    const on = pane !== 'optimize';
+    if (onModeChange) onModeChange(on ? 'optimize' : 'view');
+    else if (on) openOptimize();
+    else setPane(null);
   };
   /** Choose parts takes the same place: from the sketch to real parts, one after the other. */
   const toggleChoose = () => {
@@ -284,8 +306,28 @@ export function EditorShell({
   useEffect(() => {
     if (openPane) setPane(openPane);
   }, [openPane]);
+  // The Optimize tab opens the optimizer beside the canvas; View closes it.
+  useEffect(() => {
+    if (mode === 'optimize' && pane !== 'optimize') openOptimize();
+    if (mode === 'view' && pane === 'optimize') setPane(null);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps -- when the tab changes
+  // In the Optimize tab, another pane in its place (or none) is a step back to View.
+  const lastPane = useRef(pane);
+  useEffect(() => {
+    const was = lastPane.current;
+    lastPane.current = pane;
+    if (mode === 'optimize' && was === 'optimize' && pane !== 'optimize') onModeChange?.('view');
+  }, [pane]); // eslint-disable-line react-hooks/exhaustive-deps -- when the pane changes
   /** An ideal part in the close-up: made real from the catalogue, or designed. */
   const [makeReal, setMakeReal] = useState<MakeReal>('catalogue');
+  /** Optimize mode: the free variables (the pane's ticks and the V on Properties rows), and what the path being optimized offers. */
+  const [free, setFree] = useState<VaryMap>({});
+  const [optimizeGroups, setOptimizeGroups] = useState<PartVariables[]>([]);
+  const [proposed, setProposed] = useState<Readonly<Record<string, number>> | null>(null);
+  /** The Optimize tab's path, targets and runs: kept while the design is open. */
+  const [optimizeSession, setOptimizeSession] = useState<OptimizeSession>(NEW_SESSION);
+  const varying: Varying | undefined =
+    pane === 'optimize' && optimizeGroups.length ? { groups: optimizeGroups, free, toggle: (v) => setFree((f) => toggled(f, v)), proposed: proposed ?? undefined } : undefined;
   /** Freeze: the holder is designed in the close-up, on the selected part (an ideal part: made real there, from the catalogue first). */
   const designHolder = (way: MakeReal = 'catalogue') => {
     setMakeReal(way);
@@ -497,6 +539,7 @@ export function EditorShell({
       onFreeze: () => designHolder(),
       onSnap: openChoose,
       onDesign: () => designHolder('design'),
+      varying,
     }),
   ];
   const sidebar = (
@@ -524,7 +567,13 @@ export function EditorShell({
           on: pane === 'simulate',
           onToggle: toggleSimulate,
         },
-        { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
+        {
+          id: 'optimize',
+          label: pane === 'optimize' ? (onModeChange ? 'Back to View' : 'Close Optimize') : onModeChange ? 'Optimize: the Optimize tab' : 'Optimize: split the canvas',
+          icon: <AutoFixHighOutlinedIcon />,
+          on: pane === 'optimize',
+          onToggle: toggleOptimize,
+        },
       ]}
     />
   );
@@ -690,31 +739,45 @@ export function EditorShell({
               </Suspense>
             ) : pane === 'optimize' ? (
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
-                <OptimizePane design={design} light={light} onApply={(next) => edit(() => next)} onSelect={actions.selectPart} onClose={() => setPane(null)} />
-              </Suspense>
-            ) : (
-            closeup && (
-              <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
-                <Closeup
-                  part={selected}
-                  mesh={selected ? library.meshFor(selected) : undefined}
-                  focus={selected && closeupFocus?.partId === selected.id ? closeupFocus.key : null}
-                  onFocus={(key) => selected && setCloseupFocus({ partId: selected.id, key })}
-                  onClose={() => setCloseup(false)}
-                  opticFor={recordForPart}
-                  cubeMesh={STORE_MESHES.empty}
-                  onHolder={(spec) => selected && edit((d) => updateParts(d, [selected.id], (s) => ({ placement: frozen(s.placement, spec) })))}
-                  candidatesFor={service.snapCandidates}
-                  onSnap={({ record }) => selected && edit((d) => updateParts(d, [selected.id], (s) => snapped(s, record.vendor?.mpn ?? record.id, `${record.vendor?.name ?? 'Catalogue'} parts`, snappedValues(record))))}
-                  modules={selected ? modulesFor(selected.kind) : []}
-                  onRealize={(option) => selected && edit((d) => updateParts(d, [selected.id], (s) => realize(s, option)))}
-                  onDesign={(prescription) => selected && edit((d) => updateParts(d, [selected.id], (s) => designed(s, prescription, designedValues(prescription))))}
-                  makeReal={makeReal}
-                  wavelengths={wavelengths}
-                  onPrescription={(prescription) => selected && edit((d) => updateParts(d, [selected.id], () => ({ prescription })))}
+                <OptimizePane
+                  design={design}
+                  light={light}
+                  onApply={(next) => edit(() => next)}
+                  onSelect={actions.selectPart}
+                  onClose={() => setPane(null)}
+                  free={free}
+                  onFree={setFree}
+                  onGroups={setOptimizeGroups}
+                  onProposed={setProposed}
+                  session={optimizeSession}
+                  onSession={setOptimizeSession}
                 />
               </Suspense>
-            )
+            ) : (
+              closeup && (
+                <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+                  <Closeup
+                    part={selected}
+                    mesh={selected ? library.meshFor(selected) : undefined}
+                    focus={selected && closeupFocus?.partId === selected.id ? closeupFocus.key : null}
+                    onFocus={(key) => selected && setCloseupFocus({ partId: selected.id, key })}
+                    onClose={() => setCloseup(false)}
+                    opticFor={recordForPart}
+                    cubeMesh={STORE_MESHES.empty}
+                    onHolder={(spec) => selected && edit((d) => updateParts(d, [selected.id], (s) => ({ placement: frozen(s.placement, spec) })))}
+                    candidatesFor={service.snapCandidates}
+                    onSnap={({ record }) =>
+                      selected && edit((d) => updateParts(d, [selected.id], (s) => snapped(s, record.vendor?.mpn ?? record.id, `${record.vendor?.name ?? 'Catalogue'} parts`, snappedValues(record))))
+                    }
+                    modules={selected ? modulesFor(selected.kind) : []}
+                    onRealize={(option) => selected && edit((d) => updateParts(d, [selected.id], (s) => realize(s, option)))}
+                    onDesign={(prescription) => selected && edit((d) => updateParts(d, [selected.id], (s) => designed(s, prescription, designedValues(prescription))))}
+                    makeReal={makeReal}
+                    wavelengths={wavelengths}
+                    onPrescription={(prescription) => selected && edit((d) => updateParts(d, [selected.id], () => ({ prescription })))}
+                  />
+                </Suspense>
+              )
             )
           }
         />

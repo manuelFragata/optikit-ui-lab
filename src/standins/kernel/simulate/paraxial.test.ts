@@ -22,7 +22,11 @@ describe('the beam and its paraxial trace', () => {
     expect(beam.sourceBeamMm).toBe(2);
     expect(results(beam, trace(beam, startRay(beam, 2)), 2).out.focusMm).toBeCloseTo(150, 6);
     // 4 mrad: the edge ray climbs 2 µm per mm.
-    const opening = beamOf(straight([part('L', 'laser', 0, { 'Waist diameter': 2, Divergence: 4 }), part('C', 'camera', 2)]).design, straight([part('L', 'laser', 0), part('C', 'camera', 2)]).path, lookup)!;
+    const opening = beamOf(
+      straight([part('L', 'laser', 0, { 'Waist diameter': 2, Divergence: 4 }), part('C', 'camera', 2)]).design,
+      straight([part('L', 'laser', 0), part('C', 'camera', 2)]).path,
+      lookup,
+    )!;
     expect(startRay(opening, 2).u).toBeCloseTo(0.002, 6);
   });
 

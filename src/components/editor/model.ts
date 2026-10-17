@@ -231,6 +231,16 @@ export function stageOf(s: Pick<SchematicSymbol, 'placement' | 'prescription'>):
   return { step: 'mounted', origin: p.frozen ? 'holder' : 'module' };
 }
 
+/** A source's full divergence angle, radians: its input is in mrad (a laser) or in degrees (an LED); 0 when it states none. */
+export function divergenceRad(s: Pick<SchematicSymbol, 'inputs'>): number {
+  const d = s.inputs?.find((i) => i.label === 'Divergence');
+  if (!d) return 0;
+  return d.unit === '°' ? (d.value * Math.PI) / 180 : d.value / 1000;
+}
+
+/** A source's beam Ø where it leaves it, mm: a laser's waist, an LED's emitter. `null`: not given. */
+export const sourceDiameterMm = (s: Pick<SchematicSymbol, 'inputs'>) => s.inputs?.find((i) => i.label === 'Waist diameter')?.value ?? s.inputs?.find((i) => i.label === 'Emitter size')?.value ?? null;
+
 /** One numeric, kind-specific input of a part, shown as a slider (e.g. cut-on wavelength). */
 export interface SymbolParam {
   label: string;

@@ -46,7 +46,7 @@ describe('what each part lets vary', () => {
     ]);
     const groups = variablesOf(beamOf(design, path, lookup)!);
     expect(groups.map((g) => [g.part.id, g.variables.map((v) => v.label), g.fixed ?? null])).toEqual([
-      ['D', ['Position', 'R1', 'R2', 'CT1'], null],
+      ['D', ['Position', 'R1', 'R2', 't1'], null],
       ['T', ['Position'], null],
       ['H', ['In holder', 'f'], null],
     ]);
@@ -80,6 +80,25 @@ describe('the optimizer', () => {
     const position = { ...variablesOf(beam)[1].variables[0], min: 100, max: 150 };
     const result = run(beam, [position], { kind: 'rms-spot', plane: { part: 'C', offsetMm: 0 } }, pupilOf(beam, 2));
     expect(result.values[position.id]).toBeCloseTo(150, 3);
+  });
+
+  it('weighs several targets: a sharp spot on the camera and a focal length, both met', () => {
+    const { design, path } = emission();
+    const beam = beamOf(design, path, lookup)!;
+    const vars = variablesOf(beam)
+      .flatMap((g) => g.variables)
+      .filter((v) => v.part === 'T' && (v.kind === 'position' || v.kind === 'focal'));
+    const goals = [
+      { objective: { kind: 'rms-spot', plane: { part: 'C', offsetMm: 0 } } as Objective, weight: 1 },
+      { objective: { kind: 'focal-length', part: 'T', targetMm: 120 } as Objective, weight: 1 },
+    ];
+    const result = run(beam, vars, goals, pupilOf(beam, 2));
+    expect(result.goals.map((g) => g.before)).toEqual([expect.any(Number), 150]);
+    expect(result.goals[1].after).toBeCloseTo(120, 0);
+    expect(result.goals[0].after).toBeLessThan(5);
+    // Each target counts 1 at the start: the merit starts at 1 and falls.
+    expect(result.history[0]).toBeCloseTo(1, 9);
+    expect(result.history.at(-1)!).toBeLessThan(0.01);
   });
 
   it('bends a designed lens to a focal length by its radii, and the prescription follows into the design', () => {

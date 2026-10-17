@@ -13,7 +13,7 @@ import { exampleAssemblies } from '../demo/assemblies';
 import { demoUser } from '../demo/user';
 import type { AccountUser } from '../components/compositions/AccountMenu';
 import { AuthDialog, type AuthMode } from '../components/compositions/AuthDialog';
-import { DESIGN_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/tabs';
+import { DESIGN_TABS, EDITOR_TABS, TAB_LABELS, type WorkspaceTab } from '../components/compositions/tabs';
 import { WorkspaceShell } from '../components/compositions/WorkspaceShell';
 import { AccountPage } from '../components/pages/AccountPage';
 import { HomeDashboard, HomePage } from '../components/pages/HomePage';
@@ -124,6 +124,7 @@ const UPCOMING: Record<WorkspaceTab, string> = {
   projects: 'Your designs: pinned, recent, shared with you, and New project.',
   file: 'Save, version history, import, export and share.',
   view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
+  optimize: 'The canvas with the optimizer: free numbers, targets, runs.',
   commercial: 'The quote: prices, margins, lead time and the checks.',
 };
 
@@ -345,10 +346,13 @@ export function PrototypeApp() {
           onExplore={() => navigate({ name: 'explore' })}
         />
       );
-    } else if (tab === 'view' && design && openId) {
+    } else if (EDITOR_TABS.includes(tab) && design && openId) {
+      // View and Optimize are one editor: the same element in the same place, so it is kept as the tab changes.
       view = (
         <EditorShell
           key={openId}
+          mode={tab === 'optimize' ? 'optimize' : 'view'}
+          onModeChange={(mode) => navigate({ name: 'workspace', tab: mode, id: openId })}
           showHeader={false}
           schematic={changed[openId] ?? design.schematic}
           onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}

@@ -30,6 +30,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AcUnitIcon from '@mui/icons-material/AcUnit';
 import ArchitectureIcon from '@mui/icons-material/Architecture';
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -46,7 +47,9 @@ import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { EmptyState } from '../../primitives/EmptyState';
-import { ScrubNumber } from '../../primitives/ScrubNumber';
+import { ScrubNumber, VaryToggle, type ScrubNumberProps } from '../../primitives/ScrubNumber';
+import type { VariableKind } from '../../../ports/analysis';
+import { variableOf, type Varying } from '../optimize/vary';
 import { ShapeSection } from './ShapeSection';
 import { frozen, holderMismatch, isLocked, ORIGINS, realize, seatOf, shifted, sketched, stageOf, STEPS, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
 import { STEP_TONE, StepDots } from '../PartStage';
@@ -58,7 +61,15 @@ export interface PropertiesPanelProps {
   onChange: (patch: Partial<SchematicSymbol>) => void;
   /** Existing modules the selected part can go in. */
   realizeOptions?: ModuleOption[];
+  /** Optimize mode: each number the optimizer may change shows a V. */
+  varying?: Varying;
 }
+
+/** The V of one of the part's numbers, when the optimizer knows it. */
+const varyOf = (varying: Varying | undefined, part: string, kind: VariableKind, surface?: number) => {
+  const v = variableOf(varying, part, kind, surface);
+  return v && varying ? { on: Boolean(varying.free[v.id]), onToggle: () => varying.toggle(v), next: varying.proposed?.[v.id], value: v.value } : undefined;
+};
 
 const LOCKS: { value: Lock; label: string }[] = [
   { value: 'x', label: 'Along x' },
@@ -128,67 +139,114 @@ function Header({ symbol }: { symbol: SchematicSymbol }) {
 }
 
 /** x, y and layer, its turn and its locks, in one row. */
-function PlaceRow({ symbol, onChange }: { symbol: SchematicSymbol; onChange: PropertiesPanelProps['onChange'] }) {
+function PlaceRow({
+  symbol,
+  onChange,
+  vary,
+  holder,
+  holderValue,
+}: {
+  symbol: SchematicSymbol;
+  onChange: PropertiesPanelProps['onChange'];
+  /** Optimize mode: its place along the light, free for the optimizer. */
+  vary?: ScrubNumberProps['vary'] & { value?: number };
+  /** Optimize mode: where the optic sits in its generated holder, free for the optimizer. */
+  holder?: ScrubNumberProps['vary'];
+  holderValue?: number;
+}) {
   const [locks, setLocks] = useState<HTMLElement | null>(null);
   const p = symbol.placement;
   const anyLock = LOCKS.some((l) => isLocked(symbol, l.value));
   const turnLocked = isLocked(symbol, 'turn');
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) auto auto', alignItems: 'center', columnGap: 0.5, px: 2, py: 0.75 }}>
-      <ScrubNumber compact label="x" value={symbol.x} step={0.1} readOnly={isLocked(symbol, 'x')} hint={isLocked(symbol, 'x') ? 'Locked along x' : 'x, in cubes'} onChange={(x) => onChange({ x })} />
-      <ScrubNumber compact label="y" value={symbol.y} step={0.1} readOnly={isLocked(symbol, 'y')} hint={isLocked(symbol, 'y') ? 'Locked along y' : 'y, in cubes'} onChange={(y) => onChange({ y })} />
-      <ScrubNumber
-        compact
-        label="z"
-        value={symbol.z}
-        min={0}
-        readOnly={isLocked(symbol, 'z')}
-        hint={isLocked(symbol, 'z') ? 'Locked on its layer' : 'Layer'}
-        onChange={(z) => onChange({ z: shifted(symbol, { z: z - symbol.z }).z })}
-      />
-      <Tooltip title={turnLocked ? 'Locked: it does not turn' : `Turned ${seatOf(p) * 90}°: click to turn a quarter (R)`} placement="top" enterDelay={700} disableInteractive>
-        <span>
-          <ButtonBase
-            disabled={turnLocked}
-            onClick={() => onChange({ placement: { ...p, seat: ((seatOf(p) + 1) % 4) as Seat } })}
-            aria-label="Turn a quarter"
-            sx={{ gap: 0.25, px: 0.5, height: 26, borderRadius: 0.75, color: 'text.secondary', '&:hover': { bgcolor: 'action.hover' } }}
-          >
-            <RotateRightIcon sx={{ fontSize: 16 }} />
-            <Typography variant="mono" sx={{ fontSize: 12, minWidth: 26, textAlign: 'left' }}>
-              {seatOf(p) * 90}°
+    <Box sx={{ px: 2, py: 0.75 }}>
+      {vary && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minHeight: 28, ...(vary.on && { bgcolor: 'primary.soft', borderRadius: 0.75, mx: -0.75, px: 0.75 }) }}>
+          <VaryToggle on={vary.on} onToggle={vary.onToggle} label="its place along the light" />
+          <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+            Along the light
+          </Typography>
+          {vary.on && vary.next !== undefined && vary.value !== undefined && Math.abs(vary.next - vary.value) >= 0.05 && (
+            <Typography variant="mono" sx={{ fontSize: 11, color: 'primary.main' }} title="Proposed by the optimizer: its distance along the light">
+              {`${vary.value.toFixed(1)} → ${vary.next.toFixed(1)} mm`}
             </Typography>
-          </ButtonBase>
-        </span>
-      </Tooltip>
-      <Tooltip
-        title={
-          anyLock
-            ? `Locked: ${LOCKS.filter((l) => isLocked(symbol, l.value))
-                .map((l) => l.label.toLowerCase())
-                .join(', ')}`
-            : 'Free to move and turn. Click to lock.'
-        }
-        placement="top"
-        enterDelay={700}
-        disableInteractive
-      >
-        <IconButton size="small" aria-label="Locks" onClick={(e) => setLocks(e.currentTarget)} sx={{ color: anyLock ? 'text.primary' : 'text.meta' }}>
-          {anyLock ? <LockOutlinedIcon sx={{ fontSize: 16 }} /> : <LockOpenOutlinedIcon sx={{ fontSize: 16 }} />}
-        </IconButton>
-      </Tooltip>
-      <Menu anchorEl={locks} open={Boolean(locks)} onClose={() => setLocks(null)} slotProps={{ list: { dense: true } }}>
-        <ListSubheader sx={{ lineHeight: 2.5 }}>Keep it still</ListSubheader>
-        {LOCKS.map((l) => (
-          <MenuItem key={l.value} onClick={() => onChange({ locks: { ...symbol.locks, [l.value]: !isLocked(symbol, l.value) } })}>
-            <Checkbox size="small" checked={isLocked(symbol, l.value)} sx={{ p: 0, mr: 1 }} />
-            {l.label}
-          </MenuItem>
-        ))}
-        <Divider />
-        <MenuItem onClick={() => onChange({ locks: Object.fromEntries(LOCKS.map((l) => [l.value, !anyLock])) })}>{anyLock ? 'Unlock all' : 'Lock all'}</MenuItem>
-      </Menu>
+          )}
+        </Stack>
+      )}
+      {holder && holderValue !== undefined && <ScrubNumber label="Place in its holder" value={holderValue} unit="mm" step={0.1} readOnly hint="Set in the holder designer" vary={holder} />}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) auto auto', alignItems: 'center', columnGap: 0.5 }}>
+        <ScrubNumber compact label="x" value={symbol.x} step={0.1} readOnly={isLocked(symbol, 'x')} hint={isLocked(symbol, 'x') ? 'Locked along x' : 'x, in cubes'} onChange={(x) => onChange({ x })} />
+        <ScrubNumber compact label="y" value={symbol.y} step={0.1} readOnly={isLocked(symbol, 'y')} hint={isLocked(symbol, 'y') ? 'Locked along y' : 'y, in cubes'} onChange={(y) => onChange({ y })} />
+        <ScrubNumber
+          compact
+          label="z"
+          value={symbol.z}
+          min={0}
+          readOnly={isLocked(symbol, 'z')}
+          hint={isLocked(symbol, 'z') ? 'Locked on its layer' : 'Layer'}
+          onChange={(z) => onChange({ z: shifted(symbol, { z: z - symbol.z }).z })}
+        />
+        <Tooltip title={turnLocked ? 'Locked: it does not turn' : `Turned ${seatOf(p) * 90}°: click to turn a quarter (R)`} placement="top" enterDelay={700} disableInteractive>
+          <span>
+            <ButtonBase
+              disabled={turnLocked}
+              onClick={() => onChange({ placement: { ...p, seat: ((seatOf(p) + 1) % 4) as Seat } })}
+              aria-label="Turn a quarter"
+              sx={{ gap: 0.25, px: 0.5, height: 26, borderRadius: 0.75, color: 'text.secondary', '&:hover': { bgcolor: 'action.hover' } }}
+            >
+              <RotateRightIcon sx={{ fontSize: 16 }} />
+              <Typography variant="mono" sx={{ fontSize: 12, minWidth: 26, textAlign: 'left' }}>
+                {seatOf(p) * 90}°
+              </Typography>
+            </ButtonBase>
+          </span>
+        </Tooltip>
+        <Tooltip
+          title={
+            anyLock
+              ? `Locked: ${LOCKS.filter((l) => isLocked(symbol, l.value))
+                  .map((l) => l.label.toLowerCase())
+                  .join(', ')}`
+              : 'Free to move and turn. Click to lock.'
+          }
+          placement="top"
+          enterDelay={700}
+          disableInteractive
+        >
+          <IconButton size="small" aria-label="Locks" onClick={(e) => setLocks(e.currentTarget)} sx={{ color: anyLock ? 'text.primary' : 'text.meta' }}>
+            {anyLock ? <LockOutlinedIcon sx={{ fontSize: 16 }} /> : <LockOpenOutlinedIcon sx={{ fontSize: 16 }} />}
+          </IconButton>
+        </Tooltip>
+        <Menu anchorEl={locks} open={Boolean(locks)} onClose={() => setLocks(null)} slotProps={{ list: { dense: true } }}>
+          <ListSubheader sx={{ lineHeight: 2.5 }}>Keep it still</ListSubheader>
+          {LOCKS.map((l) => (
+            <MenuItem key={l.value} onClick={() => onChange({ locks: { ...symbol.locks, [l.value]: !isLocked(symbol, l.value) } })}>
+              <Checkbox size="small" checked={isLocked(symbol, l.value)} sx={{ p: 0, mr: 1 }} />
+              {l.label}
+            </MenuItem>
+          ))}
+          <Divider />
+          <MenuItem onClick={() => onChange({ locks: Object.fromEntries(LOCKS.map((l) => [l.value, !anyLock])) })}>{anyLock ? 'Unlock all' : 'Lock all'}</MenuItem>
+        </Menu>
+      </Box>
     </Box>
+  );
+}
+
+/** Optimize mode, in one line: how many of the part's numbers are free, or why it has none. */
+function OptimizeNote({ symbol, varying }: { symbol: SchematicSymbol; varying: Varying }) {
+  const group = varying.groups.find((g) => g.part.id === symbol.id);
+  const free = group?.variables.filter((v) => varying.free[v.id]).length ?? 0;
+  const text = !group
+    ? 'Optimize: not on the light being optimized'
+    : group.variables.length === 0
+      ? `Optimize: nothing to vary · ${group.fixed ?? ''}`
+      : `Optimize: ${free} of ${group.variables.length} free · click V on a row`;
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mx: 2, mb: 1, px: 1, py: 0.5, borderRadius: 0.75, bgcolor: 'primary.soft', color: 'primary.onSoft' }}>
+      <AutoFixHighOutlinedIcon sx={{ fontSize: 14 }} />
+      <Typography variant="caption">{text}</Typography>
+    </Stack>
   );
 }
 
@@ -221,7 +279,7 @@ function NoteRow({ notes, onChange }: { notes: string; onChange: (notes: string)
 }
 
 /** Contextual properties of the selected part. */
-export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: PropertiesPanelProps) {
+export function PropertiesPanel({ symbol, onChange, realizeOptions = [], varying }: PropertiesPanelProps) {
   if (!symbol) {
     return (
       <EmptyState icon={<NearMeOutlinedIcon sx={{ transform: 'scaleX(-1)' }} />} title="Nothing selected">
@@ -240,6 +298,7 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: Prope
   return (
     <Stack>
       <Header symbol={symbol} />
+      {varying && <OptimizeNote symbol={symbol} varying={varying} />}
 
       {mismatch && (
         <Box role="alert" sx={{ mx: 2, mb: 1, p: 1, borderRadius: 1, bgcolor: 'warning.soft', color: 'warning.onSoft' }}>
@@ -256,7 +315,7 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: Prope
         <>
           {line}
           <Box sx={{ px: 2, py: 0.75 }}>
-            <ShapeSection symbol={{ ...symbol, prescription: symbol.prescription }} onChange={onChange} />
+            <ShapeSection symbol={{ ...symbol, prescription: symbol.prescription }} onChange={onChange} vary={(kind, surface) => varyOf(varying, symbol.id, kind, surface)} />
           </Box>
         </>
       )}
@@ -275,6 +334,7 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: Prope
                 step={input.step}
                 unit={input.unit}
                 hint={symbol.kind === 'mirror' && input.label === 'Focal length' ? '0: flat · positive: concave · negative: convex' : undefined}
+                vary={input.label === 'Focal length' ? varyOf(varying, symbol.id, 'focal') : undefined}
                 onChange={(value) => onChange({ inputs: inputs.map((x) => (x.label === input.label ? { ...x, value } : x)) })}
               />
             ))}
@@ -283,7 +343,13 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: Prope
       )}
 
       {line}
-      <PlaceRow symbol={symbol} onChange={onChange} />
+      <PlaceRow
+        symbol={symbol}
+        onChange={onChange}
+        vary={varyOf(varying, symbol.id, 'position')}
+        holder={varyOf(varying, symbol.id, 'holder')}
+        holderValue={variableOf(varying, symbol.id, 'holder')?.value}
+      />
       {line}
       <NoteRow notes={symbol.notes} onChange={(notes) => onChange({ notes })} />
     </Stack>

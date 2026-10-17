@@ -14,13 +14,13 @@ function tubeLens() {
   const [place] = analysis.places({ design, light, settings: { beamMm: 2, na: null, rays: 41, nm: null, shiftMm: {} } });
   const setup = analysis.setup({ design, light, place: place.key });
   const position = setup.groups.flatMap((g) => g.variables).find((v) => v.part === 'T' && v.kind === 'position')!;
-  return { design, light, place: place.key, objective: setup.objective, variables: [position] };
+  return { design, light, place: place.key, goals: [{ objective: setup.objective, weight: 1 }], variables: [position] };
 }
 
 describe('an optimizer run', () => {
   it('reads the light at once, with no wait', () => {
     const ask = tubeLens();
-    expect(analysis.view(ask).value).toBeGreaterThan(1000);
+    expect(analysis.view(ask).values[0]).toBeGreaterThan(1000);
   });
 
   it('gives the best so far after each step, never worse than the step before, then the run', () => {
@@ -29,9 +29,10 @@ describe('an optimizer run', () => {
     let r = it.next();
     for (; !r.done; r = it.next()) steps.push(r.value);
     expect(steps.length).toBeGreaterThan(0);
-    for (let i = 1; i < steps.length; i++) expect(steps[i].after).toBeLessThanOrEqual(steps[i - 1].after + 1e-9);
-    expect(r.value.after).toBeLessThan(1);
-    expect(r.value.history[0]).toBe(r.value.before);
+    for (let i = 1; i < steps.length; i++) expect(steps[i].merit.after).toBeLessThanOrEqual(steps[i - 1].merit.after + 1e-9);
+    expect(r.value.goals[0].after).toBeLessThan(1);
+    expect(r.value.merit.before).toBeCloseTo(1, 9);
+    expect(r.value.history[0]).toBe(r.value.merit.before);
     expect(r.value.stopped).toBe(false);
   });
 
@@ -39,7 +40,7 @@ describe('an optimizer run', () => {
     const said: OptimizeRun[] = [];
     const run = await analysis.run(tubeLens(), (best) => said.push(best)).done;
     expect(said.length).toBeGreaterThan(0);
-    expect(run.after).toBeLessThan(1);
+    expect(run.goals[0].after).toBeLessThan(1);
     expect(run.design.symbols.find((s) => s.id === 'T')!.x).toBeCloseTo(5, 2);
   });
 
@@ -48,6 +49,6 @@ describe('an optimizer run', () => {
     const run = await job.done;
     expect(run.stopped).toBe(true);
     expect(run.steps).toBe(1);
-    expect(run.after).toBeLessThanOrEqual(run.before);
+    expect(run.merit.after).toBeLessThanOrEqual(run.merit.before);
   });
 });

@@ -32,6 +32,7 @@ import { SketchPanel } from '../../editor/panels/SketchPanel';
 import { PropertiesFooter, PropertiesPanel, PropertiesTitle, SelectionSummary } from '../../editor/panels/PropertiesPanel';
 import { SymbolPalettePanel } from '../../editor/panels/SymbolPalettePanel';
 import type { SidePanelItem } from '../../panels/SidePanel';
+import type { Varying } from '../../editor/optimize/vary';
 import { download } from '../../primitives/download';
 
 /** A button pinned under a panel's content. */
@@ -130,9 +131,11 @@ export interface RightPanelsProps {
   onSnap?: () => void;
   /** Opens the close-up to design an ideal lens or mirror. */
   onDesign?: () => void;
+  /** Optimize mode: the rows the optimizer may change show a V. */
+  varying?: Varying;
 }
 
-export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted, onFreeze, onSnap, onDesign }: RightPanelsProps): SidePanelItem[] {
+export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted, onFreeze, onSnap, onDesign, varying }: RightPanelsProps): SidePanelItem[] {
   const several = selectedParts.length > 1;
   return [
     {
@@ -144,7 +147,7 @@ export function rightPanels({ design, selected, selectedParts, realizeOptions, o
       content: several ? (
         <SelectionSummary parts={selectedParts} onPick={onSelect} />
       ) : (
-        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} />
+        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} varying={varying} />
       ),
       footer: !several && selected && (
         <PropertiesFooter

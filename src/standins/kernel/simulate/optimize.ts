@@ -16,12 +16,12 @@ import { CARTRIDGE } from '../../service/cartridge';
 import { designedValues, focalLength } from '../../../components/editor/holders/designs';
 import type { FragmentSurface } from '../../../components/editor/holders/optic';
 import type { Schematic, SchematicSymbol } from '../../../components/editor/model';
-import type { Objective, Plane, Variable, VariableKind } from '../../../ports/analysis';
+import type { Goal, Objective, Plane, Variable, VariableKind } from '../../../ports/analysis';
 import type { Beam, BeamElement } from './beam';
 import { results, startRay, trace } from './paraxial';
 import { realTrace, rmsAngle, rmsAt, heightsAt, type Pupil } from './realtrace';
 
-export type { Objective, Plane, Variable, VariableKind };
+export type { Goal, Objective, Plane, Variable, VariableKind };
 
 /* -------------------------------------------------------------------- */
 /* Objectives                                                            */
@@ -81,6 +81,26 @@ export function merit(beam: Beam, o: Objective, pupil: Pupil): number {
   return off + lost * 1000;
 }
 
+/** Below these, a target counts as met: so one met at the start does not weigh without end (in each objective's unit). */
+const MET: Record<Objective['kind'], number> = { 'rms-spot': 1, collimation: 0.01, 'beam-diameter': 0.01, magnification: 0.001, 'focal-length': 0.01 };
+
+/** One objective, or several, as targets. */
+export const asGoals = (o: Objective | Goal[]): Goal[] => (Array.isArray(o) ? o : [{ objective: o, weight: 1 }]);
+
+/**
+ * All the targets weighed together, for beams near `start`: each target's
+ * merit over its merit at the start (so a spot in µm and a focal length in
+ * mm weigh alike), times its weight; the sum over its value at the start.
+ * The merit is 1 at the start, 0 when every target is met. A target met at
+ * the start counts nothing until a change takes it away from its aim.
+ */
+export function meritOf(start: Beam, goals: Goal[], pupil: Pupil): (beam: Beam) => number {
+  const scales = goals.map((g) => Math.max(merit(start, g.objective, pupil), MET[g.objective.kind]));
+  const raw = (beam: Beam) => goals.reduce((a, g, i) => a + Math.max(0, g.weight) * (merit(beam, g.objective, pupil) / scales[i]), 0);
+  const base = raw(start) || 1;
+  return (beam) => raw(beam) / base;
+}
+
 /* -------------------------------------------------------------------- */
 /* Variables                                                             */
 /* -------------------------------------------------------------------- */
@@ -127,7 +147,7 @@ export function variablesOf(beam: Beam): PartVariables[] {
           const r = finite(surface);
           if (r !== null) v('radius', `R${k + 1}`, r, range(r, 0.5, 2), k);
         });
-        s.slice(0, -1).forEach((surface, k) => surface.thickness !== undefined && v('thickness', `CT${k + 1}`, surface.thickness, [Math.max(0.5, surface.thickness * 0.5), surface.thickness * 2], k));
+        s.slice(0, -1).forEach((surface, k) => surface.thickness !== undefined && v('thickness', `t${k + 1}`, surface.thickness, [Math.max(0.5, surface.thickness * 0.5), surface.thickness * 2], k));
       }
     }
     if (vars.length) return [{ part: e, variables: vars }];
@@ -201,9 +221,11 @@ export function toDesign(design: Schematic, beam: Beam, vars: Variable[], values
 
 export interface Run {
   values: Record<string, number>;
-  /** The objective's value before and after, in its unit. */
+  /** The first target's value before and after, in its unit. */
   before: number;
   after: number;
+  /** Each target's, in the order asked. */
+  goals: { before: number; after: number }[];
   /** The merit after each step. */
   history: number[];
   steps: number;
@@ -222,9 +244,10 @@ export interface Step {
  * round after round until the merit stops falling. Each step is the best so
  * far, so a run can show how it goes and stop with what it has.
  */
-export function* search(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, rounds = 12): Generator<Step, Step> {
+export function* search(beam: Beam, vars: Variable[], o: Objective | Goal[], pupil: Pupil, rounds = 12): Generator<Step, Step> {
   const values: Record<string, number> = Object.fromEntries(vars.map((x) => [x.id, Math.min(x.max, Math.max(x.min, x.value))]));
-  const f = (v: Record<string, number>) => merit(withValues(beam, vars, v), o, pupil);
+  const m = meritOf(beam, asGoals(o), pupil);
+  const f = (v: Record<string, number>) => m(withValues(beam, vars, v));
   let best = f(values);
   let steps = 0;
   for (let round = 0; round < rounds && vars.length; round++) {
@@ -262,14 +285,17 @@ export function* search(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil
 }
 
 /** A whole run at once. */
-export function run(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, rounds = 12): Run {
-  const history: number[] = [merit(beam, o, pupil)];
-  const it = search(beam, vars, o, pupil, rounds);
+export function run(beam: Beam, vars: Variable[], o: Objective | Goal[], pupil: Pupil, rounds = 12): Run {
+  const goals = asGoals(o);
+  const history: number[] = [meritOf(beam, goals, pupil)(beam)];
+  const it = search(beam, vars, goals, pupil, rounds);
   let r = it.next();
   while (!r.done) {
     history.push(r.value.merit);
     r = it.next();
   }
   const { values, steps } = r.value;
-  return { values, before: measure(beam, o, pupil), after: measure(withValues(beam, vars, values), o, pupil), history, steps };
+  const after = withValues(beam, vars, values);
+  const each = goals.map((g) => ({ before: measure(beam, g.objective, pupil), after: measure(after, g.objective, pupil) }));
+  return { values, before: each[0].before, after: each[0].after, goals: each, history, steps };
 }

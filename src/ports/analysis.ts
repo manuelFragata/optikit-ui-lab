@@ -108,6 +108,16 @@ export type Objective =
   | { kind: 'magnification'; target: number }
   | { kind: 'focal-length'; part: string; targetMm: number };
 
+/**
+ * One target of a run: an objective, and how much it counts against the
+ * others. Each target counts relative to its value at the start, so targets
+ * in different units (a spot in µm, a focal length in mm) can be weighed.
+ */
+export interface Goal {
+  objective: Objective;
+  weight: number;
+}
+
 export type VariableKind = 'position' | 'holder' | 'focal' | 'radius' | 'thickness';
 
 /** Something the optimizer may change, with its bounds. */
@@ -117,7 +127,7 @@ export interface Variable {
   kind: VariableKind;
   /** The surface a radius or thickness belongs to. */
   surface?: number;
-  /** Short, as the list shows it: "Position", "R1", "CT1", "f", "In holder". */
+  /** Short, as the list and the spec sheet show it: "Position", "R1", "t1", "f", "In holder". */
   label: string;
   value: number;
   min: number;
@@ -153,7 +163,7 @@ export interface Envelope {
 /** What a place offers the optimizer. */
 export interface OptimizeSetup {
   objectives: { kind: Objective['kind']; label: string; unit: string }[];
-  /** The objective to start from at this place. */
+  /** The objective to start from at this place: the first target. */
   objective: Objective;
   groups: PartVariables[];
   /** The parts whose focal length can be a target. */
@@ -162,27 +172,29 @@ export interface OptimizeSetup {
   magnification: number | null;
 }
 
-/** A question to the optimizer: a place and what to make of it. */
+/** A question to the optimizer: a place, and the targets for the light there. */
 export interface OptimizeAsk {
   design: Schematic;
   light: Light;
   place: string;
-  objective: Objective;
+  goals: Goal[];
 }
 
-/** The light at a place as it is (or as proposed): the objective's value, the envelope, the spot at the plane read. */
+/** The light at a place as it is (or as proposed): each target's value (in its unit), the envelope, the spot at the plane read (the first target's plane that has one). */
 export interface OptimizeView {
-  value: number;
+  values: number[];
   envelope: Envelope;
   spot: { points: { x: number; y: number }[]; rmsMm: number; airyMm: number | null; at: string };
 }
 
-/** A run (or, while it goes, the best so far): the variables' new values, the objective before and after, and the design and its light as proposed. */
+/** A run (or, while it goes, the best so far): the variables' new values, each target before and after, the merit, and the design and its light as proposed. */
 export interface OptimizeRun {
   values: Record<string, number>;
-  before: number;
-  after: number;
-  /** The objective after each step, from where it started. */
+  /** Each target's value before and after, in its unit, in the order asked. */
+  goals: { before: number; after: number }[];
+  /** All targets weighed together, as a share of where they started: 1 before. */
+  merit: { before: number; after: number };
+  /** The merit after each step, from where it started. */
   history: number[];
   steps: number;
   /** Stopped before it was done: the best so far. */
@@ -220,7 +232,13 @@ const nothing = (): never => {
 };
 
 /** No analysis: nothing to read. */
-export const NO_ANALYSIS: Analysis = { places: () => [], detail: nothing, setup: nothing, view: nothing, run: () => ({ done: Promise.reject(new Error('No optics engine is connected.')), stop: () => {} }) };
+export const NO_ANALYSIS: Analysis = {
+  places: () => [],
+  detail: nothing,
+  setup: nothing,
+  view: nothing,
+  run: () => ({ done: Promise.reject(new Error('No optics engine is connected.')), stop: () => {} }),
+};
 
 const Context = createContext<Analysis>(NO_ANALYSIS);
 
