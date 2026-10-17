@@ -18,7 +18,8 @@ const STANDIN_DIRECT = [
   'src/components/editor/scene3d/HolderDesigner.tsx',
   'src/components/editor/scene3d/holderMesh.ts',
   'src/components/editor/scene3d/layout3d.ts',
-  'src/components/views/SimulateView.tsx',
+  'src/components/editor/simulate/checks.ts',
+  'src/components/editor/simulate/SimulatePane.tsx',
 ]
 
 // As optikit-v2's frontend (frontend/eslint.config.js); storybook-static is the lab's own build output.

@@ -58,6 +58,8 @@ export interface EditorActions {
   toggleOptimize: () => void;
   /** Split the canvas with Choose parts beside it: real parts for the sketched ones; again: close it. */
   toggleChoose: () => void;
+  /** Split the canvas with Simulate beside it: the checks and analyses of the light; again: close it. */
+  toggleSimulate: () => void;
   openPalette: () => void;
   openSettings: () => void;
 

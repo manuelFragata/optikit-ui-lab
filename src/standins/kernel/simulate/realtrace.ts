@@ -125,8 +125,9 @@ export function realTrace(beam: Beam, pupil: Pupil, n = 41): RealTrace {
       pupil.kind === 'collimated'
         ? { z: z0, y: rho * pupil.radiusMm, dz: 1, dy: 0 }
         : (() => {
-            const s = rho * pupil.na;
-            return { z: z0, y: 0, dz: Math.sqrt(1 - s * s), dy: s };
+            // The cone's edge at a slope of the NA: it just fills a stop of 2·NA·f, as the beam table states an objective's aperture.
+            const n = Math.hypot(1, rho * pupil.na);
+            return { z: z0, y: 0, dz: 1 / n, dy: (rho * pupil.na) / n };
           })();
     const path = [{ z: start.z, y: start.y }];
     const out = traceRay(beam, start, path);

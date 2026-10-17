@@ -12,7 +12,7 @@ import type { BeamResult } from '../../standins/kernel/simulate/paraxial';
 
 const W = 480;
 const H = 210;
-const PAD = { left: 40, right: 12, top: 12, bottom: 30 };
+const PAD = { left: 54, right: 12, top: 12, bottom: 30 };
 const ink = 'var(--mui-palette-text-primary)';
 const meta = 'var(--mui-palette-text-meta)';
 const muted = 'var(--mui-palette-text-secondary)';
@@ -34,8 +34,8 @@ export function Empty({ children }: { children: string }) {
   );
 }
 
-/** Each part's clear aperture, and how much of it the beam fills: past 100 % it clips. */
-export function ApertureFill({ beam, result }: { beam: Beam; result: BeamResult }) {
+/** Each part's clear aperture, and how much of it the beam fills: past 100 % it clips. A row clicked selects its part. */
+export function ApertureFill({ beam, result, selectedId, onSelect }: { beam: Beam; result: BeamResult; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const rows = beam.elements.flatMap((e, i) => (e.apertureMm ? [{ e, fill: result.elements[i].beamMm / e.apertureMm }] : []));
   if (!rows.length) return <Empty>No part states an aperture.</Empty>;
   const row = 26;
@@ -48,9 +48,18 @@ export function ApertureFill({ beam, result }: { beam: Beam; result: BeamResult 
       {rows.map(({ e, fill }, i) => {
         const y = PAD.top + i * row;
         const over = fill > 1;
+        const pick = onSelect && e.symbol ? () => onSelect(e.id) : undefined;
         return (
-          <g key={e.id}>
-            <text x={left - 8} y={y + 15} textAnchor="end" fontSize={12} fill={ink}>
+          <Box
+            component="g"
+            key={e.id}
+            onClick={pick}
+            role={pick ? 'button' : undefined}
+            aria-label={pick ? `Select ${e.label}` : undefined}
+            sx={pick ? { cursor: 'pointer', '&:hover rect:first-of-type': { opacity: 1 } } : undefined}
+          >
+            {e.id === selectedId && <rect x={0} y={y + 1} width={W} height={22} rx={3} fill="var(--mui-palette-primary-soft)" />}
+            <text x={left - 8} y={y + 15} textAnchor="end" fontSize={12} fill={ink} fontWeight={e.id === selectedId ? 600 : 400}>
               {e.label}
             </text>
             <rect x={left} y={y + 4} width={x(1) - left} height={16} fill={rule} opacity={0.6} rx={2} />
@@ -58,7 +67,7 @@ export function ApertureFill({ beam, result }: { beam: Beam; result: BeamResult 
             <text x={x(Math.max(fill, 1)) + 6} y={y + 16} fontSize={11} fill={over ? 'var(--mui-palette-error-main)' : muted}>
               {`${Math.round(fill * 100)}%`}
             </text>
-          </g>
+          </Box>
         );
       })}
       <line x1={x(1)} x2={x(1)} y1={PAD.top} y2={height - 18} stroke={ink} strokeDasharray="3 3" />
@@ -121,6 +130,8 @@ const um = (mm: number) => {
   const u = mm * 1000;
   return Math.abs(u) >= 100 ? u.toFixed(0) : Math.abs(u) >= 10 ? u.toFixed(1) : u.toFixed(2);
 };
+/** An axis label for a length, with its unit: µm below a millimetre, mm from one. */
+const lengthTick = (mm: number) => (mm === 0 ? '0' : Math.abs(mm) >= 1 ? `${Math.abs(mm) >= 10 ? mm.toFixed(0) : mm.toFixed(1)} mm` : `${um(mm)} µm`);
 
 /** The spot at a plane: every ray where it lands, the RMS radius dashed. Square, µm. */
 export function SpotDiagram({
@@ -233,7 +244,7 @@ function LinePlot({
 
 /** The transverse error of each ray at the plane, against its place in the pupil, µm. */
 export function RayFan({ fan }: { fan: { rho: number; y: number }[] }) {
-  return <LinePlot label="Ray fan" data={fan.map((p) => ({ x: p.rho, y: p.y }))} xLabel={(v) => (v === 0 ? '0' : v.toFixed(1))} yLabel={(v) => um(v)} zeroLine />;
+  return <LinePlot label="Ray fan" data={fan.map((p) => ({ x: p.rho, y: p.y }))} xLabel={(v) => (v === 0 ? '0' : v.toFixed(1))} yLabel={lengthTick} zeroLine />;
 }
 
 /** The RMS spot radius against a shift of the plane, µm; the plane at 0, the best focus marked. */
@@ -243,7 +254,7 @@ export function RmsFocusPlot({ samples, bestDz, plane }: { samples: { dz: number
       label="RMS spot through focus"
       data={samples.map((s) => ({ x: s.dz, y: s.rms }))}
       xLabel={(v) => `${v > 0 ? '+' : ''}${Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(1)} mm`}
-      yLabel={(v) => um(v)}
+      yLabel={lengthTick}
       markers={[{ x: 0, text: plane, tone: 'ink' }, ...(Math.abs(bestDz) > 1e-3 ? [{ x: bestDz, text: 'best', tone: 'warning' as const }] : [])]}
     />
   );

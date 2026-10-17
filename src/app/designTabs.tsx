@@ -4,14 +4,12 @@
  * (accounts, versions, the shop); the views themselves stay as they are.
  * A project made in this visit has no demo history: it shows its own.
  */
-import { useCallback, useMemo } from 'react';
 import type { ProjectSummary } from '../api/types';
 import { demoChecks, demoCustomer, demoLabourRate, demoSupply } from '../demo/commercial';
 import { demoDesignInfo, demoFiles, demoHistory } from '../demo/editorContent';
 import { demoPeople, demoShareLink } from '../demo/fileContent';
 import { bomCsv, bomFileName } from '../components/editor/bomCsv';
 import { DESIGN_FILE_EXTENSION, designFileText, readDesignFile } from '../components/editor/designFile';
-import { useLibrary } from '../ports/library';
 import { useLightFor } from '../ports/light';
 import { useService } from '../ports/service';
 import type { Schematic } from '../components/editor/model';
@@ -19,9 +17,6 @@ import { download } from '../components/primitives/download';
 import { formatEur } from '../components/primitives/format';
 import { CommercialView } from '../components/views/CommercialView';
 import { FileView } from '../components/views/FileView';
-import { SimulateView } from '../components/views/SimulateView';
-import { recordOf } from '../components/editor/holders/designs';
-import type { SchematicSymbol } from '../components/editor/model';
 
 interface DesignTabProps {
   id: string;
@@ -110,24 +105,6 @@ export function CommercialTab({ name, version, schematic, project, onNotice }: D
       onSend={({ customer, total }) => onNotice(`Quote for ${formatEur(total)} sent to ${customer.email}, with a 3D link.`)}
       onCreateOdoo={() => onNotice('A draft quotation would be made in Odoo, with the design attached.')}
       onDownloadCsv={() => download(bomFileName(name), bomCsv(bom), 'text/csv')}
-    />
-  );
-}
-
-/** Simulate: plots and analyses of the beam through the design, from the app's light source. */
-export function SimulateTab({ name, schematic, onNotice }: DesignTabProps) {
-  const lightFor = useLightFor();
-  const light = useMemo(() => lightFor(schematic), [lightFor, schematic]);
-  // A part's optic: designed here, or the library's record behind its name.
-  const library = useLibrary();
-  const recordForPart = useCallback((s: SchematicSymbol) => recordOf(s, library.record), [library]);
-  return (
-    <SimulateView
-      designName={name}
-      design={schematic}
-      light={light}
-      recordFor={recordForPart}
-      onSendToOptiland={() => onNotice('In the app this opens the beam as an Optiland system, in its lens data editor (WP-354).')}
     />
   );
 }

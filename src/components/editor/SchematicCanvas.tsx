@@ -85,6 +85,8 @@ export interface SchematicCanvasProps {
   snap?: boolean;
   /** Floats next to the selected parts (see SelectionActions). */
   selectionActions?: ReactNode;
+  /** One light path looked at (Simulate): drawn stronger, the others faint. */
+  focusRay?: string | null;
 }
 
 // Everything inside the SVG is in grid units: 1 unit = 1 cube. The zoom is
@@ -204,6 +206,7 @@ export function SchematicCanvas({
   onMove,
   snap = true,
   selectionActions,
+  focusRay = null,
 }: SchematicCanvasProps) {
   const selectedIds = selectedIdsProp ?? (selectedId ? [selectedId] : []);
   // Parts being dragged across the canvas are drawn where they are, rays and
@@ -490,9 +493,10 @@ export function SchematicCanvas({
               const lp = pts[Math.min(ray.labelAt, pts.length - 1)];
               const prev = pts[Math.max(0, Math.min(ray.labelAt, pts.length - 1) - 1)];
               const endsRight = lp.x >= prev.x;
+              const faint = focusRay !== null && focusRay !== ray.id;
               return (
-                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show]} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
-                  <polyline points={lit.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...line} />
+                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show] * (faint ? 0.25 : 1)} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                  <polyline points={lit.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={focusRay === ray.id ? 3.5 : 2} strokeLinejoin="round" {...line} />
                   {open && <RunOut from={pts[pts.length - 2]} to={pts[pts.length - 1]} id={`run-out-${ray.id}`} />}
                   {miss && <MissHint from={toScreen(miss.from)} to={toScreen(miss.at)} />}
                   <path d="M-0.2 -0.14 L0.2 0 L-0.2 0.14 Z" fill="currentColor" transform={`translate(${mid.x} ${mid.y}) rotate(${angle})`} />

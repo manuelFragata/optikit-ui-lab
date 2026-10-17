@@ -51,6 +51,7 @@ export function paletteCommands(a: EditorActions, { library, symbols, layers, un
     { id: 'panel-info', group: 'Panels', label: 'Open design info', run: () => a.openRight('info') },
     { id: 'closeup', group: 'Panels', label: 'Look at a part up close (split the canvas)', run: a.toggleCloseup },
     { id: 'choose', group: 'Panels', label: 'Choose real parts for the sketch (split the canvas)', run: a.toggleChoose },
+    { id: 'simulate', group: 'Panels', label: 'Simulate: check the light (split the canvas)', run: a.toggleSimulate },
     { id: 'optimize', group: 'Panels', label: 'Optimize (split the canvas)', run: a.toggleOptimize },
     { id: 'settings', group: 'Panels', label: 'Open settings', shortcut: 'Ctrl ,', run: a.openSettings },
   ];

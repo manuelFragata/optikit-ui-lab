@@ -29,7 +29,7 @@ import type { ProjectSummary } from '../api/types';
 import { scrollToSection } from '../components/pages/landingSections';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { SettingsButton } from '../settings/SettingsDialog';
-import { CommercialTab, FileTab, SimulateTab } from './designTabs';
+import { CommercialTab, FileTab } from './designTabs';
 import { useHashRoute, useSession, type Route } from './routing';
 
 const emptySchematic: Schematic = { ...demoSchematic, symbols: [], rays: [], groups: [] };
@@ -109,7 +109,6 @@ const UPCOMING: Record<WorkspaceTab, string> = {
   projects: 'Your designs: pinned, recent, shared with you, and New project.',
   file: 'Save, version history, import, export and share.',
   view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
-  simulate: 'The beam table, checks and results, then the optimizer round trip.',
   commercial: 'The quote: prices, margins, lead time and the checks.',
 };
 
@@ -336,17 +335,7 @@ export function PrototypeApp() {
           schematic={changed[openId] ?? design.schematic}
           onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
           defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
-        />
-      );
-    } else if (tab === 'simulate' && design && openId) {
-      view = (
-        <SimulateTab
-          key={openId}
-          id={openId}
-          name={design.name}
-          version={design.version}
-          schematic={changed[openId] ?? design.schematic}
-          project={design.project}
+          openPane={route.name === 'workspace' ? route.pane : undefined}
           onNotice={setToast}
         />
       );

@@ -13,8 +13,11 @@ export type Route =
   | { name: 'signup' }
   | { name: 'account' }
   | { name: 'editor'; id: string }
-  /** A workspace view (#/projects, #/view/<id>); `id` is the open design. The Home tab is the `home` route. */
-  | { name: 'workspace'; tab: WorkspaceTab; id?: string }
+  /**
+   * A workspace view (#/projects, #/view/<id>); `id` is the open design. The Home tab is the `home` route.
+   * `pane`: a pane to open beside the canvas (#/simulate/<id>, once a tab of its own, opens View with Simulate).
+   */
+  | { name: 'workspace'; tab: WorkspaceTab; id?: string; pane?: 'simulate' }
   /** The gallery (#/explore), or one design's page in it (#/explore/<id>). */
   | { name: 'explore'; id?: string };
 
@@ -34,6 +37,8 @@ export function parseHash(hash: string): Route {
       return second ? { name: 'editor', id: decodeURIComponent(second) } : { name: 'editor', id: 'new' };
     case 'explore':
       return { name: 'explore', id: second ? decodeURIComponent(second) : undefined };
+    case 'simulate':
+      return second ? { name: 'workspace', tab: 'view', id: decodeURIComponent(second), pane: 'simulate' } : { name: 'workspace', tab: 'projects' };
     default:
       if (isTab(first) && first !== 'home') {
         const id = second ? decodeURIComponent(second) : undefined;

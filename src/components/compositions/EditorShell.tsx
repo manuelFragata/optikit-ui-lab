@@ -18,6 +18,7 @@ import Stack from '@mui/material/Stack';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
 import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import { useTheme, type Theme } from '@mui/material/styles';
 import { demoInputs, demoSchematic, demoSketch } from '../../demo/editorContent';
 import { useLibrary, type PaletteGroup } from '../../ports/library';
@@ -62,6 +63,10 @@ const DesignScene3D = lazy(() => import('../editor/scene3d/DesignScene3D').then(
 const Closeup = lazy(() => import('../editor/scene3d/Closeup').then((m) => ({ default: m.Closeup })));
 const OptimizePane = lazy(() => import('../editor/optimize/OptimizePane').then((m) => ({ default: m.OptimizePane })));
 const ChoosePane = lazy(() => import('../editor/choose/ChoosePane').then((m) => ({ default: m.ChoosePane })));
+const SimulatePane = lazy(() => import('../editor/simulate/SimulatePane').then((m) => ({ default: m.SimulatePane })));
+
+/** What the split's second pane can hold, beside the canvas. */
+export type EditorPane = 'closeup' | 'optimize' | 'choose' | 'simulate';
 
 /** The sketch's entries, as parts to place. */
 const SKETCH: PartEntry[] = demoSketch.flatMap((g) =>
@@ -131,6 +136,10 @@ export interface EditorShellProps {
   onLogOut?: () => void;
   /** Extra header actions, placed before the built-in ones. */
   headerActions?: ReactNode;
+  /** A pane to open beside the canvas: on opening, and whenever this changes (a link to Simulate). */
+  openPane?: EditorPane;
+  /** Tell the person something the editor cannot show itself (a hand-off to another app). */
+  onNotice?: (text: string) => void;
 }
 
 export function EditorShell({
@@ -164,6 +173,8 @@ export function EditorShell({
   onAccount,
   onLogOut,
   headerActions,
+  openPane,
+  onNotice,
 }: EditorShellProps) {
   /* ---------------------------------------------------------------- */
   /* State                                                             */
@@ -208,8 +219,10 @@ export function EditorShell({
   const [front, setFront] = useState<'dock' | 'layers'>('dock');
   const [paletteOpen, setPaletteOpen] = useState(false);
   // The close-up: the canvas split, the selected part beside it; the component picked in it, for that part.
-  // What the split's second pane holds: the close-up, Optimize, Choose parts, or nothing (the canvas alone).
-  const [pane, setPane] = useState<'closeup' | 'optimize' | 'choose' | null>(null);
+  // What the split's second pane holds: the close-up, Optimize, Choose parts, Simulate, or nothing (the canvas alone).
+  const [pane, setPane] = useState<EditorPane | null>(openPane ?? null);
+  // The light path Simulate looks at: the canvas draws it stronger.
+  const [focusRay, setFocusRay] = useState<string | null>(null);
   const closeup = pane === 'closeup';
   const setCloseup = (on: boolean) => setPane(on ? 'closeup' : null);
   const [split, setSplit] = useState(0.55);
@@ -276,6 +289,16 @@ export function EditorShell({
     setPane(pane === 'choose' ? null : 'choose');
   };
   const openChoose = () => pane !== 'choose' && toggleChoose();
+  /** Simulate takes the same place: the light's checks, and the analyses behind them. */
+  const toggleSimulate = () => {
+    if (pane !== 'simulate' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'simulate') setSplit((f) => Math.min(f, 0.55));
+    setPane(pane === 'simulate' ? null : 'simulate');
+  };
+  // A link asks for a pane (the old Simulate tab): open it.
+  useEffect(() => {
+    if (openPane) setPane(openPane);
+  }, [openPane]);
   /** Freeze: the holder is designed in the close-up, on the selected part. */
   const designHolder = () => {
     if (rightState === 'expanded') setRightState('collapsed');
@@ -379,6 +402,7 @@ export function EditorShell({
     toggleCloseup,
     toggleOptimize,
     toggleChoose,
+    toggleSimulate,
     openPalette: () => setPaletteOpen(true),
     openSettings: () => setSettingsOpen(true),
 
@@ -550,6 +574,7 @@ export function EditorShell({
                   onMove={applyMove}
                   snap={options.snapToGrid}
                   selectionActions={selectionActions}
+                  focusRay={pane === 'simulate' ? focusRay : null}
                 />
               )}
 
@@ -625,7 +650,21 @@ export function EditorShell({
             </Box>
           }
           second={
-            pane === 'choose' ? (
+            pane === 'simulate' ? (
+              <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+                <SimulatePane
+                  design={design}
+                  light={light}
+                  recordFor={recordForPart}
+                  selectedId={selected?.id ?? null}
+                  onSelect={actions.selectPart}
+                  onFocusRay={setFocusRay}
+                  onOptimize={toggleOptimize}
+                  onSendToOptiland={() => onNotice?.('In the app this opens the beam as an Optiland system, in its lens data editor (WP-354).')}
+                  onClose={() => setPane(null)}
+                />
+              </Suspense>
+            ) : pane === 'choose' ? (
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
                 <ChoosePane
                   design={design}
@@ -686,6 +725,13 @@ export function EditorShell({
               icon: <ChecklistOutlinedIcon />,
               on: pane === 'choose',
               onToggle: toggleChoose,
+            },
+            {
+              id: 'simulate',
+              label: pane === 'simulate' ? 'Close Simulate' : 'Simulate: check the light, split the canvas',
+              icon: <InsightsOutlinedIcon />,
+              on: pane === 'simulate',
+              onToggle: toggleSimulate,
             },
             { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
           ]}
