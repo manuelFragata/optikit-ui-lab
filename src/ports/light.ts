@@ -5,16 +5,16 @@
  * stand-in (src/standins/kernel/light.ts); later it is the optics engine (oc-wasm),
  * swapped in at the app root and nowhere else.
  *
- * A trace takes time: in the app the service builds the scene (POST
- * /v1/scene3) and oc-wasm traces it in a worker. So the views ask with
- * `useLight`, which keeps the last light while a new one is traced, says
- * when the wait is long, and when a trace failed. One trace per design: the
- * views that draw the same design share it.
+ * A trace is immediate: oc-wasm traces in the page, on the main thread,
+ * well inside a frame, so the light follows every edit and every drag at
+ * once. The scene is built in the page too (no round trip per change). So
+ * `LightFor` answers at once, and the views ask with `useLight`. One trace
+ * per design: the views that draw the same design share it.
  *
  * Grid units, y up.
  */
 import { createContext, useContext, useMemo } from 'react';
-import { useRequest } from './request';
+import { errorText } from './request';
 import type { RayColorKey, Schematic } from '../components/editor/model';
 
 export type Point = { x: number; y: number };
@@ -67,14 +67,14 @@ export interface Light {
   misses: LightMiss[];
 }
 
-/** Where the light goes in a design: traced, in time. */
-export type LightFor = (design: Schematic) => Promise<Light>;
+/** Where the light goes in a design: traced at once. It throws when the design cannot be traced. */
+export type LightFor = (design: Schematic) => Light;
 
 /** No light at all. */
 export const DARK: Light = { paths: [], misses: [] };
 
 /** No light source: the views draw no light. */
-export const NO_LIGHT: LightFor = async () => DARK;
+export const NO_LIGHT: LightFor = () => DARK;
 
 const Context = createContext<LightFor>(NO_LIGHT);
 
@@ -85,42 +85,31 @@ export const useLightFor = () => useContext(Context);
 
 /** The light of a design as a view has it. */
 export interface LightState {
-  /** The design's light; while a newer trace runs, the last one; before any, none. */
+  /** The design's light; none when it could not be traced. */
   light: Light;
-  /** A trace has come back for this design or an earlier one: `light` can be read as the design's. */
-  known: boolean;
-  /** A newer trace is on its way. */
-  tracing: boolean;
-  /** …and long enough to show. */
-  slow: boolean;
+  /** Why the design could not be traced, in words. */
   error: string | null;
-  retry: () => void;
 }
 
-/** One trace per design and light source, shared by the views; a failed one is forgotten, so it is traced again. */
-const traces = new WeakMap<LightFor, WeakMap<Schematic, Promise<Light>>>();
-function shared(lightFor: LightFor): LightFor {
+/** One trace per design and light source, shared by the views. */
+const traces = new WeakMap<LightFor, WeakMap<Schematic, LightState>>();
+function traced(lightFor: LightFor, design: Schematic): LightState {
   let byDesign = traces.get(lightFor);
   if (!byDesign) traces.set(lightFor, (byDesign = new WeakMap()));
-  const cache = byDesign;
-  return (design) => {
-    const known = cache.get(design);
-    if (known) return known;
-    const asked = lightFor(design);
-    cache.set(design, asked);
-    asked.catch(() => cache.delete(design));
-    return asked;
-  };
+  let known = byDesign.get(design);
+  if (!known) {
+    try {
+      known = { light: lightFor(design), error: null };
+    } catch (e) {
+      known = { light: DARK, error: errorText(e) };
+    }
+    byDesign.set(design, known);
+  }
+  return known;
 }
 
-/**
- * The light of `design`, traced by the app's light source. `null` asks
- * nothing new and keeps the last light (a drag: it is traced once the parts
- * are let go).
- */
-export function useLight(design: Schematic | null): LightState {
+/** The light of `design`, traced by the app's light source: at once, on every change (a drag too). */
+export function useLight(design: Schematic): LightState {
   const lightFor = useLightFor();
-  const ask = useMemo(() => shared(lightFor), [lightFor]);
-  const r = useRequest(design, ask, { keep: true });
-  return { light: r.data ?? DARK, known: r.data !== undefined, tracing: r.status === 'loading' && design !== null, slow: r.slow, error: r.error, retry: r.retry };
+  return useMemo(() => traced(lightFor, design), [lightFor, design]);
 }

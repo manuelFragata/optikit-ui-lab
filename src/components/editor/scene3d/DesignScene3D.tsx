@@ -78,8 +78,8 @@ export function DesignScene3D({ schematic, layer, options, prefs = DEFAULT_PREFE
   // Dragged up or down, the parts take the view's layer with them (as they will once let go).
   const shownLayer = layer + (drag.dragging?.by.z ?? 0);
 
-  // The light from before while parts are dragged; traced again once they are let go.
-  const { light } = useLight(drag.dragging ? null : schematic);
+  // The light of the design as shown: while parts are dragged, it follows them.
+  const { light } = useLight(shown);
   const layout = useMemo(
     () =>
       layout3d(

@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import HistoryIcon from '@mui/icons-material/History';
@@ -16,6 +15,7 @@ import { ShareSection, type LinkAccess, type SharePerson } from './file/ShareSec
 import { ExportSection, ImportSection } from './file/TransferSection';
 import { type ExportId, type ImportId } from './file/formats';
 import { VersionsSection } from './file/VersionsSection';
+import { PageHeader } from './PageHeader';
 
 export type FileSection = 'info' | 'versions' | 'share' | 'export' | 'import';
 
@@ -69,15 +69,7 @@ export function FileView({ name, version, info, files, versions: initialVersions
 
   return (
     <PageContainer sx={{ pt: 3, pb: 8 }}>
-      <Box sx={{ display: 'grid', gap: { xs: 2, md: 6 }, alignItems: 'end', gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' }, mb: 3 }}>
-        <Typography variant="display" component="h1">
-          File
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {name}
-          {version && ` v${version}`}. {current.text}
-        </Typography>
-      </Box>
+      <PageHeader title="File" lead={`${name}${version ? ` v${version}` : ''}. ${current.text}`} />
 
       <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: '200px 1fr' }, alignItems: 'start' }}>
         <Stack component="nav" aria-label="File" sx={{ gap: 0.5, flexDirection: { xs: 'row', md: 'column' }, flexWrap: 'wrap' }}>

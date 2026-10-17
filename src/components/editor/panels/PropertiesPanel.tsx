@@ -32,6 +32,7 @@ import { TagChip } from '../../primitives/TagChip';
 import { Vec3Field } from '../../primitives/Vec3Field';
 import { ShapeSection } from './ShapeSection';
 import { frozen, holderMismatch, isLocked, realize, seatOf, sketched, specLine, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
+import { EmptyState } from '../../primitives/EmptyState';
 
 export type { ModuleOption };
 
@@ -248,11 +249,9 @@ function NameField({ name, onRename }: { name: string; onRename: (name: string) 
 export function PropertiesPanel({ symbol, onChange, realizeOptions, onFreeze, onSnap }: PropertiesPanelProps) {
   if (!symbol) {
     return (
-      <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', px: 3, py: 6, color: 'text.secondary' }}>
-        <NearMeOutlinedIcon sx={{ transform: 'scaleX(-1)' }} />
-        <Typography variant="subtitle2">Nothing selected</Typography>
-        <Typography variant="body2">Select a part on the canvas, in Layers or in the Parts list to see its properties.</Typography>
-      </Stack>
+      <EmptyState icon={<NearMeOutlinedIcon sx={{ transform: 'scaleX(-1)' }} />} title="Nothing selected">
+        Select a part on the canvas, in Layers or in the Parts list to see its properties.
+      </EmptyState>
     );
   }
 

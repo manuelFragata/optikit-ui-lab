@@ -16,6 +16,7 @@ import { cardSx } from './card';
 import { Titled } from './Titled';
 import { buildQuote, LOW_MARGIN, type QuoteCheck, type QuoteTerms, type SupplyList } from './commercial/quote';
 import { QuoteTable } from './commercial/QuoteTable';
+import { PageHeader } from './PageHeader';
 
 export interface Customer {
   name: string;
@@ -60,29 +61,22 @@ export function CommercialView({ designName, version, bom, supply, labourRate, c
 
   return (
     <PageContainer sx={{ pt: 3, pb: 8 }}>
-      <Box sx={{ display: 'grid', gap: { xs: 2, md: 6 }, alignItems: 'end', gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' }, mb: 3 }}>
-        <Box>
-          <Pill>Internal</Pill>
-          <Typography variant="display" component="h1" sx={{ mt: 1 }}>
-            Quote
-          </Typography>
-        </Box>
-        <Box>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            {designName}
-            {version && ` v${version}`}: list prices, what the parts cost us and when they ship. Only staff see this tab.
-          </Typography>
-          <Stack direction="row" useFlexGap sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <PillButton disabled={!customer.email.trim()} onClick={() => onSend({ customer, total: quote.total })}>
-              Send quote & 3D link
-            </PillButton>
+      <PageHeader
+        eyebrow={<Pill>Internal</Pill>}
+        title="Quote"
+        lead={`${designName}${version ? ` v${version}` : ''}: list prices, what the parts cost us and when they ship. Only staff see this tab.`}
+        actions={
+          <>
+            <Button onClick={onDownloadCsv}>Download CSV</Button>
             <Button variant="outlined" onClick={onCreateOdoo}>
               Create Odoo quotation
             </Button>
-            <Button onClick={onDownloadCsv}>Download CSV</Button>
-          </Stack>
-        </Box>
-      </Box>
+            <PillButton disabled={!customer.email.trim()} onClick={() => onSend({ customer, total: quote.total })}>
+              Send quote & 3D link
+            </PillButton>
+          </>
+        }
+      />
 
       <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, alignItems: 'start' }}>
         <Titled title="Lines">
@@ -106,7 +100,7 @@ export function CommercialView({ designName, version, bom, supply, labourRate, c
             <Box sx={cardSx}>
               <Stack direction="row" sx={{ gap: 4 }}>
                 <Box>
-                  <Typography variant="headline" sx={{ color: quote.marginShare < LOW_MARGIN ? 'warning.main' : 'text.primary' }}>
+                  <Typography variant="h1" sx={{ color: quote.marginShare < LOW_MARGIN ? 'warning.main' : 'text.primary' }}>
                     {percent(quote.marginShare)}
                   </Typography>
                   <Typography variant="meta" color="text.meta" sx={{ display: 'block' }}>
@@ -114,7 +108,7 @@ export function CommercialView({ designName, version, bom, supply, labourRate, c
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="headline">{quote.leadDays === null ? '–' : `${quote.leadDays} d`}</Typography>
+                  <Typography variant="h1">{quote.leadDays === null ? '–' : `${quote.leadDays} d`}</Typography>
                   <Typography variant="meta" color="text.meta" sx={{ display: 'block' }}>
                     to ship, working days
                   </Typography>

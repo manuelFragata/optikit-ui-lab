@@ -6,8 +6,11 @@
  * light picked here; a part picked in a plot is selected on the canvas, and
  * every edit shows here at once.
  *
- * The numbers come from the kernel stand-ins (standins/kernel/simulate); in
- * the app they come from oc-wasm. The pane says so, once, in its header.
+ * The numbers come from the analysis port (src/ports/analysis.ts): the lab's
+ * kernel stand-in, in the app oc-wasm, in the page. They are worked out at
+ * once, so they follow every edit as it is made. Each says what it stands
+ * on: the header the method (geometric, on axis, one wavelength), a check
+ * marked Estimate what the analysis assumed for it, ≤ a ceiling.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
@@ -16,33 +19,28 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import { ApertureFill, RayFan, RmsFocusPlot, SpectrumPlot, SpotDiagram } from '../../analysis/Plots';
 import { Figure } from '../../analysis/plot/Chart';
+import { EmptyState } from '../../primitives/EmptyState';
 import { NumberInput } from '../../primitives/NumberInput';
-import { Failed, Refreshing, Waiting } from '../../primitives/RequestState';
-import type { CatalogRecord } from '../holders/optic';
+import { Segmented } from '../../primitives/Segmented';
+import { Failed } from '../../primitives/RequestState';
+import { useAnalysis, type AnalysisId, type Detail, type Place, type SimulateAsk, type SimulateSettings } from '../../../ports/analysis';
 import type { Light, LightState } from '../../../ports/light';
-import type { Schematic, SchematicSymbol } from '../model';
-import { spectrum } from '../../../standins/kernel/simulate/analysis';
-import { beamOf, DEFAULT_BEAM_MM, targetsOf, type Target } from '../../../standins/kernel/simulate/beam';
-import { planeZ, type Plane } from '../../../standins/kernel/simulate/optimize';
-import { results, startRay, trace } from '../../../standins/kernel/simulate/paraxial';
-import { bestFocus, heightsAt, pupilOf, realTrace, rmsAt, rmsThroughFocus, spotAt } from '../../../standins/kernel/simulate/realtrace';
-import { ANALYSES, assumptionsOf, checksAt, focusReach, length, worst, type AnalysisId, type Check, type Tone } from './checks';
+import { answer, NO_ANSWER } from '../../../ports/request';
+import type { Schematic } from '../model';
+import { ANALYSES, checksOf, DEFAULT_SETTINGS, length, worst, type Check, type Tone } from './checks';
 
 export interface SimulatePaneProps {
   design: Schematic;
   light: Light;
-  /** Where the light's trace is: the pane waits for the first, and shows when a newer one is on its way. */
-  trace?: Pick<LightState, 'known' | 'slow' | 'error' | 'retry'>;
-  /** The optic behind a part: designed here, or its catalogue record. */
-  recordFor: (s: SchematicSymbol) => CatalogRecord | undefined;
+  /** The light's trace: why it failed, if it did. */
+  trace?: Pick<LightState, 'error'>;
   /** The part selected on the canvas. */
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -74,8 +72,20 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
   );
 }
 
+/** What an estimate stands on, as a tooltip's body. */
+const Caveats = ({ caveats }: { caveats: string[] }) => (
+  <>
+    <Box sx={{ fontWeight: 500, mb: 0.25 }}>An estimate: it takes</Box>
+    {caveats.map((c) => (
+      <Box key={c}>{c}</Box>
+    ))}
+    <Box sx={{ mt: 0.5, opacity: 0.8 }}>Give these in the parts' properties, or choose real parts, to make it exact.</Box>
+  </>
+);
+
 /** One check as a tile: its number, what it means, its tone. A click shows the analysis behind it. */
 function CheckTile({ check, on, onClick }: { check: Check; on: boolean; onClick: () => void }) {
+  const estimate = check.caveats.length > 0 && check.value !== '—';
   return (
     <ButtonBase
       onClick={onClick}
@@ -95,9 +105,16 @@ function CheckTile({ check, on, onClick }: { check: Check; on: boolean; onClick:
     >
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75 }}>
         <Dot tone={check.tone} />
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
           {check.label}
         </Typography>
+        {estimate && (
+          <Tooltip title={<Caveats caveats={check.caveats} />}>
+            <Typography variant="caption" color="text.meta" sx={{ cursor: 'help', borderBottom: '1px dotted', lineHeight: 1.2 }}>
+              Estimate
+            </Typography>
+          </Tooltip>
+        )}
       </Stack>
       <Typography variant="h6" component="div" sx={{ fontVariantNumeric: 'tabular-nums', mt: 0.25 }}>
         {check.value}
@@ -109,40 +126,62 @@ function CheckTile({ check, on, onClick }: { check: Check; on: boolean; onClick:
   );
 }
 
-export function SimulatePane({ design, light, trace: traced, recordFor, selectedId, onSelect, onFocusRay, onOptimize, onSendToOptiland, onClose }: SimulatePaneProps) {
-  const beams = useMemo(() => light.paths.flatMap((p) => beamOf(design, p, recordFor) ?? []), [design, light, recordFor]);
-  const targets = useMemo(() => targetsOf(beams), [beams]);
+/** The analysis shown, drawn; its caption. */
+function plotOf(detail: Detail, place: Place, selectedId: string | null, onSelect: (id: string) => void): { plot: ReactNode; caption: string } {
+  switch (detail.of) {
+    case 'spot':
+      return {
+        plot: <SpotDiagram points={detail.points} rmsMm={detail.rmsMm} airyMm={detail.airyMm} height={320} />,
+        caption: `RMS ${length(detail.rmsMm)} · GEO ${length(detail.geoMm)}${detail.airyMm ? ` · Airy ${length(detail.airyMm)}` : ''} · ${detail.stopped}/${detail.rays} stopped`,
+      };
+    case 'fan':
+      return { plot: <RayFan fan={detail.fan} />, caption: `max |εy| ${length(Math.max(0, ...detail.fan.map((h) => Math.abs(h.y))))}` };
+    case 'focus':
+      return {
+        plot: <RmsFocusPlot samples={detail.samples} bestDz={detail.bestDzMm} plane={place.label} airyMm={detail.airyMm} />,
+        caption: `best Δz ${detail.bestDzMm >= 0 ? '+' : '−'}${Math.abs(detail.bestDzMm).toFixed(2)} mm · RMS ${length(detail.rmsBestMm)}`,
+      };
+    case 'fill':
+      return { plot: <ApertureFill rows={detail.rows} selectedId={selectedId} onSelect={onSelect} />, caption: 'click a part to select it' };
+    case 'transmission':
+      return { plot: <SpectrumPlot curve={detail.curve} wavelengthNm={detail.nm} />, caption: '' };
+  }
+}
+
+export function SimulatePane({ design, light, trace: traced, selectedId, onSelect, onFocusRay, onOptimize, onSendToOptiland, onClose }: SimulatePaneProps) {
+  const analysis = useAnalysis();
   const [targetKey, setTargetKey] = useState<string | null>(null);
-  const target: Target | undefined = targets.find((t) => t.key === targetKey) ?? targets[0];
-  const [analysis, setAnalysis] = useState<AnalysisId | null>(null);
-  const [shiftByTarget, setShiftByTarget] = useState<Record<string, number>>({});
-  const [beamMm, setBeamMm] = useState(DEFAULT_BEAM_MM);
-  const [na, setNa] = useState<number | null>(null);
-  const [rays, setRays] = useState(41);
-  const [wavelength, setWavelength] = useState<number | null>(null);
+  const [shown, setShown] = useState<AnalysisId | null>(null);
+  const [shiftMm, setShiftMm] = useState<Record<string, number>>({});
+  const [beamMm, setBeamMm] = useState(DEFAULT_SETTINGS.beamMm);
+  const [na, setNa] = useState<number | null>(DEFAULT_SETTINGS.na);
+  const [rays, setRays] = useState(DEFAULT_SETTINGS.rays);
+  const [wavelength, setWavelength] = useState<number | null>(DEFAULT_SETTINGS.nm);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
+
+  // Every place, read again on any change.
+  const settings = useMemo<SimulateSettings>(() => ({ beamMm, na, rays, nm: wavelength, shiftMm }), [beamMm, na, rays, wavelength, shiftMm]);
+  const ask = useMemo<SimulateAsk>(() => ({ design, light, settings }), [design, light, settings]);
+  const places = useMemo(() => answer(() => analysis.places(ask)), [analysis, ask]);
+  const all = useMemo(() => (places.data ?? []).map((place) => ({ place, checks: checksOf(place) })), [places.data]);
+  const current = all.find((p) => p.place.key === targetKey) ?? all[0];
+  const place = current?.place;
 
   // A detector selected on the canvas is the place read here.
   useEffect(() => {
-    const picked = targets.find((t) => t.part === selectedId);
-    if (picked) setTargetKey(picked.key);
-  }, [selectedId, targets]);
+    const picked = all.find((p) => p.place.part === selectedId);
+    if (picked) setTargetKey(picked.place.key);
+  }, [selectedId, all]);
 
   // The canvas draws the light looked at stronger, while the pane is open.
-  const rayId = target?.beam.ray.id ?? null;
+  const rayId = place?.ray.id ?? null;
   useEffect(() => onFocusRay(rayId), [rayId, onFocusRay]);
   useEffect(() => () => onFocusRay(null), [onFocusRay]);
 
-  // Every target's checks, for the list; the picked one's with this pane's settings.
-  const summaries = useMemo(
-    () =>
-      targets.map((t) => {
-        const pupil = pupilOf(t.beam, beamMm, na ?? undefined);
-        const plane = { part: t.part, offsetMm: shiftByTarget[t.key] ?? 0 };
-        return { target: t, checks: checksAt(t, pupil, beamMm, plane, wavelength ?? t.beam.wavelengthNm, rays) };
-      }),
-    [targets, beamMm, na, shiftByTarget, wavelength, rays],
-  );
+  // The analysis shown: the one picked, else the one behind the first check that is not fine.
+  const of: AnalysisId | null = current ? (shown ?? (current.checks.find((c) => c.tone === 'bad' || c.tone === 'warn') ?? current.checks[0]).analysis) : null;
+  const detailAsk = useMemo(() => (ask && place && of ? { ...ask, place: place.key, of } : null), [ask, place, of]);
+  const detail = useMemo(() => (detailAsk ? answer(() => analysis.detail(detailAsk)) : NO_ANSWER), [analysis, detailAsk]);
 
   const header = (
     <Stack
@@ -150,9 +189,9 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
       sx={(t) => ({ alignItems: 'center', gap: 1, minHeight: t.spacing(t.layout.panelHeaderHeight), pl: 2, pr: 0.5, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' })}
     >
       <Typography variant="subtitle2">Simulate</Typography>
-      <Tooltip title="The lab's own trace: on axis, one wavelength, no diffraction. The app traces with the optics engine.">
+      <Tooltip title="Rays traced through each part's surfaces, for a point on the axis at one wavelength. The diffraction limit shows as the Airy radius. Points off the axis, other wavelengths, and tolerances are not part of these numbers.">
         <Typography variant="caption" color="text.meta" sx={{ cursor: 'help' }}>
-          On axis · lab trace
+          Geometric · on axis · one wavelength
         </Typography>
       </Tooltip>
       <Box sx={{ flex: 1 }} />
@@ -191,82 +230,44 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, bgcolor: 'canvas.ground' }}>
       {header}
       <Box sx={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'auto', scrollbarWidth: 'thin' }}>
-        <Refreshing on={Boolean(traced?.known && traced.slow)} />
         {body}
       </Box>
     </Box>
   );
 
-  // No trace yet: wait for it (or say why it did not come), not "no light".
-  if (traced && !traced.known) {
-    return frame(
+  // No answer: say why, not "no light".
+  const failed = traced?.error ?? places.error;
+  if (failed) return frame(
       <Box sx={{ p: 2 }}>
-        {traced.error ? <Failed message={traced.error} onRetry={traced.retry} /> : traced.slow && <Waiting label="Tracing the light" rows={4} height={56} />}
+        <Failed message={failed} />
       </Box>,
     );
-  }
 
-  if (!target) {
+  if (!current || !place || !of) {
     return frame(
-      <Stack sx={{ p: 3, gap: 0.5 }}>
-        <Typography variant="body2">No light reaches a detector yet.</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Add a source and a detector, and put the parts between them on the light’s path. The checks show here as soon as light gets through.
-        </Typography>
-      </Stack>,
+      <EmptyState icon={<InsightsOutlinedIcon />} title="No light reaches a detector yet">
+        Add a source and a detector, and put the parts between them on the light’s path. The checks show here as soon as light gets through.
+      </EmptyState>,
     );
   }
 
-  const beam = target.beam;
-  const checks = summaries.find((s) => s.target.key === target.key)!.checks;
-  // The analysis shown: the one picked, else the one behind the first check that is not fine.
-  const shown = analysis ?? (checks.find((c) => c.tone === 'bad' || c.tone === 'warn') ?? checks[0]).analysis;
-  const spec = ANALYSES.find((a) => a.id === shown)!;
-  const plane: Plane = { part: target.part, offsetMm: shiftByTarget[target.key] ?? 0 };
-  const z = planeZ(beam, plane);
-  const pupil = pupilOf(beam, beamMm, na ?? undefined);
-  const nm = wavelength ?? beam.wavelengthNm;
-  const assumed = assumptionsOf(beam);
-
-  let plot: ReactNode;
-  let caption = '';
-  if (spec.rays) {
-    const t = realTrace(beam, pupil, rays);
-    const heights = heightsAt(t, z);
-    const geo = Math.max(0, ...heights.map((h) => Math.abs(h.y)));
-    if (shown === 'spot') {
-      plot = <SpotDiagram points={spotAt(t, z)} rmsMm={rmsAt(t, z)} height={320} />;
-      caption = `RMS ${length(rmsAt(t, z))} · GEO ${length(geo)} · ${t.vignetted}/${rays} stopped`;
-    } else if (shown === 'fan') {
-      plot = <RayFan fan={heights} />;
-      caption = `max |εy| ${length(geo)}`;
-    } else {
-      const best = bestFocus(t, z, focusReach(t, z));
-      const reach = Math.max(2, Math.abs(best - z) * 1.6, 5);
-      plot = <RmsFocusPlot samples={rmsThroughFocus(t, z, reach)} bestDz={best - z} plane={target.label} />;
-      caption = `best Δz ${best - z >= 0 ? '+' : '−'}${Math.abs(best - z).toFixed(2)} mm · RMS ${length(rmsAt(t, best))}`;
-    }
-  } else if (shown === 'fill') {
-    const r = results(beam, trace(beam, startRay(beam, beamMm)), beamMm);
-    plot = <ApertureFill beam={beam} result={r} selectedId={selectedId} onSelect={onSelect} />;
-    caption = 'click a part to select it';
-  } else {
-    plot = <SpectrumPlot curve={spectrum(beam)} wavelengthNm={nm} />;
-  }
-
-  const offTarget = (t: Target) => t.key !== target.key;
+  const spec = ANALYSES.find((a) => a.id === of)!;
+  const offsetMm = shiftMm[place.key] ?? 0;
+  const nm = wavelength ?? place.wavelengthNm;
+  const drawn = detail.data ? plotOf(detail.data, place, selectedId, onSelect) : null;
 
   return frame(
     <>
-      <Section title="Where light is read" aside={<Typography variant="caption" color="text.secondary">{`${targets.length} ${targets.length === 1 ? 'place' : 'places'}`}</Typography>}>
+      <Section title="Where light is read" aside={<Typography variant="caption" color="text.secondary">{`${all.length} ${all.length === 1 ? 'place' : 'places'}`}</Typography>}>
         <Stack sx={{ mx: -1 }}>
-          {summaries.map(({ target: t, checks: cs }) => {
+          {all.map(({ place: p, checks: cs }) => {
             const tone = worst(cs);
+            const off = p.key !== place.key;
             return (
               <ButtonBase
-                key={t.key}
-                onClick={() => setTargetKey(t.key)}
-                aria-current={!offTarget(t)}
+                key={p.key}
+                onClick={() => setTargetKey(p.key)}
+                aria-current={!off}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -275,17 +276,17 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
                   py: 0.75,
                   borderRadius: 1,
                   textAlign: 'left',
-                  bgcolor: offTarget(t) ? 'transparent' : 'primary.soft',
-                  '&:hover': { bgcolor: offTarget(t) ? 'action.hover' : 'primary.soft' },
+                  bgcolor: off ? 'transparent' : 'primary.soft',
+                  '&:hover': { bgcolor: off ? 'action.hover' : 'primary.soft' },
                 }}
               >
-                <Box sx={{ width: 3, alignSelf: 'stretch', borderRadius: 1, bgcolor: `rays.${t.beam.ray.color}` }} />
+                <Box sx={{ width: 3, alignSelf: 'stretch', borderRadius: 1, bgcolor: `rays.${p.ray.color}` }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: offTarget(t) ? 400 : 500 }}>
-                    {t.label}
+                  <Typography variant="body2" noWrap sx={{ fontWeight: off ? 400 : 500 }}>
+                    {p.label}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" component="div" noWrap>
-                    {t.beam.ray.label}
+                    {p.ray.label}
                   </Typography>
                 </Box>
                 <Tooltip title={cs.map((c) => `${c.label}: ${c.value} · ${c.note}`).join('\n')} slotProps={{ tooltip: { sx: { whiteSpace: 'pre-line' } } }}>
@@ -304,34 +305,30 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
         </Stack>
       </Section>
 
-      <Section title={`At ${target.label}`}>
+      <Section title={`At ${place.label}`}>
         <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>
-          {checks.map((c) => (
-            <CheckTile key={c.id} check={c} on={c.analysis === shown} onClick={() => setAnalysis(c.analysis)} />
+          {current.checks.map((c: Check) => (
+            <CheckTile key={c.id} check={c} on={c.analysis === of} onClick={() => setShown(c.analysis)} />
           ))}
         </Stack>
       </Section>
 
       <Section title="Analysis">
-        <ToggleButtonGroup exclusive size="small" value={shown} onChange={(_, v: AnalysisId | null) => v && setAnalysis(v)} aria-label="Analysis" sx={{ flexWrap: 'wrap', mb: 1.5 }}>
-          {ANALYSES.map((a) => (
-            <ToggleButton key={a.id} value={a.id} sx={{ textTransform: 'none', py: 0.25, px: 1.25 }}>
-              {a.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        <Box sx={{ mb: 1.5 }}>
+          <Segmented value={of} onChange={setShown} aria-label="Analysis" options={ANALYSES.map((a) => ({ value: a.id, label: a.label }))} />
+        </Box>
 
-        <Figure title={`${spec.label} · ${spec.plane ? `at ${target.label}${plane.offsetMm ? ` ${plane.offsetMm > 0 ? '+' : '−'}${Math.abs(plane.offsetMm)} mm` : ''}` : beam.ray.label}`} meta={caption}>
-          {plot}
+        <Figure title={`${spec.label} · ${spec.plane ? `at ${place.label}${offsetMm ? ` ${offsetMm > 0 ? '+' : '−'}${Math.abs(offsetMm)} mm` : ''}` : place.ray.label}`} meta={drawn?.caption}>
+          {drawn ? drawn.plot : detail.error && <Failed message={detail.error} />}
         </Figure>
 
         {/* The settings the analysis shown takes, in one row. */}
         <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-          {spec.plane && target.part !== 'end' && (
+          {spec.plane && place.part !== 'end' && (
             <NumberInput
-              label={`Shift from ${target.label}`}
-              value={plane.offsetMm}
-              onChange={(v) => setShiftByTarget((m) => ({ ...m, [target.key]: v }))}
+              label={`Shift from ${place.label}`}
+              value={offsetMm}
+              onChange={(v) => setShiftMm((m) => ({ ...m, [place.key]: v }))}
               step={0.5}
               precision={2}
               unit="mm"
@@ -339,25 +336,25 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
               sx={{ width: 170 }}
             />
           )}
-          {(spec.rays || shown === 'fill') &&
-            (pupil.kind === 'collimated' ? (
+          {(spec.rays || of === 'fill') &&
+            (place.start.kind === 'collimated' ? (
               <NumberInput label="Beam Ø" value={beamMm} onChange={(v) => v > 0 && setBeamMm(v)} min={0.1} step={0.5} precision={1} unit="mm" size="small" sx={{ width: 120 }} />
             ) : (
-              <NumberInput label="Cone NA" value={pupil.na} onChange={(v) => v > 0 && v < 1 && setNa(v)} min={0.01} max={0.95} step={0.01} precision={2} size="small" sx={{ width: 110 }} />
+              <NumberInput label="Cone NA" value={na ?? place.start.na} onChange={(v) => v > 0 && v < 1 && setNa(v)} min={0.01} max={0.95} step={0.01} precision={2} size="small" sx={{ width: 110 }} />
             ))}
           {spec.rays && (
             <NumberInput label="Rays" value={rays} onChange={(v) => setRays(Math.max(3, Math.min(201, Math.round(v))))} min={3} max={201} step={10} precision={0} size="small" sx={{ width: 90 }} />
           )}
-          {shown === 'transmission' && (
+          {of === 'transmission' && (
             <NumberInput label="Wavelength" value={nm ?? 550} onChange={(v) => setWavelength(v)} min={350} max={1100} step={1} precision={0} unit="nm" size="small" sx={{ width: 130 }} />
           )}
         </Stack>
       </Section>
 
-      {assumed.length > 0 && (
+      {place.assumed.length > 0 && (
         <Section title="Assumed where the design does not say">
           <Stack spacing={0.5}>
-            {assumed.map((a) => (
+            {place.assumed.map((a) => (
               <Typography key={a.id} variant="caption" color="text.secondary" component="div">
                 <Box
                   component="span"

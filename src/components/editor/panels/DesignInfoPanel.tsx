@@ -41,24 +41,20 @@ export function DesignInfoPanel({ maintainer, description, tags, license, create
           ))}
         </Stack>
       </Row>
-      <Row label="License">
+      <Row label="Licence">
         <Typography variant="mono">{license}</Typography>
       </Row>
       <Row label="Created">
         <Typography variant="body2">{created}</Typography>
       </Row>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, pt: 2 }}>
-        {stats.map((s) => (
-          <Box key={s.label} sx={{ bgcolor: 'background.sunken', borderRadius: 1, p: 1.25 }}>
-            <Typography variant="h3" component="div">
-              {s.value}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {s.label}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
+      {/* The counts as rows like the rest: three tiles side by side do not fit a panel's width. */}
+      {stats.map((st) => (
+        <Row key={st.label} label={st.label.charAt(0).toUpperCase() + st.label.slice(1)}>
+          <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {st.value}
+          </Typography>
+        </Row>
+      ))}
     </Box>
   );
 }

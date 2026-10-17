@@ -406,8 +406,7 @@ export function EditorShell({
   };
 
   useShortcuts(actions, { view, hasSelection: ids.length > 0, paused: paletteOpen });
-  // Light paths that miss a part, for the status bar.
-  // The design's light, traced in time: the last one stays while the next is traced.
+  // The design's light, traced at once; the paths that miss a part, for the status bar.
   const trace = useLight(design);
   const { light } = trace;
   const misses = light.misses.map((m) => `No light reaches ${m.label}`);
@@ -445,7 +444,9 @@ export function EditorShell({
   );
 
   const hint2d = !placing.entry
-    ? HINTS[tool]
+    ? tool === 'select' && design.symbols.length === 0
+      ? 'Drag a part from the sidebar onto the grid, or click one and then the grid · A to add one by name'
+      : HINTS[tool]
     : placing.dragging
       ? `Let go to place ${placing.entry.label} on z${layer} · Shift: off the grid`
       : `Click to place ${placing.entry.label} on z${layer} · Shift: off the grid · Ctrl-click to place more · Esc to stop`;
@@ -691,7 +692,6 @@ export function EditorShell({
                   design={design}
                   light={light}
                   trace={trace}
-                  recordFor={recordForPart}
                   selectedId={selected?.id ?? null}
                   onSelect={actions.selectPart}
                   onFocusRay={setFocusRay}
@@ -718,7 +718,7 @@ export function EditorShell({
               </Suspense>
             ) : pane === 'optimize' ? (
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
-                <OptimizePane design={design} light={light} recordFor={recordForPart} onApply={(next) => edit(() => next)} onSelect={actions.selectPart} onClose={() => setPane(null)} />
+                <OptimizePane design={design} light={light} onApply={(next) => edit(() => next)} onSelect={actions.selectPart} onClose={() => setPane(null)} />
               </Suspense>
             ) : (
             closeup && (

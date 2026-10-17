@@ -9,13 +9,13 @@ This file tells which lab code is UI, which code is a stand-in, and what replace
 | Folder | What it contains | In the app |
 | --- | --- | --- |
 | `src/components/` | Views, and the pure logic that belongs to the UI | Copy the design. Change the code to use the real design file. |
-| `src/ports/` | The interfaces that the views use to get light, parts and service answers | Keep the shape. Give real implementations. |
-| `src/standins/kernel/` | Stand-ins for oc-wasm and Optiland: light, traces, optimizer, coatings | Replace with oc-wasm and the service. |
+| `src/ports/` | The interfaces that the views use to get light, analysis, coatings, holders, parts and service answers | Keep the shape. Give real implementations. |
+| `src/standins/kernel/` | Stand-ins for oc-wasm: light, traces, optimizer, coatings | Replace with oc-wasm, in the page. |
 | `src/standins/service/` | Stand-ins for optikit-core: part matching, holder generators, dry runs, BOM | Replace with the service endpoints. |
 | `src/standins/library/` | Stand-ins for optikit-library: records, modules, prices, meshes | Replace with the library index and the catalogue. |
 | `src/demo/` | Page content only: projects, users, landing, history | Not ported. |
 
-The views and the app (`src/components/`, `src/app/`) get the stand-ins only through `src/ports/`. ESLint enforces this rule (`no-restricted-imports` in `eslint.config.js`). Stories and tests can import stand-ins as data.
+The views and the app (`src/components/`, `src/app/`) get the stand-ins only through `src/ports/`, with no exceptions. ESLint enforces this rule (`no-restricted-imports` in `eslint.config.js`). Stories and tests can import stand-ins as data.
 
 `src/standins/StandinsProvider.tsx` is the only place where the stand-ins are connected. The app root (`src/main.tsx`) and Storybook (`.storybook/preview.tsx`) use it. To connect the real implementations, provide them at this one point.
 
@@ -25,7 +25,7 @@ The views and the app (`src/components/`, `src/app/`) get the stand-ins only thr
 
 | Field | Lab stand-in | App |
 | --- | --- | --- |
-| `LightFor(design)`: the light paths and the parts that each path meets, in time (`Promise`) | `standins/kernel/light.ts`: straight lines on the grid, over the stand-in network | oc-wasm traces the Scene3 from `POST /v1/scene3` (`loadScene3JSON`, `traceWorld3D`). Paths come from `/v1/sequence`. |
+| `LightFor(design)`: the light paths and the parts that each path meets, at once | `standins/kernel/light.ts`: straight lines on the grid | oc-wasm traces the Scene3 in the page (`loadScene3JSON`, `traceWorld3D`). Paths come from `/v1/sequence`. See "Optics in the page" below for what this needs. |
 
 ### Library (`src/ports/library.ts`)
 
@@ -46,9 +46,49 @@ The views and the app (`src/components/`, `src/app/`) get the stand-ins only thr
 | `snapCandidates(spec)` | `standins/service/snap.ts` | `GET /v1/catalog/index`; the holder fit from `GET /v1/generators` |
 | `bom(design)` | `standins/service/bom.ts` | `POST /v1/export/parts` |
 
+### Analysis (`src/ports/analysis.ts`) — kernel
+
+What Simulate and Optimize show, as results. The views do not trace and do not read a beam table: they ask for numbers and curves, and the UI reads them (`editor/simulate/checks.ts` gives the tones, the notes, and the Estimate marks).
+
+| Call | Lab stand-in | App |
+| --- | --- | --- |
+| `places({design, light, settings})`: each place where light is read (a detector, the sample, an open end), with its raw numbers (RMS spot, best focus, Airy radius, collimation, fullest aperture, rays stopped, transmission) and what was assumed | `standins/kernel/simulate/standinAnalysis.ts`, on the lab's beam table and real rays | oc-wasm's detector hits for the Scene3 (`analysisRays`, `firstDetectorResultJSON`), read per detector |
+| `detail({…, place, of})`: one analysis in full: spot points, ray fan, RMS through focus, aperture fill, transmission curve | the same | oc-wasm: hits at a plane, a fan, a focus sweep; the coatings for the curve |
+| `setup({design, light, place})`: the objectives and the variables that a place offers | the lab's optimizer (`optimize.ts`) | oc-wasm (its merit functions; `fitSingletFace` is the first) |
+| `view({…, objective})`: the objective's value now, the beam envelope, the spot at the plane | the lab's paraxial trace and real rays | oc-wasm |
+| `run({…, variables}, onStep)`: a job. `onStep` gets the best so far after each step; `done` gives the new values, the objective before and after (and after each step), the design with the values applied, and the proposed view; `stop()` ends it with the best so far | the lab's bounded coordinate search, in a Web Worker (`optimizeWorker.ts`) | oc-wasm's optimizer loop, in a Web Worker with its own oc-wasm instance |
+
+The numbers are geometric, on axis, at one wavelength. The pane says so in its header.
+
+### Coatings (`src/ports/coatings.ts`) — kernel
+
+| Call | Lab stand-in | App |
+| --- | --- | --- |
+| `catalogue`: the coatings that a designed optic can take | `standins/kernel/coatings.ts` (`COATINGS`) | The service's coating list |
+| `of({optic, wavelengths})`: each surface's role and coating, its reflectance curve and values at the design's wavelengths, what the optic passes, the checks | the lab's thin-film model (`opticLight`) | oc-wasm (`surfaceRtF64`, `surfaceCoatingJSON`), when the service writes coatings into Scene3. See the gaps below. |
+
+### Holders (`src/ports/holders.ts`) — service
+
+| Call | Lab stand-in | App |
+| --- | --- | --- |
+| `roads({optic, component})`: each generator with its refusal, and the lens cartridge's start parameters | `standins/service/generators.ts` (the `holds` blocks as in optikit-v2) | `GET /v1/generators` |
+| `plan({params, record, beamMm})`: the dry run and its checks | `standins/service/cartridge.ts` | `POST /v1/generate/plan` |
+| `mesh({params, record})`: the holder with its optic, as mesh components | `standins/service/cartridgeMesh.ts` draws the V4 cartridge from its parameters | `POST /v1/generate` (the GLB, loaded like a module mesh). optikit-app-v1 already uses the real calls (`useHolderDesign.ts`). |
+
+### Build notes (`src/ports/build.ts`)
+
+What the stand-ins do differently from the app, in words: the light, the catalogue and prices, the holder previews, sign-in, the network. Settings shows them once, under "This build", so the screens themselves use product wording. The app gives no notes, and the section does not show.
+
+## Optics in the page
+
+The light, the analysis, the coatings and the optimizer run on the person's computer, in the page. Only the service calls (library, parts, prices, BOM, holders) go over the network.
+
+- **Light, analysis, coatings: synchronous.** The calls return their answer at once, and throw when they cannot answer. The views work them out in render (`answer()` in `src/ports/request.ts` turns a throw into an error in words). Thus every edit, and every drag, shows its light and its numbers in the same frame. For this, oc-wasm must trace on the main thread in a few milliseconds (a frame is 16 ms), and the Scene3 must be built or patched in the page, with no round trip to `POST /v1/scene3` for each change.
+- **Optimizer: in a worker.** A run is hundreds or thousands of traces, so it takes seconds. It runs in a Web Worker: the page stays free. The pane draws the best so far after each step (the envelope and the spot, the objective's curve), and **Stop** keeps it. A change to the design or to the question stops the run. One worker uses one core; wasm threads on more cores need the page served cross-origin isolated (COOP/COEP headers).
+
 ## Waiting and failing
 
-The real calls take time and can fail. The ports are already shaped for that:
+The service's calls take time and can fail. The ports are already shaped for that:
 
 - **Service:** every call returns a `Promise`. Views ask through `useRequest` (`src/ports/request.ts`). It drops answers to older questions. It can keep the last answer while a new one comes (`keep`, used for the BOM). It sets `slow` only after 180 ms, so a fast answer does not flash.
 - **Library:** the index is loaded once. `Library.status` is `loading`, `ready` or `error`, and `reload()` loads it again. While it loads, the fields are empty.
@@ -63,17 +103,8 @@ In the lab, the stand-ins answer over a stand-in network (`src/standins/network.
 | `?fail=1` | Every request fails, to see the error states and Try again |
 | `?latency=0` | Answers at once (as Storybook does) |
 
-- **Light:** `LightFor` returns a `Promise`. Views ask through `useLight` (`src/ports/light.ts`). It keeps the last light while the next trace runs, and it shares one trace per design between the views that draw it. While parts are dragged, the canvas and the 3D view show the light from before, faded, and the light is traced again when the parts are let go. Thus the app does not call `POST /v1/scene3` at each pointer move. The status bar says "Tracing the light…" for a long trace, and it offers Try again for a failed one. Simulate waits for the first trace.
-
-## Not behind a port yet
-
-These views still import a stand-in directly, because the real call has a different shape. ESLint lists them as exceptions (`STANDIN_DIRECT`).
-
-| View | Stand-in | Why no port yet |
-| --- | --- | --- |
-| `editor/simulate/SimulatePane.tsx`, `editor/simulate/checks.ts`, `editor/optimize/OptimizePane.tsx`, `analysis/BeamLayout.tsx`, `analysis/Plots.tsx` | `standins/kernel/simulate/*` (beam table, paraxial, real rays, optimizer) | oc-wasm works on a Scene3 in a worker. It gives segments, detector hits and maps (`analysisRays`, `firstDetectorResultJSON`, `lastDetectorMapsF32`), not the lab's beam table. A port can be designed when the app runs the kernel for Simulate (optikit-app-v1 milestone 5). The optimizer is Optiland's on the service, or `fitSingletFace` in oc-wasm. |
-| `editor/optics/*`, `editor/scene3d/Closeup.tsx` | `standins/kernel/coatings.ts` | The kernel computes coatings (`surfaceRtF64`, `surfaceCoatingJSON`), but the service does not write coatings into Scene3 yet. See the gaps below. |
-| `editor/scene3d/HolderDesigner.tsx`, `holderMesh.ts`, `layout3d.ts`, `Closeup.tsx` | `standins/service/generators.ts`, `cartridge.ts` | The service gives a dry run (`POST /v1/generate/plan`) and meshes (`POST /v1/generate`). The lab draws the cartridge from its parameters. optikit-app-v1 already uses the real calls (`useHolderDesign.ts`). |
+- **Holders:** every call returns a `Promise`. A frozen holder's mesh comes in time, and the last one stays while a new one is made.
+- **Light, analysis, coatings:** no wait (see "Optics in the page"). `useLight` (`src/ports/light.ts`) shares one trace per design between the views that draw it. A design that cannot be traced shows no light, and the status bar says so.
 
 ## Data formats
 

@@ -107,9 +107,6 @@ export function AuthDialog({ open, mode, onModeChange, onClose, onSubmit, defaul
           <Button variant="outlined" size="large" startIcon={<GitHubIcon />} disabled={busy} onClick={() => onSubmit({ mode, name: '', email: '' })}>
             Continue with GitHub
           </Button>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-            Prototype: any details sign you in as the demo user.
-          </Typography>
         </Stack>
       </Box>
     </Dialog>

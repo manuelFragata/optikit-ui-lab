@@ -64,3 +64,21 @@ export function useRequest<I, T>(input: I | null, ask: (input: I) => Promise<T>,
   if (input !== null && state.for !== input) return { status: 'loading', data: keep ? state.data : undefined, slow: false, error: null, retry };
   return { status: state.status, data: state.data, error: state.error, slow: slow && state.status === 'loading', retry };
 }
+
+/** An answer worked out at once, in the page (the optics engine's): what it is, or why there is none. */
+export interface Answer<T> {
+  data: T | undefined;
+  error: string | null;
+}
+
+/** No question, no answer. */
+export const NO_ANSWER: Answer<never> = { data: undefined, error: null };
+
+/** Work out `fn` now; what it throws becomes the error, in words. */
+export function answer<T>(fn: () => T): Answer<T> {
+  try {
+    return { data: fn(), error: null };
+  } catch (e) {
+    return { data: undefined, error: errorText(e) };
+  }
+}

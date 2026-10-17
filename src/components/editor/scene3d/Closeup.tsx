@@ -19,11 +19,9 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import CenterFocusWeakOutlinedIcon from '@mui/icons-material/CenterFocusWeakOutlined';
+import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
@@ -36,22 +34,24 @@ import { CameraControls, Line } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Box3, DoubleSide, MeshStandardMaterial, Plane, Quaternion, Sphere, Vector3, type Group } from 'three';
 import { holderPart, specLine, type HolderSpec, type ModuleOption, type SchematicSymbol } from '../model';
-import { cartridgeDefaults, planCartridge, type BeamAxis, type CartridgeParams } from '../../../standins/service/cartridge';
-import { roadsFor, type Road } from '../../../standins/service/generators';
-import { useRequest } from '../../../ports/request';
+import { withCoating } from '../holders/designs';
+import { useCoatings, type OpticLight } from '../../../ports/coatings';
+import { useHolders, type BeamAxis, type CartridgeParams, type Road } from '../../../ports/holders';
+import { answer, useRequest } from '../../../ports/request';
 import type { IdealSpec, SnapCandidate } from '../../../ports/service';
-import { factsFromInputs, opticFacts, opticShape, type CatalogRecord, type FragmentSurface, type OpticShape } from '../holders/optic';
+import { factsFromInputs, opticFacts, opticShape, type CatalogRecord, type FragmentSurface } from '../holders/optic';
 import { useSceneColors, type SceneColors } from './colors';
 import { ROLE_LABEL, SOURCE_LABEL, type ComponentRole } from './components';
 import { CUBE_MM, type MeshRef } from './layout3d';
 import { COMPONENT_KEY, poseMatrix, useModuleMesh, type MeshComponent, type PreparedMesh } from './meshes';
-import { cartridgeComponents, disposeComponents, lensComponent } from './holderMesh';
+import { disposeComponents, lensComponent, useHolderComponents } from './holderMesh';
 import { SnapPanel } from './SnapPanel';
 import { HolderDesigner, PREVIEWED_ROAD, type HolderDraft } from './HolderDesigner';
 import { ComponentMesh, CubeEdges, Glyph, MeshBoundary } from './shapes';
-import { surfaceInfo, withCoating } from '../../../standins/kernel/coatings';
 import { OpticalView } from '../optics/OpticalView';
 import { OpticsPanel } from '../optics/OpticsPanel';
+import { EmptyState } from '../../primitives/EmptyState';
+import { Segmented } from '../../primitives/Segmented';
 
 const NO_CANDIDATES = async (): Promise<SnapCandidate[]> => [];
 
@@ -98,10 +98,10 @@ const Z_UP: [number, number, number] = [-Math.PI / 2, 0, 0];
 const DEFAULT_BEAM_MM = 12;
 
 /** Where a holder design starts: the frozen one, else the lens cartridge when it can hold the part, else the first road that can. */
-function initialDraft(saved: HolderSpec | undefined, component: string, roads: Road[]): HolderDraft {
+function initialDraft(saved: HolderSpec | undefined, defaults: CartridgeParams, roads: Road[]): HolderDraft {
   if (saved?.generator === PREVIEWED_ROAD) return { road: saved.generator, params: saved.params as unknown as CartridgeParams, beamMm: DEFAULT_BEAM_MM };
   const open = roads.filter((r) => !r.refusal).map((r) => r.spec.script);
-  return { road: open.includes(PREVIEWED_ROAD) ? PREVIEWED_ROAD : (open[0] ?? PREVIEWED_ROAD), params: cartridgeDefaults(component), beamMm: DEFAULT_BEAM_MM };
+  return { road: open.includes(PREVIEWED_ROAD) ? PREVIEWED_ROAD : (open[0] ?? PREVIEWED_ROAD), params: defaults, beamMm: DEFAULT_BEAM_MM };
 }
 
 export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, candidatesFor, onSnap, modules = [], onRealize, onDesign, wavelengths = [], onPrescription }: CloseupProps) {
@@ -118,15 +118,26 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   const record = part && partName ? opticFor?.(part) : undefined;
   const shape = useMemo(() => (record ? opticShape(record) : null), [record]);
   const facts = record ? opticFacts(record) : part ? factsFromInputs(part.kind, part.inputs?.find((i) => i.label === 'Diameter')?.value) : null;
-  const roads = designing && facts ? roadsFor(facts) : [];
+  // The roads that can hold it, and the dry run of the draft: asked of the holder service, each again only when what it is asked about changes.
+  const holders = useHolders();
+  const component = record?.id ?? partName ?? '';
+  const factsKey = designing && facts ? JSON.stringify(facts) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- asked again when the optic's facts change by value
+  const roadsAsk = useMemo(() => (factsKey && facts ? { optic: facts, component } : null), [factsKey, component]);
+  const roadsRequest = useRequest(roadsAsk, holders.roads);
+  const roads = roadsRequest.data?.roads ?? [];
   const saved = part?.placement.state === 'in-cube' ? part.placement.holder : undefined;
   // One draft per part, kept while the session lasts.
   const [drafts, setDrafts] = useState<Record<string, HolderDraft>>({});
-  const draft = designing && part ? (drafts[part.id] ?? initialDraft(saved, record?.id ?? partName ?? '', roads)) : null;
+  const draft = designing && part ? (drafts[part.id] ?? (roadsRequest.data ? initialDraft(saved, roadsRequest.data.defaults, roads) : null)) : null;
   const setDraft = (d: HolderDraft) => part && setDrafts((m) => ({ ...m, [part.id]: d }));
-  const plan = draft && shape && draft.road === PREVIEWED_ROAD ? planCartridge(draft.params, shape, draft.beamMm) : null;
+  const planKey = draft && record && draft.road === PREVIEWED_ROAD ? JSON.stringify([record.id, record.fragmentSurfaces, draft.params, draft.beamMm]) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- asked again when the draft changes by value
+  const planAsk = useMemo(() => (planKey && draft && record ? { params: draft.params, record, beamMm: draft.beamMm } : null), [planKey]);
+  const planRequest = useRequest(planAsk, holders.plan, { keep: true });
+  const plan = planAsk ? (planRequest.data ?? null) : null;
   const changed = Boolean(draft && saved && (saved.generator !== draft.road || JSON.stringify(saved.params) !== JSON.stringify(draft.params)));
-  const preview = designing && part && draft && plan && shape && record && cubeMesh ? { params: draft.params, beamMm: draft.beamMm, shape, record, cubeMesh } : null;
+  const preview = designing && part && draft && plan && shape && record && cubeMesh ? { params: draft.params, beamMm: draft.beamMm, record, cubeMesh } : null;
   const clipped = Boolean(plan?.checks.some((c) => c.code === 'DRC_BEAM_CLIPPED' || c.code === 'DRC_APERTURE'));
 
   // An ideal part: which real part it could be. The one hovered in the list is shown, else the one picked, else the best.
@@ -158,8 +169,16 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   const [side, setSide] = useState<Side>('mechanical');
   const optic = part ? opticFor?.(part) : undefined;
   const opticalShape = useMemo(() => (optic ? opticShape(optic) : null), [optic]);
-  const infos = useMemo(() => (optic && opticalShape ? surfaceInfo(optic) : []), [optic, opticalShape]);
-  const optical = side === 'optical' && infos.length > 0;
+  const hasGlass = Boolean(optic && opticalShape && optic.fragmentSurfaces.length);
+  const optical = side === 'optical' && hasGlass;
+  // What the surfaces do to the light, read at once while the Optical side is open: a coating change shows as it is made.
+  const coatings = useCoatings();
+  const wavelengthsKey = wavelengths.join(',');
+  const opticLight: OpticLight | null = useMemo(
+    () => (optical && optic ? (answer(() => coatings.of({ optic, wavelengths: wavelengthsKey ? wavelengthsKey.split(',').map(Number) : [] })).data ?? null) : null),
+    [coatings, optical, optic, wavelengthsKey],
+  );
+  const infos = opticLight?.surfaces ?? [];
   const [surface, setSurface] = useState(0);
   const [surfaceHover, setSurfaceHover] = useState<number | null>(null);
   const opticRef = useRef<Group>(null);
@@ -179,7 +198,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   ) : (
     <>
       <ToolButton label="X-ray: the others faint" on={xray} disabled={!focused} onClick={() => setXray(!xray)} icon={<OpacityOutlinedIcon fontSize="small" />} />
-      <ToolButton label="Isolate: the picked one alone" on={isolate} disabled={!focused} onClick={() => setIsolate(!isolate)} icon={<CenterFocusWeakOutlinedIcon fontSize="small" />} />
+      <ToolButton label="Isolate: the picked one alone" on={isolate} disabled={!focused} onClick={() => setIsolate(!isolate)} icon={<CenterFocusStrongOutlinedIcon fontSize="small" />} />
       <ToolButton label="Section: cut away the front" on={section !== null} disabled={!components.length} onClick={() => setSection(section === null ? 0 : null)} icon={<ContentCutOutlinedIcon fontSize="small" />} />
       <ToolButton label="Fit the part" onClick={() => (focus ? onFocus(null) : setFitAll((n) => n + 1))} disabled={!part} icon={<FitScreenOutlinedIcon fontSize="small" />} />
     </>
@@ -202,18 +221,22 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
           )}
         </Box>
         {part && (
-          <ToggleButtonGroup exclusive size="small" value={optical ? 'optical' : 'mechanical'} onChange={(_, v: Side | null) => v && setSide(v)} aria-label="Look at" sx={{ mr: 0.5 }}>
-            <ToggleButton value="mechanical" sx={{ textTransform: 'none', py: 0.25, px: 1.25 }}>
-              Mechanical
-            </ToggleButton>
-            <Tooltip title={infos.length ? 'What it does to the light: surfaces and coatings' : part.placement.state === 'ideal' ? 'An ideal part has no glass yet: design it or snap it to a catalogue part' : 'No prescription known for this part'}>
-              <span>
-                <ToggleButton value="optical" disabled={!infos.length} sx={{ textTransform: 'none', py: 0.25, px: 1.25, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, ml: '-1px' }}>
-                  Optical
-                </ToggleButton>
-              </span>
-            </Tooltip>
-          </ToggleButtonGroup>
+          <Box sx={{ mr: 0.5 }}>
+            <Segmented
+              value={optical ? 'optical' : 'mechanical'}
+              onChange={(v: Side) => setSide(v)}
+              aria-label="Look at"
+              options={[
+                { value: 'mechanical', label: 'Mechanical' },
+                {
+                  value: 'optical',
+                  label: 'Optical',
+                  disabled: !hasGlass,
+                  tip: hasGlass ? 'What it does to the light: surfaces and coatings' : part.placement.state === 'ideal' ? 'An ideal part has no glass yet: design it or snap it to a catalogue part' : 'No prescription known for this part',
+                },
+              ]}
+            />
+          </Box>
         )}
         {tools}
         <Tooltip title="Close the close-up">
@@ -232,7 +255,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
               <directionalLight position={[-300, 500, 400]} intensity={1.5} />
               <directionalLight position={[300, 150, -300]} intensity={0.5} />
               <group rotation={Z_UP}>
-                {optical && optic && opticalShape ? (
+                {optical && optic && opticalShape && opticLight ? (
                   <>
                     <OpticalView
                       key={part.id}
@@ -270,7 +293,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
                   <>
                     {/* Where its cube would go, and the candidate's glass in it (or the symbol, when there is none). */}
                     <CubeEdges color={colors.accent} opacity={0.4} dashed />
-                    {candidate && candidateShape ? <CandidateLens key={candidate.record.id} record={candidate.record} shape={candidateShape} /> : <Glyph kind={part.kind} turns={0} color={colors.glyphs[part.kind]} outline={null} />}
+                    {candidate && candidateShape ? <CandidateLens key={candidate.record.id} record={candidate.record} /> : <Glyph kind={part.kind} turns={0} color={colors.glyphs[part.kind]} outline={null} />}
                     <Framing fitAll={fitAll} />
                   </>
                 ) : (
@@ -283,7 +306,11 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
               </group>
             </Canvas>
           ) : (
-            <Empty>Click a part on the canvas to look at it up close. In 3D, click the lens, its holder or the cube itself.</Empty>
+            <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+              <EmptyState icon={<CenterFocusStrongOutlinedIcon />} title="Nothing to look at yet">
+                Click a part on the canvas to look at it up close. In 3D, click the lens, its holder or the cube itself.
+              </EmptyState>
+            </Box>
           )}
 
           {part && !optical && !mesh && !preview && !ideal && (
@@ -291,7 +318,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
               {designing
                 ? draft?.road === PREVIEWED_ROAD
                   ? 'No prescription for this part, and the cartridge is cut from one: its symbol is shown.'
-                  : 'Pick the lens cartridge to see a holder here: the lab draws only that road so far.'
+                  : 'Pick the lens cartridge to see a holder here: only it has a live preview so far.'
                 : part.placement.state === 'in-cube'
                   ? 'No 3D model of this module yet: its symbol is shown.'
                   : 'Not in a cube yet: mount it to see its module and what it is made of.'}
@@ -317,10 +344,10 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
           )}
         </Box>
 
-        {optical && optic && (
+        {optical && optic && opticLight && (
           <OpticsPanel
             record={optic}
-            infos={infos}
+            light={opticLight}
             wavelengths={wavelengths}
             surface={surface}
             onSurface={setSurface}
@@ -384,8 +411,8 @@ interface ViewProps {
 }
 
 /** A catalogue lens, before it is chosen: its glass alone, at the cube centre. */
-function CandidateLens({ record, shape }: { record: CatalogRecord; shape: OpticShape }) {
-  const lens = useMemo(() => lensComponent(record, shape), [record, shape]);
+function CandidateLens({ record }: { record: CatalogRecord }) {
+  const lens = useMemo(() => lensComponent(record), [record]);
   useEffect(() => () => disposeComponents([lens]), [lens]);
   return <ComponentMesh component={lens} outline={null} tinted={null} />;
 }
@@ -403,7 +430,6 @@ const BEAM_DIR: Record<BeamAxis, [number, number, number]> = { '+x': [1, 0, 0], 
 interface HolderViewProps extends ViewProps {
   cubeMesh: string;
   params: CartridgeParams;
-  shape: OpticShape;
   record: CatalogRecord;
   beamMm: number;
   beamColor: string;
@@ -434,11 +460,9 @@ function HolderInCube({ cubeMesh, ...props }: HolderViewProps) {
   return <HolderBody cube={useModuleMesh(cubeMesh).components} {...props} />;
 }
 
-function HolderBody({ cube, params, shape, record, beamMm, beamColor, onLoaded, ...view }: Omit<HolderViewProps, 'cubeMesh'> & { cube: MeshComponent[] }) {
-  const key = JSON.stringify(params);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the parameters change by value
-  const built = useMemo(() => cartridgeComponents(params, shape, record), [key, shape, record]);
-  useEffect(() => () => disposeComponents(built), [built]);
+function HolderBody({ cube, params, record, beamMm, beamColor, onLoaded, ...view }: Omit<HolderViewProps, 'cubeMesh'> & { cube: MeshComponent[] }) {
+  // From the holder service, in time: the last build stays until the next comes.
+  const built = useHolderComponents(useMemo(() => ({ params, record }), [params, record]));
   const prepared = useMemo(() => ({ components: [...cube, ...built] }), [cube, built]);
   useEffect(() => onLoaded(prepared), [prepared]); // eslint-disable-line react-hooks/exhaustive-deps -- report each build once
   const dir = BEAM_DIR[params.beam_axis];
@@ -738,16 +762,6 @@ function ComponentCard({ component: c, picked }: { component: MeshComponent; pic
         ))}
       </Box>
     </Paper>
-  );
-}
-
-function Empty({ children }: { children: ReactNode }) {
-  return (
-    <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', p: 4 }}>
-      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 300, textAlign: 'center' }}>
-        {children}
-      </Typography>
-    </Box>
   );
 }
 

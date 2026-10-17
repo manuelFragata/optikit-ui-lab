@@ -12,6 +12,7 @@ import { Pill } from '../primitives/Pill';
 import { DesignTile } from './explore/DesignTile';
 import { FilterButtons } from './explore/FilterButtons';
 import { DECK_ROOM, MakerDeck } from './explore/MakerDeck';
+import { PageHeader } from './PageHeader';
 
 const KINDS: { value: DesignKind | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -87,16 +88,11 @@ export function ExploreView({ designs, drawings = {}, onOpen, onBack }: ExploreV
         </Button>
       )}
 
-      {/* Editorial header, as on the landing page: the title on the left, the lead on the right. */}
-      <Box sx={{ display: 'grid', gap: { xs: 2, md: 6 }, alignItems: 'end', gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' }, mb: { xs: 4, md: 6 } }}>
-        <Typography ref={titleRef} variant="display" component="h1">
-          Explore
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Every design here is open: parts, assemblies, whole instruments and collections, from openUC2 and the people who build with it. Open one, change
-          what doesn&apos;t fit your bench, and share your version back.
-        </Typography>
-      </Box>
+      <PageHeader
+        titleRef={titleRef}
+        title="Explore"
+        lead="Every design here is open: parts, assemblies, whole instruments and collections, from openUC2 and the people who build with it. Open one, change what doesn’t fit your bench, and share your version back."
+      />
 
       {/* The filters stay in reach while the gallery scrolls under them. */}
       <Stack

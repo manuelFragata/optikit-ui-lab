@@ -7,6 +7,7 @@ import Tooltip from '@mui/material/Tooltip';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import { Segmented } from '../primitives/Segmented';
 import { VIEW_LABELS, type CanvasTool, type EditorView } from './viewOptions';
 
 export interface CanvasToolbarProps {
@@ -55,22 +56,7 @@ export function CanvasToolbar({ view, onViewChange, tool, onToolChange }: Canvas
         </Paper>
       )}
 
-      <Paper variant="outlined" sx={{ ...floatingSx, p: 0.5 }}>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={view}
-          onChange={(_, next: EditorView | null) => next && onViewChange(next)}
-          aria-label="Canvas view"
-          sx={{ '& .MuiToggleButton-root': { border: 0, borderRadius: 1, px: 1.25, typography: 'subtitle2' } }}
-        >
-          {(Object.keys(VIEW_LABELS) as EditorView[]).map((v) => (
-            <ToggleButton key={v} value={v} sx={selectedSx}>
-              {VIEW_LABELS[v]}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Paper>
+      <Segmented floating value={view} onChange={onViewChange} aria-label="Canvas view" options={(Object.keys(VIEW_LABELS) as EditorView[]).map((v) => ({ value: v, label: VIEW_LABELS[v] }))} />
     </Stack>
   );
 }

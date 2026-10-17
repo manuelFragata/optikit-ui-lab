@@ -59,7 +59,7 @@ export function DesignPage({ design, preview, onBack, backLabel = 'Explore', onE
           <Typography variant="caption" color="primary" sx={{ textTransform: 'capitalize' }}>
             {design.kind}
           </Typography>
-          <Typography variant="headline" component="h1">
+          <Typography variant="h1" component="h1">
             {design.name}
           </Typography>
           <Typography variant="meta" color="text.secondary">

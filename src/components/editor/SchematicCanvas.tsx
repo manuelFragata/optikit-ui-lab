@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -217,9 +217,10 @@ export function SchematicCanvas({
   movingRef.current = moving;
   const justMoved = useRef(false);
   const { groups } = schematic;
-  const symbols = moving ? withMove(schematic, moving).symbols : schematic.symbols;
-  // The light, from the app's light source. While parts are dragged it is the light from before, faded: it is traced again once they are let go.
-  const { light } = useLight(moving ? null : schematic);
+  const shownDesign = useMemo(() => (moving ? withMove(schematic, moving) : schematic), [schematic, moving]);
+  const symbols = shownDesign.symbols;
+  // The light, from the app's light source, for the design as drawn: while parts are dragged, it follows them.
+  const { light } = useLight(shownDesign);
   const objective = symbols.find((s) => s.kind === 'objective');
   // The layer rules shared with the 3D view (layers.ts): the current layer in full, the others faint or hidden.
   const others = options.onionSkin !== false;
@@ -494,7 +495,7 @@ export function SchematicCanvas({
               const endsRight = lp.x >= prev.x;
               const faint = focusRay !== null && focusRay !== ray.id;
               return (
-                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show] * (faint ? 0.25 : 1) * (moving ? 0.35 : 1)} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
+                <Box component="g" key={ray.id} className="schematic-ray" opacity={SHOW_OPACITY[show] * (faint ? 0.25 : 1)} sx={{ color: `rays.${ray.color}`, pointerEvents: 'none' }}>
                   <polyline points={lit.map((p) => `${p.x},${p.y}`).join(' ')} stroke="currentColor" strokeWidth={focusRay === ray.id ? 3.5 : 2} strokeLinejoin="round" {...line} />
                   {open && <RunOut from={pts[pts.length - 2]} to={pts[pts.length - 1]} id={`run-out-${ray.id}`} />}
                   {miss && <MissHint from={toScreen(miss.from)} to={toScreen(miss.at)} />}
@@ -781,11 +782,13 @@ export function SchematicCanvas({
             py: 1,
             borderRadius: (t) => `${t.radius.tile}px`,
             pointerEvents: 'none',
-            whiteSpace: hintPlace ? 'normal' : 'nowrap',
+            // One line always: in a narrow canvas the end gives way, not the line.
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
           }}
         >
           <NearMeOutlinedIcon fontSize="small" sx={{ transform: 'scaleX(-1)', color: 'text.secondary' }} />
-          <Typography variant="body2">{moving ? 'Shift: off the grid · Alt: drop copies · Esc: put back' : marquee ? 'Everything the box touches · Shift adds to the selection' : hint}</Typography>
+          <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>{moving ? 'Shift: off the grid · Alt: drop copies · Esc: put back' : marquee ? 'Everything the box touches · Shift adds to the selection' : hint}</Typography>
         </Paper>
       )}
     </Box>

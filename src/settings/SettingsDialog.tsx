@@ -11,6 +11,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { PillButton } from '../components/landing/PillButton';
 import { PillSwitch } from '../components/primitives/PillSwitch';
+import { useBuildNotes } from '../ports/build';
 import { DEFAULT_PREFERENCES, usePreferences, type Preferences } from './preferences';
 
 export interface SettingsDialogProps {
@@ -34,6 +35,7 @@ const SIZES = [
 export function SettingsDialog({ open, onClose, value, onChange }: SettingsDialogProps) {
   // The colour scheme is MUI's own (it keeps it too).
   const { mode, setMode } = useColorScheme();
+  const notes = useBuildNotes();
   return (
     <Dialog
       open={open}
@@ -45,7 +47,7 @@ export function SettingsDialog({ open, onClose, value, onChange }: SettingsDialo
       <Stack spacing={3} sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography variant="headline" component="h2">
+            <Typography variant="h1" component="h2">
               Settings
             </Typography>
             <Typography color="text.secondary">How you like to work. Kept in this browser; changes apply right away.</Typography>
@@ -129,6 +131,20 @@ export function SettingsDialog({ open, onClose, value, onChange }: SettingsDialo
               />
             </Row>
           </Section>
+
+          {/* What this build stands in for: said here once, so the screens can speak as the product. */}
+          {notes.length > 0 && (
+            <Section title="This build">
+              {notes.map((n) => (
+                <Box key={n.topic} sx={{ py: 1.25 }}>
+                  <Typography variant="subtitle1">{n.topic}</Typography>
+                  <Typography variant="meta" color="text.meta" sx={{ display: 'block' }}>
+                    {n.text}
+                  </Typography>
+                </Box>
+              ))}
+            </Section>
+          )}
         </Box>
 
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>

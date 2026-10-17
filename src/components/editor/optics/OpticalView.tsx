@@ -9,7 +9,7 @@ import { Html, Line, Outlines } from '@react-three/drei';
 import { DoubleSide, LatheGeometry, MeshStandardMaterial, Vector2, type Group } from 'three';
 import { sag, type CatalogRecord, type OpticShape } from '../holders/optic';
 import { glassGeometries, glassMaterial } from '../scene3d/holderMesh';
-import type { CoatingId, SurfaceInfo } from '../../../standins/kernel/coatings';
+import type { CoatingId, SurfaceInfo } from '../../../ports/coatings';
 
 const SEGMENTS = 72;
 

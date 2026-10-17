@@ -4,19 +4,20 @@
  * marked on it with what the surface sends back at each.
  */
 import Box from '@mui/material/Box';
-import { coating, surfaceReflectance, type SurfaceInfo } from '../../../standins/kernel/coatings';
+import type { OpticLight, SurfaceInfo } from '../../../ports/coatings';
 import { nmColor } from './nmColor';
 
 const W = 300;
 const H = 156;
 const PAD = { left: 30, right: 8, top: 10, bottom: 30 };
 
-export function CoatingChart({ info, wavelengths }: { info: SurfaceInfo; wavelengths: number[] }) {
-  const band = info.coating ? coating(info.coating).band : undefined;
-  const xMax = (band?.[1] ?? 0) > 1100 || wavelengths.some((w) => w > 1100) ? 1700 : 1100;
-  const xMin = 350;
-  const samples = Array.from({ length: 161 }, (_, i) => xMin + ((xMax - xMin) * i) / 160);
-  const values = samples.map((nm) => 100 * surfaceReflectance(info, nm));
+/** `reflectance`: the surface's curve and its values at the design's wavelengths, as the coatings port gives them; `band`: what its coating is made for. */
+export function CoatingChart({ info, reflectance, band }: { info: SurfaceInfo; reflectance: OpticLight['reflectance'][number]; band?: [number, number] }) {
+  const { curve, at } = reflectance;
+  const xMin = curve[0].nm;
+  const xMax = curve[curve.length - 1].nm;
+  const samples = curve.map((p) => p.nm);
+  const values = curve.map((p) => 100 * p.r);
   const mirror = info.role === 'mirror';
   // A mirror is read near the top (how much comes back), a glass face near the bottom (how much is lost).
   const [y0, y1] = mirror ? [Math.min(80, Math.floor(Math.min(...values) / 10) * 10), 100] : [0, Math.min(12, Math.max(5, Math.ceil(Math.max(...values))))];
@@ -77,10 +78,10 @@ export function CoatingChart({ info, wavelengths }: { info: SurfaceInfo; wavelen
         nm
       </text>
       <path d={path} fill="none" stroke="var(--mui-palette-primary-main)" strokeWidth={1.75} strokeLinejoin="round" />
-      {wavelengths
-        .filter((nm) => nm >= xMin && nm <= xMax)
-        .map((nm) => {
-          const r = 100 * surfaceReflectance(info, nm);
+      {at
+        .filter((p) => p.nm >= xMin && p.nm <= xMax)
+        .map(({ nm, r: fraction }) => {
+          const r = 100 * fraction;
           return (
             <g key={nm}>
               <line x1={x(nm)} x2={x(nm)} y1={PAD.top} y2={bottom} stroke={nmColor(nm)} strokeDasharray="3 2" />

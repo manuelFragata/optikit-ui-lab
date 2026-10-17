@@ -6,23 +6,25 @@
  * detector as a bar), the foci crossed, and an optimizer's proposal dashed
  * over it. The parts are named above the frame.
  */
-import type { Beam, BeamElement } from '../../standins/kernel/simulate/beam';
-import type { BeamResult, Trace } from '../../standins/kernel/simulate/paraxial';
+import type { Envelope } from '../../ports/analysis';
 import { fonts } from '../../theme/tokens';
 import { ACCENT, ALERT, Chart, INK, Legend, MUTED, type Scales } from './plot/Chart';
 
+type PathPart = Envelope['parts'][number];
+
 export interface BeamLayoutProps {
-  beam: Beam;
-  trace: Trace;
-  result: BeamResult;
-  /** An optimizer's proposal: the beam with the parts moved, and its trace. */
-  proposal?: { beam: Beam; trace: Trace } | null;
+  /** The path, as the analysis unfolds it. */
+  envelope: Envelope;
+  /** The path's name, for the plot's label. */
+  name: string;
+  /** An optimizer's proposal: the same path with the parts moved. */
+  proposal?: Envelope | null;
   color: string;
   height?: number;
 }
 
 /** A part at its place, drawn to its clear aperture `half` (mm) in data units. */
-function Part({ e, s, half, clipped, color = INK, dash }: { e: BeamElement; s: Scales; half: number; clipped: boolean; color?: string; dash?: string }) {
+function Part({ e, s, half, clipped, color = INK, dash }: { e: PathPart; s: Scales; half: number; clipped: boolean; color?: string; dash?: string }) {
   const stroke = clipped ? ALERT : color;
   const x = s.x(e.atMm);
   const top = s.y(half);
@@ -68,17 +70,18 @@ function Part({ e, s, half, clipped, color = INK, dash }: { e: BeamElement; s: S
   }
 }
 
-export function BeamLayout({ beam, trace, result, proposal, color, height = 260 }: BeamLayoutProps) {
-  const zs = [...beam.elements.map((e) => e.atMm), beam.endMm, ...(proposal ? proposal.beam.elements.map((e) => e.atMm) : []), ...result.foci];
-  if (result.out.focusMm !== null && result.out.focusMm < beam.endMm + 300) zs.push(result.out.focusMm);
+export function BeamLayout({ envelope, name, proposal, color, height = 260 }: BeamLayoutProps) {
+  const parts = envelope.parts;
+  const zs = [...parts.map((e) => e.atMm), envelope.endMm, ...(proposal ? proposal.parts.map((e) => e.atMm) : []), ...envelope.foci];
+  if (envelope.focusMm !== null && envelope.focusMm < envelope.endMm + 300) zs.push(envelope.focusMm);
   const z0 = Math.min(...zs);
   const z1 = Math.max(...zs);
-  const halfs = [...beam.elements.map((e) => (e.apertureMm ?? 0) / 2), ...trace.samples.map((t) => Math.abs(t.y)), ...(proposal ? proposal.trace.samples.map((t) => Math.abs(t.y)) : [])];
+  const halfs = [...parts.map((e) => (e.apertureMm ?? 0) / 2), ...envelope.marginal.map((t) => Math.abs(t.y)), ...(proposal ? proposal.marginal.map((t) => Math.abs(t.y)) : [])];
   const reach = Math.max(2, ...halfs) * 1.1;
-  const clipped = new Set(result.elements.filter((r) => r.clipped).map((r) => r.id));
-  const halfOf = (e: BeamElement) => (e.apertureMm ? e.apertureMm / 2 : e.role === 'detector' ? Math.min(reach * 0.4, 6) : reach * 0.35);
-  const moved = (proposal?.beam.elements ?? []).filter((e) => {
-    const was = beam.elements.find((b) => b.id === e.id);
+  const clipped = new Set(parts.filter((e) => e.clipped).map((e) => e.id));
+  const halfOf = (e: PathPart) => (e.apertureMm ? e.apertureMm / 2 : e.role === 'detector' ? Math.min(reach * 0.4, 6) : reach * 0.35);
+  const moved = (proposal?.parts ?? []).filter((e) => {
+    const was = parts.find((b) => b.id === e.id);
     return was && Math.abs(was.atMm - e.atMm) > 0.05;
   });
 
@@ -86,14 +89,14 @@ export function BeamLayout({ beam, trace, result, proposal, color, height = 260 
     <Chart
       height={height}
       headroom={26}
-      label={`The ${beam.ray.label} beam, unfolded`}
+      label={`The ${name} beam, unfolded`}
       x={{ domain: [z0, z1 + (z1 - z0) * 0.02], label: 'Axial distance *z*', unit: 'mm', count: 8 }}
       y={{ domain: [-reach, reach], label: 'Ray height *y*', unit: 'mm', count: 4, zero: true }}
       overlay={(s) => (
         <>
           {/* The parts' names, above the frame in two rows so neighbours do not collide. */}
           <g fontFamily={fonts.plot} fontSize={11.5}>
-            {beam.elements.map((e, i) => {
+            {parts.map((e, i) => {
               const x = s.x(e.atMm);
               const y = s.top - (i % 2 ? 6 : 19);
               return (
@@ -117,18 +120,18 @@ export function BeamLayout({ beam, trace, result, proposal, color, height = 260 
       )}
     >
       {(s) => {
-        const top = trace.samples.map((t) => `${s.x(t.z).toFixed(1)},${s.y(Math.abs(t.y)).toFixed(1)}`);
-        const bottom = [...trace.samples].reverse().map((t) => `${s.x(t.z).toFixed(1)},${s.y(-Math.abs(t.y)).toFixed(1)}`);
-        const ray = (t: Trace) => t.samples.map((p) => `${s.x(p.z).toFixed(1)},${s.y(p.y).toFixed(1)}`).join(' ');
+        const top = envelope.marginal.map((t) => `${s.x(t.z).toFixed(1)},${s.y(Math.abs(t.y)).toFixed(1)}`);
+        const bottom = [...envelope.marginal].reverse().map((t) => `${s.x(t.z).toFixed(1)},${s.y(-Math.abs(t.y)).toFixed(1)}`);
+        const ray = (e: Envelope) => e.marginal.map((p) => `${s.x(p.z).toFixed(1)},${s.y(p.y).toFixed(1)}`).join(' ');
         return (
           <>
             <polygon points={[...top, ...bottom].join(' ')} fill={color} fillOpacity={0.12} />
-            <polyline points={ray(trace)} fill="none" stroke={color} strokeWidth={1.5} />
-            {proposal && <polyline points={ray(proposal.trace)} fill="none" stroke={ACCENT} strokeWidth={1.5} strokeDasharray="5 3" />}
-            {result.foci.map((f, i) => (
+            <polyline points={ray(envelope)} fill="none" stroke={color} strokeWidth={1.5} />
+            {proposal && <polyline points={ray(proposal)} fill="none" stroke={ACCENT} strokeWidth={1.5} strokeDasharray="5 3" />}
+            {envelope.foci.map((f, i) => (
               <path key={i} d={`M${s.x(f) - 4} ${s.y(0) - 4} L${s.x(f) + 4} ${s.y(0) + 4} M${s.x(f) - 4} ${s.y(0) + 4} L${s.x(f) + 4} ${s.y(0) - 4}`} stroke={color} strokeWidth={1.5} />
             ))}
-            {beam.elements.map((e) => (
+            {parts.map((e) => (
               <Part key={e.id} e={e} s={s} half={halfOf(e)} clipped={clipped.has(e.id)} />
             ))}
             {moved.map((e) => (

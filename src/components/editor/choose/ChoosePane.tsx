@@ -19,7 +19,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { Failed, Waiting } from '../../primitives/RequestState';
-import { TagChip, type TagTone } from '../../primitives/TagChip';
 import type { Light } from '../../../ports/light';
 import { useRequest } from '../../../ports/request';
 import type { Choice } from '../../../ports/service';
@@ -41,11 +40,21 @@ export interface ChoosePaneProps {
   onClose: () => void;
 }
 
-const STATUS: Record<ChoiceStatus, { label: string; tone: TagTone }> = {
-  ideal: { label: 'Sketch', tone: 'primary' },
-  chosen: { label: 'Holder needed', tone: 'warning' },
-  cube: { label: 'In a cube', tone: 'success' },
+/** A row's state as the Simulate list shows one: a dot and a word, in the tone's colour. */
+const STATUS: Record<ChoiceStatus, { label: string; color: string }> = {
+  ideal: { label: 'Sketch', color: 'primary.main' },
+  chosen: { label: 'Holder needed', color: 'warning.main' },
+  cube: { label: 'In a cube', color: 'success.main' },
 };
+
+const Status = ({ status }: { status: ChoiceStatus }) => (
+  <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5, flexShrink: 0, mt: 0.25 }}>
+    <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: STATUS[status].color }} />
+    <Typography variant="caption" sx={{ color: STATUS[status].color, whiteSpace: 'nowrap' }}>
+      {STATUS[status].label}
+    </Typography>
+  </Stack>
+);
 
 /** How many choices show before "All". */
 const SHOWN = 6;
@@ -158,7 +167,9 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
         sx={(t) => ({ alignItems: 'center', gap: 1, minHeight: t.spacing(t.layout.panelHeaderHeight), pl: 2, pr: 0.5, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' })}
       >
         <Typography variant="subtitle2">Choose parts</Typography>
-        <TagChip label={sketchedLeft ? `${sketchedLeft} to choose` : 'All chosen'} tone={sketchedLeft ? 'primary' : 'success'} dot />
+        <Typography variant="caption" color="text.meta">
+          {sketchedLeft ? `${sketchedLeft} to choose` : 'All chosen'}
+        </Typography>
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Close Choose parts">
           <IconButton aria-label="Close Choose parts" onClick={onClose}>
@@ -174,7 +185,7 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
           sx={{ width: 240, flexShrink: 0, overflow: 'auto', scrollbarWidth: 'thin', bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider', py: 0.5 }}
         >
           {parts.map((s, i) => {
-            const st = STATUS[statusOf(s)];
+            const status = statusOf(s);
             const on = s.id === current?.id;
             return (
               <ButtonBase
@@ -204,7 +215,7 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
                     {s.placement.state === 'ideal' ? specLine(s) || s.kind : s.placement.state === 'unmounted' ? s.placement.part : s.placement.module}
                   </Typography>
                 </Box>
-                <TagChip label={st.label} tone={st.tone} dot size="small" sx={{ flexShrink: 0, mt: 0.25 }} />
+                <Status status={status} />
               </ButtonBase>
             );
           })}

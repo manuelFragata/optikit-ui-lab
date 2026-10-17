@@ -42,6 +42,8 @@ export interface BeamElement {
   apertureMm: number | null;
   /** What the beam assumed for this part, in words; empty when the design says it all. */
   assumed: string[];
+  /** Its clear Ø is among what was assumed (so clipping at it is an estimate). */
+  apertureAssumed: boolean;
   state: Placement['state'] | null;
   /** The direction the light arrives from (grid, unit), for moving the part along it. */
   axis: Point | null;
@@ -79,7 +81,7 @@ function holderOffset(s: SchematicSymbol): number {
 }
 
 function element(id: string, atMm: number, s: SchematicSymbol | undefined, axis: Point | null, turns: boolean, recordFor: (s: SchematicSymbol) => CatalogRecord | undefined): BeamElement {
-  const base = { id, atMm, turns, axis, assumed: [] as string[], state: s?.placement.state ?? null, symbol: s, holderOffsetMm: s ? holderOffset(s) : 0 };
+  const base = { id, atMm, turns, axis, assumed: [] as string[], apertureAssumed: false, state: s?.placement.state ?? null, symbol: s, holderOffsetMm: s ? holderOffset(s) : 0 };
   if (!s) return { ...base, label: 'Sample', kind: 'sample', role: 'sample', focalMm: null, apertureMm: null, fixed: true };
   const record = recordFor(s);
   const across = record ? opticFacts(record).acrossMm : inputOf(s, 'Diameter');
@@ -102,6 +104,7 @@ function element(id: string, atMm: number, s: SchematicSymbol | undefined, axis:
         surfaces: traced,
         apertureMm: aperture,
         assumed: [...(!traced ? ['an ideal thin lens'] : []), ...(across === undefined && !record ? ['one inch across'] : [])],
+        apertureAssumed: across === undefined && !record,
       };
     }
     case 'objective': {
@@ -117,16 +120,30 @@ function element(id: string, atMm: number, s: SchematicSymbol | undefined, axis:
     }
     case 'mirror': {
       const curved = record && record.fragmentSurfaces[0]?.is_reflective ? focalLength(record.fragmentSurfaces) : null;
-      return { ...common, role: 'mirror', focalMm: curved, apertureMm: across ?? INCH_MM, assumed: across === undefined ? ['one inch across'] : [] };
+      return { ...common, role: 'mirror', focalMm: curved, apertureMm: across ?? INCH_MM, assumed: across === undefined ? ['one inch across'] : [], apertureAssumed: across === undefined };
     }
     case 'aperture': {
       const open = inputOf(s, 'Diameter');
-      return { ...common, role: 'stop', focalMm: null, apertureMm: open ?? across ?? INCH_MM, assumed: open === undefined && across === undefined ? ['one inch open'] : [] };
+      return {
+        ...common,
+        role: 'stop',
+        focalMm: null,
+        apertureMm: open ?? across ?? INCH_MM,
+        assumed: open === undefined && across === undefined ? ['one inch open'] : [],
+        apertureAssumed: open === undefined && across === undefined,
+      };
     }
     case 'dichroic':
     case 'filter':
     case 'beamsplitter':
-      return { ...common, role: 'plate', focalMm: null, apertureMm: across ?? INCH_MM, assumed: ['a thin plate', ...(across === undefined ? ['one inch across'] : [])] };
+      return {
+        ...common,
+        role: 'plate',
+        focalMm: null,
+        apertureMm: across ?? INCH_MM,
+        assumed: ['a thin plate', ...(across === undefined ? ['one inch across'] : [])],
+        apertureAssumed: across === undefined,
+      };
     default:
       return { ...common, role: 'other', focalMm: null, apertureMm: null };
   }

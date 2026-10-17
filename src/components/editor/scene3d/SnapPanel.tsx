@@ -91,7 +91,7 @@ export function SnapPanel({ label, spec, candidates, request, shown, onShow, pic
             request.slow && <Waiting label="Getting the catalogue parts" rows={3} height={56} />
           ) : candidates.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              The demo catalogue has nothing of this kind (it holds lenses). Realize it as a module below.
+              The catalogue has no part of this kind. Realize it as a module below.
             </Typography>
           ) : (
             <Stack spacing={0.75} onPointerLeave={() => onShow(null)}>

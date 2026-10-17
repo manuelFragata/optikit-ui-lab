@@ -11,34 +11,9 @@
  * In the app the table comes from the service, not from here.
  */
 import type { OpticFacts } from '../../components/editor/holders/optic';
+import type { GeneratorHolds, GeneratorSpec, Road } from '../../ports/holders';
 
-export interface GeneratorHolds {
-  /** The shape of the holding problem; `any` is the boolean holder. */
-  outline: 'round' | 'rect' | 'plate' | 'cube' | 'slide' | 'thread' | 'any';
-  /** Largest optic across, mm (diameter, or the diagonal of a rectangle). */
-  max_mm: number;
-  thickness_mm: [number, number];
-  /** Record categories it holds; empty = any. */
-  categories: string[];
-  /** Mount states it holds: `bare` (glass), `housed`/`cased` (already mounted). */
-  mounting: string[];
-  /** false = flats only. */
-  curved?: boolean;
-  /** The road cuts the holder from the record's own prescription. */
-  needs_prescription?: boolean;
-  /** How far off the cube axes it can still hold the optic, degrees. */
-  max_tilt_deg?: number;
-  label: string;
-  hint: string;
-  /** The bodies it makes. */
-  parts: string[];
-}
-
-export interface GeneratorSpec {
-  /** The generator's script name in optikit-v2's `generators/`. */
-  script: string;
-  holds: GeneratorHolds;
-}
+export type { GeneratorHolds, GeneratorSpec, Road };
 
 /** optikit-v2's holder generators and their `holds`, in the order the service serves them. */
 export const GENERATORS: GeneratorSpec[] = [
@@ -113,11 +88,6 @@ export function holdRefusal(holds: GeneratorHolds, optic: OpticFacts, tiltDeg = 
       : `the placement tilts the optic ${tiltDeg.toFixed(1)}° off the cube axes; this road absorbs up to ${maxTilt}°`;
   }
   return null;
-}
-
-export interface Road {
-  spec: GeneratorSpec;
-  refusal: string | null;
 }
 
 /**

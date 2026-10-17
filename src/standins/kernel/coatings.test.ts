@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { catalogParts } from '../library/catalog';
 import { designedRecord, designLens, designMirror } from '../../components/editor/holders/designs';
-import { coatingChecks, reflectance, surfaceInfo, throughput, vendorCoating, withCoating } from './coatings';
+import { withCoating } from '../../components/editor/holders/designs';
+import { coatingChecks, reflectance, surfaceInfo, throughput, vendorCoating } from './coatings';
 
 describe('coatings', () => {
   it('computes bare glass and a single MgF2 layer', () => {

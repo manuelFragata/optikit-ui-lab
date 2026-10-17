@@ -7,7 +7,7 @@
  * millimetres, z up. The scene turns it into three.js's y-up frame with one
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
-import type { CartridgeParams } from '../../../standins/service/cartridge';
+import type { CartridgeParams } from '../../../ports/holders';
 import type { CatalogRecord, FragmentSurface } from '../holders/optic';
 import type { Light, LightPath, Point } from '../../../ports/light';
 import { layerShow } from '../layers';

@@ -73,7 +73,7 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
         onAddProject(`Copy of ${name}`, schematic);
         onNotice(`Saved a copy: Copy of ${name}.`);
       }}
-      onDelete={() => onNotice('In the prototype, designs are not deleted.')}
+      onDelete={() => onNotice('Designs cannot be deleted yet.')}
       onExport={(format) => {
         if (format === 'archive') download(`${name}${DESIGN_FILE_EXTENSION}`, designFileText(schematic), 'application/json');
         if (format === 'bom')
@@ -99,14 +99,13 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
 
 export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {
   const request = useRequest(schematic, useService().bom, { keep: true });
-  // The checks read the light: the quote waits for both.
+  // The checks read the light, traced at once.
   const trace = useLight(schematic);
   const bom = request.data;
-  if (!bom || !trace.known) {
-    const failed = request.status === 'error' ? request : trace.error ? { error: trace.error, retry: trace.retry } : null;
+  if (!bom) {
     return (
       <PageContainer sx={{ pt: 3, pb: 8, maxWidth: 720 }}>
-        {failed ? <Failed message={failed.error ?? ''} onRetry={failed.retry} /> : (request.slow || trace.slow) && <Waiting label="Getting the quote's parts list" rows={6} height={52} />}
+        {request.status === 'error' ? <Failed message={request.error ?? ''} onRetry={request.retry} /> : request.slow && <Waiting label="Getting the quote's parts list" rows={6} height={52} />}
       </PageContainer>
     );
   }

@@ -18,13 +18,14 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { focalLength } from '../holders/designs';
 import type { CatalogRecord } from '../holders/optic';
-import { COATINGS, coating, coatingChecks, surfaceReflectance, throughput, type CoatingId, type SurfaceInfo } from '../../../standins/kernel/coatings';
+import { useCoatings, type CoatingId, type OpticLight, type SurfaceInfo } from '../../../ports/coatings';
 import { nmColor } from './nmColor';
 import { CoatingChart } from './CoatingChart';
 
 export interface OpticsPanelProps {
   record: CatalogRecord;
-  infos: SurfaceInfo[];
+  /** The optic as the light sees it (the coatings port's answer). */
+  light: OpticLight;
   /** The wavelengths of the design's sources, nm. */
   wavelengths: number[];
   /** The surface looked at, by index. */
@@ -55,13 +56,18 @@ const ROLE: Record<SurfaceInfo['role'], string> = {
 };
 const pct = (r: number, d = 1) => `${(r * 100).toFixed(d)}%`;
 
-export function OpticsPanel({ record, infos, wavelengths, surface, onSurface, onHoverSurface, onCoating }: OpticsPanelProps) {
+export function OpticsPanel({ record, light, wavelengths, surface, onSurface, onHoverSurface, onCoating }: OpticsPanelProps) {
+  const { catalogue } = useCoatings();
+  const coating = (id: CoatingId) => catalogue.find((c) => c.id === id);
+  const infos = light.surfaces;
   const designed = record.id.startsWith('designed.');
   const mirror = infos.some((s) => s.role === 'mirror');
   const f = focalLength(record.fragmentSurfaces);
   const diameter = 2 * Math.max(...record.fragmentSurfaces.map((s) => s.semi_aperture ?? 0));
   const shown = infos[surface] ?? infos[0];
-  const checks = coatingChecks(infos, wavelengths);
+  const checks = light.checks;
+  /** A surface's reflectance near a wavelength, from its curve. */
+  const reflectanceAt = (s: SurfaceInfo, nm: number) => light.reflectance[s.index].curve.reduce((a, b) => (Math.abs(b.nm - nm) < Math.abs(a.nm - nm) ? b : a)).r;
 
   return (
     <Stack
@@ -94,7 +100,7 @@ export function OpticsPanel({ record, infos, wavelengths, surface, onSurface, on
                 <Stack key={nm} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: nmColor(nm), flexShrink: 0 }} />
                   <Typography variant="body2" sx={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}>{`${nm} nm`}</Typography>
-                  <Typography variant="mono">{`${pct(throughput(infos, nm))} ${mirror ? 'back' : 'through'}`}</Typography>
+                  <Typography variant="mono">{`${pct(light.passes.find((p) => p.nm === nm)?.t ?? 0)} ${mirror ? 'back' : 'through'}`}</Typography>
                 </Stack>
               ))}
             </Stack>
@@ -136,7 +142,7 @@ export function OpticsPanel({ record, infos, wavelengths, surface, onSurface, on
                       <Typography variant="body2">{ROLE[s.role]}</Typography>
                       {!editable && (
                         <Typography variant="caption" color="text.secondary" component="div">
-                          {s.role === 'cemented' ? `${pct(surfaceReflectance(s, 550), 2)}` : !s.inLight ? '–' : `${coating(s.coating!).label}${s.from === 'assumed' ? ' (assumed)' : ''}`}
+                          {s.role === 'cemented' ? `${pct(reflectanceAt(s, 550), 2)}` : !s.inLight ? '–' : `${coating(s.coating!)?.label ?? s.coating}${s.from === 'assumed' ? ' (assumed)' : ''}`}
                         </Typography>
                       )}
                     </Box>
@@ -154,7 +160,7 @@ export function OpticsPanel({ record, infos, wavelengths, surface, onSurface, on
                         aria-label={`Coating on surface ${s.index + 1}`}
                         sx={{ typography: 'body2' }}
                       >
-                        {COATINGS.filter((c) => c.on === (s.role === 'mirror' ? 'mirror' : 'transmit')).map((c) => (
+                        {catalogue.filter((c) => c.on === (s.role === 'mirror' ? 'mirror' : 'transmit')).map((c) => (
                           <MenuItem key={c.id} value={c.id}>
                             {c.label}
                           </MenuItem>
@@ -169,8 +175,8 @@ export function OpticsPanel({ record, infos, wavelengths, surface, onSurface, on
         </Section>
 
         {shown.inLight && (
-          <Section title={`S${shown.index + 1} · reflectance${shown.coating && coating(shown.coating).approximate ? ' (approx.)' : ''}`}>
-            <CoatingChart info={shown} wavelengths={wavelengths} />
+          <Section title={`S${shown.index + 1} · reflectance${shown.coating && coating(shown.coating)?.approximate ? ' (approx.)' : ''}`}>
+            <CoatingChart info={shown} reflectance={light.reflectance[shown.index]} band={shown.coating ? coating(shown.coating)?.band : undefined} />
           </Section>
         )}
 

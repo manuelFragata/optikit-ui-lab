@@ -18,8 +18,8 @@ export interface EditorStatusBarProps {
   lightPaths: number;
   /** What the light misses, e.g. "No light reaches Camera". */
   misses: string[];
-  /** Where the light's trace is: a long one shows, a failed one can be tried again. */
-  trace?: { slow: boolean; error: string | null; retry: () => void };
+  /** The light's trace: why it failed, if it did. */
+  trace?: { error: string | null };
   /** The unmounted count was clicked: show the parts list. */
   onShowParts: () => void;
 }
@@ -48,12 +48,8 @@ export function EditorStatusBar({ design, selected, selectedCount, unmounted, vi
           <Typography variant="caption">{selectedCount > 1 ? `${selectedCount} of ${parts} parts selected` : `${parts} parts`}</Typography>
           {view === '2d' && <Typography variant="caption">layer z{layer}</Typography>}
           {trace?.error ? (
-            <ButtonBase onClick={trace.retry} title={trace.error} sx={{ borderRadius: 1, px: 0.5, typography: 'caption', color: 'error.main', '&:hover': { textDecoration: 'underline' } }}>
-              The light could not be traced · Try again
-            </ButtonBase>
-          ) : trace?.slow ? (
-            <Typography variant="caption" role="status">
-              Tracing the light…
+            <Typography variant="caption" title={trace.error} sx={{ color: 'error.main' }}>
+              The light could not be traced
             </Typography>
           ) : misses.length > 0 ? (
             <Typography variant="caption" sx={{ color: 'warning.main' }}>

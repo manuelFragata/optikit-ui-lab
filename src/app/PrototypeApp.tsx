@@ -21,7 +21,8 @@ import { AssemblyView } from '../components/landing/AssemblyView';
 import { SchematicCanvas } from '../components/editor/SchematicCanvas';
 import { DesignPage } from '../components/views/DesignPage';
 import { ExploreView } from '../components/views/ExploreView';
-import { EditorShell } from '../components/compositions/EditorShell';
+import { EditorShell, type EditorPane } from '../components/compositions/EditorShell';
+import type { PanelId } from '../components/compositions/editor/actions';
 import { ProjectsView } from '../components/views/ProjectsView';
 import { NewProjectDialog, type ProjectStart } from '../components/views/projects/NewProjectDialog';
 import type { Schematic } from '../components/editor/model';
@@ -68,11 +69,25 @@ interface CreatedProject {
   schematic: Schematic;
 }
 
-/** A new project's first drawing: the template's, or an empty grid. */
+/** A new project's first drawing: the template's, the file's, or an empty grid. */
 function startingSchematic(start: ProjectStart): Schematic {
+  if (start.kind === 'import') return start.design;
   if (start.kind !== 'template') return emptySchematic;
   return DRAWINGS[start.id] ?? demoSchematic;
 }
+
+/**
+ * What each start opens in the editor, for who comes that way: a sketch
+ * with Simulate beside it (from the optics); a template with its parts and
+ * Simulate (from an instrument); a box with its parts to add (from a kit); a
+ * file with its parts and Choose parts, to make the ideal ones real.
+ */
+const START_OPENS: Record<ProjectStart['kind'], { panel: PanelId; pane?: EditorPane }> = {
+  sketch: { panel: 'sketch', pane: 'simulate' },
+  template: { panel: 'parts', pane: 'simulate' },
+  box: { panel: 'palette' },
+  import: { panel: 'parts', pane: 'choose' },
+};
 
 /** A design to open: `project` is set for one made in this visit (new, a copy or imported), which has no demo history. */
 function findDesign(id: string, created: CreatedProject[] = []): { name: string; version: string; schematic: Schematic; empty: boolean; project?: ProjectSummary } | null {
@@ -164,6 +179,8 @@ export function PrototypeApp() {
   const [created, setCreated] = useState<CreatedProject[]>([]);
   // A fresh key each time, so the dialog opens on its defaults.
   const [newProjectKey, setNewProjectKey] = useState<number | null>(null);
+  // A project just made opens once with its start's panes; after that, as the editor left it.
+  const [starting, setStarting] = useState<{ id: string; panel: PanelId; pane?: EditorPane } | null>(null);
 
   useEffect(() => {
     if (route.name === 'workspace' && DESIGN_TABS.includes(route.tab) && route.id) setLastOpenId(route.id);
@@ -222,7 +239,7 @@ export function PrototypeApp() {
   const newProject = () => setNewProjectKey(Date.now());
 
   /** File a new project (made new, saved as a copy, or imported) and open it in View. */
-  const addProject = (name: string, schematic: Schematic, tags: string[] = []) => {
+  const addProject = (name: string, schematic: Schematic, tags: string[] = [], opens?: { panel: PanelId; pane?: EditorPane }) => {
     const id = `p-${Date.now().toString(36)}`;
     const summary: ProjectSummary = {
       id,
@@ -239,11 +256,12 @@ export function PrototypeApp() {
       unmounted: schematic.symbols.filter((s) => s.placement.state !== 'in-cube').length,
     };
     setCreated((all) => [{ summary, schematic }, ...all]);
+    setStarting(opens ? { id, ...opens } : null);
     navigate({ name: 'workspace', tab: 'view', id });
   };
 
   const createProject = ({ name, start }: { name: string; start: ProjectStart }) => {
-    addProject(name, startingSchematic(start), start.kind === 'box' ? [start.id] : []);
+    addProject(name, startingSchematic(start), start.kind === 'box' ? [start.id] : [], START_OPENS[start.kind]);
     setNewProjectKey(null);
     setToast(`${name} created.`);
   };
@@ -334,8 +352,9 @@ export function PrototypeApp() {
           showHeader={false}
           schematic={changed[openId] ?? design.schematic}
           onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
-          defaultPanelState={design.empty ? 'expanded' : 'collapsed'}
-          openPane={route.name === 'workspace' ? route.pane : undefined}
+          defaultPanelState={design.empty || starting?.id === openId ? 'expanded' : 'collapsed'}
+          defaultPanel={starting?.id === openId ? starting.panel : undefined}
+          openPane={(route.name === 'workspace' ? route.pane : undefined) ?? (starting?.id === openId ? starting.pane : undefined)}
           onNotice={setToast}
         />
       );

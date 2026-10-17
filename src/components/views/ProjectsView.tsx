@@ -8,6 +8,7 @@ import { PillButton } from '../landing/PillButton';
 import { useRiseIn } from '../landing/motion';
 import { ProjectDocument } from './projects/ProjectDocument';
 import { EASE, ProjectDrawer } from './projects/ProjectDrawer';
+import { PageHeader } from './PageHeader';
 
 export interface ProjectsViewProps {
   /** The signed-in user's name, for the drawer's label. */
@@ -67,17 +68,12 @@ export function ProjectsView({ owner, projects, drawings = {}, details = {}, ren
 
   return (
     <PageContainer sx={{ pt: 3, pb: 8 }}>
-      <Box sx={{ display: 'grid', gap: { xs: 2, md: 6 }, alignItems: 'end', gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' }, mb: { xs: 2, md: 3 } }}>
-        <Typography ref={titleRef} variant="display" component="h1">
-          Projects
-        </Typography>
-        <Box>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            Your designs and the ones you work on with others. Pull a card out by its tab, drag it up, or turn the mouse wheel; click it to read it.
-          </Typography>
-          <PillButton onClick={onNewProject}>New project</PillButton>
-        </Box>
-      </Box>
+      <PageHeader
+        titleRef={titleRef}
+        title="Projects"
+        lead="Your designs and the ones you work on with others. Pull a card out by its tab, drag it up, or turn the mouse wheel; click it to read it."
+        actions={<PillButton onClick={onNewProject}>New project</PillButton>}
+      />
 
       {projects.length > 0 ? (
         <Box ref={stageRef} sx={{ position: 'relative', minHeight: doc ? 900 : undefined }}>

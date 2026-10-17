@@ -185,3 +185,19 @@ export function rmsAngle(t: RealTrace): number {
   if (!w) return 0;
   return Math.sqrt(live.reduce((s, r) => s + Math.abs(r.rho) * Math.atan(r.slope) ** 2, 0) / w);
 }
+
+/** The NA of the cone where the rays leave: the sine of the steepest ray; 0 for a parallel beam. */
+export function exitNa(t: RealTrace): number {
+  const slope = Math.max(0, ...t.rays.flatMap((r) => (r ? [Math.abs(r.slope)] : [])));
+  return Math.sin(Math.atan(slope));
+}
+
+/**
+ * The Airy radius of the cone at `nm`, mm: the first dark ring, 0.61 λ / NA,
+ * the smallest spot a perfect system makes. A geometric spot smaller than it
+ * is not what one sees. `null` for a beam that leaves parallel.
+ */
+export function airyRadius(t: RealTrace, nm: number): number | null {
+  const na = exitNa(t);
+  return na > 1e-6 ? (0.61 * nm * 1e-6) / na : null;
+}

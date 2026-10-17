@@ -214,3 +214,6 @@ export function designedValues(surfaces: FragmentSurface[]): Record<string, numb
   const facts = opticFacts({ category: '', mount: 'bare', fragmentSurfaces: surfaces });
   return { ...(f !== null && { 'Focal length': Math.round(f * 10) / 10 }), Diameter: Math.round(facts.acrossMm * 10) / 10 };
 }
+
+/** The surfaces with a coating set: `coating` on surface `index`, the rest as they were. */
+export const withCoating = (surfaces: FragmentSurface[], index: number, id: string): FragmentSurface[] => surfaces.map((s, i) => (i === index ? { ...s, coating: id } : s));

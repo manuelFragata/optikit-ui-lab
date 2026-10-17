@@ -87,7 +87,7 @@ export function demoChecks(design: Schematic, bom: Bom, light: Light): QuoteChec
           ? 'The design has no light source yet.'
           : light.misses.length
             ? `No light reaches ${light.misses.map((m) => m.label).join(', ')}.`
-            : 'Light reaches every detector.',
+            : `${light.paths.length} light ${light.paths.length === 1 ? 'path' : 'paths'}, none falls short.`,
     },
     nyquist(design),
     { label: 'Clear aperture', state: 'later', detail: 'Checked by the optics engine.' },

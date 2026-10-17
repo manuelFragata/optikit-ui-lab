@@ -72,7 +72,13 @@ export function BomPanel({ bom: request, selectedIds, onSelectParts }: BomPanelP
       <Refreshing on={request.slow} />
       {request.status === 'error' && <Failed message={request.error ?? ''} onRetry={request.retry} sx={{ mx: 2, mb: 1 }} />}
       <Box sx={{ px: 2, py: 1 }}>
-        <Typography variant="headline" component="p">
+        {/* With a line not priced the sum is a floor, and says so. */}
+        {bom.unpriced > 0 && (
+          <Typography variant="overline" color="text.secondary" component="p" sx={{ lineHeight: 1.5 }}>
+            At least
+          </Typography>
+        )}
+        <Typography variant="h1" component="p" sx={{ fontVariantNumeric: 'tabular-nums' }}>
           {eur(bom.total)}
         </Typography>
         <Typography variant="body2" color="text.secondary">

@@ -1,6 +1,6 @@
 /**
- * STAND-IN for the optimizer: in the app it is Optiland's, on the service
- * (WP-93, WP-151), or oc-wasm's singlet fit (`fitSingletFace`).
+ * STAND-IN for the optimizer: in the app it is oc-wasm's, in the page (its
+ * singlet fit, `fitSingletFace`, is the first piece).
  *
  * The optimizer: an objective (what to make small, or what to hit), the
  * variables a beam's parts offer (what each part lets change: where a free
@@ -9,33 +9,23 @@
  * a run that moves them within their bounds. Then the variables written back
  * into the design. Pure.
  *
- * Optiland does this in the product; this is the lab's stand-in, a bounded
- * coordinate search, with merits from the real-ray and paraxial traces.
+ * This is the lab's stand-in: a bounded coordinate search, with merits from
+ * the real-ray and paraxial traces, a step at a time (`search`).
  */
 import { CARTRIDGE } from '../../service/cartridge';
 import { designedValues, focalLength } from '../../../components/editor/holders/designs';
 import type { FragmentSurface } from '../../../components/editor/holders/optic';
 import type { Schematic, SchematicSymbol } from '../../../components/editor/model';
+import type { Objective, Plane, Variable, VariableKind } from '../../../ports/analysis';
 import type { Beam, BeamElement } from './beam';
 import { results, startRay, trace } from './paraxial';
 import { realTrace, rmsAngle, rmsAt, heightsAt, type Pupil } from './realtrace';
 
+export type { Objective, Plane, Variable, VariableKind };
+
 /* -------------------------------------------------------------------- */
 /* Objectives                                                            */
 /* -------------------------------------------------------------------- */
-
-/** A plane along the beam: at a part (a detector, the sample, any part) or where the path ends, shifted by `offsetMm`. */
-export interface Plane {
-  part: string | 'end';
-  offsetMm: number;
-}
-
-export type Objective =
-  | { kind: 'rms-spot'; plane: Plane }
-  | { kind: 'collimation' }
-  | { kind: 'beam-diameter'; plane: Plane; targetMm: number }
-  | { kind: 'magnification'; target: number }
-  | { kind: 'focal-length'; part: string; targetMm: number };
 
 export const OBJECTIVES: { kind: Objective['kind']; label: string; unit: string }[] = [
   { kind: 'rms-spot', label: 'RMS spot size', unit: 'µm' },
@@ -94,22 +84,6 @@ export function merit(beam: Beam, o: Objective, pupil: Pupil): number {
 /* -------------------------------------------------------------------- */
 /* Variables                                                             */
 /* -------------------------------------------------------------------- */
-
-export type VariableKind = 'position' | 'holder' | 'focal' | 'radius' | 'thickness';
-
-export interface Variable {
-  id: string;
-  part: string;
-  kind: VariableKind;
-  /** The surface a radius or thickness belongs to. */
-  surface?: number;
-  /** Short, as the list shows it: "Position", "R1", "CT1", "f", "In holder". */
-  label: string;
-  value: number;
-  /** Default bounds, before the user sets their own. */
-  min: number;
-  max: number;
-}
 
 export interface PartVariables {
   part: BeamElement;
@@ -235,16 +209,23 @@ export interface Run {
   steps: number;
 }
 
+/** Where a run is after a step: the variables' values so far, the merit there, and how many steps it took. */
+export interface Step {
+  values: Record<string, number>;
+  merit: number;
+  steps: number;
+}
+
 /**
- * Bounded coordinate search: one variable at a time, a coarse scan within
- * its bounds and a golden-section refine about the best, round after round
- * until the merit stops falling.
+ * Bounded coordinate search, a step at a time: one variable at a time, a
+ * coarse scan within its bounds and a golden-section refine about the best,
+ * round after round until the merit stops falling. Each step is the best so
+ * far, so a run can show how it goes and stop with what it has.
  */
-export function run(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, rounds = 12): Run {
+export function* search(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, rounds = 12): Generator<Step, Step> {
   const values: Record<string, number> = Object.fromEntries(vars.map((x) => [x.id, Math.min(x.max, Math.max(x.min, x.value))]));
   const f = (v: Record<string, number>) => merit(withValues(beam, vars, v), o, pupil);
   let best = f(values);
-  const history = [best];
   let steps = 0;
   for (let round = 0; round < rounds && vars.length; round++) {
     const was = best;
@@ -272,10 +253,23 @@ export function run(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, ro
       if (cm < c0) [x0, c0] = [mid, cm];
       values[x.id] = x0;
       best = c0;
-      history.push(best);
       steps++;
+      yield { values: { ...values }, merit: best, steps };
     }
     if (was - best < 1e-9 * Math.max(1, was)) break;
   }
+  return { values: { ...values }, merit: best, steps };
+}
+
+/** A whole run at once. */
+export function run(beam: Beam, vars: Variable[], o: Objective, pupil: Pupil, rounds = 12): Run {
+  const history: number[] = [merit(beam, o, pupil)];
+  const it = search(beam, vars, o, pupil, rounds);
+  let r = it.next();
+  while (!r.done) {
+    history.push(r.value.merit);
+    r = it.next();
+  }
+  const { values, steps } = r.value;
   return { values, before: measure(beam, o, pupil), after: measure(withValues(beam, vars, values), o, pupil), history, steps };
 }

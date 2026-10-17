@@ -14,22 +14,10 @@
  * -C); a part designed here carries its own, on its prescription's surfaces
  * (`FragmentSurface.coating`, a lab id, not Optiland's coating dict).
  */
-import { GLASS_ND, type CatalogRecord, type FragmentSurface } from '../../components/editor/holders/optic';
+import { GLASS_ND, type CatalogRecord } from '../../components/editor/holders/optic';
+import type { Coating, CoatingCheck, CoatingId, Coatings, OpticLight, SurfaceInfo } from '../../ports/coatings';
 
-export type CoatingId = 'uncoated' | 'mgf2' | 'ar-a' | 'ar-b' | 'ar-c' | 'al-protected' | 'ag-protected' | 'au-protected' | 'dielectric-e02' | 'dielectric-e03';
-
-export interface Coating {
-  id: CoatingId;
-  label: string;
-  /** Where it goes: a glass face the light passes through, or a mirror's face. */
-  on: 'transmit' | 'mirror';
-  /** The band it is made for, nm. */
-  band?: [number, number];
-  /** One line on what it is. */
-  note: string;
-  /** Drawn from the vendor's curve rather than computed. */
-  approximate: boolean;
-}
+export type { Coating, CoatingCheck, CoatingId, SurfaceInfo };
 
 export const COATINGS: readonly Coating[] = [
   { id: 'uncoated', label: 'Uncoated', on: 'transmit', note: 'Bare glass: about 4% back at every face.', approximate: false },
@@ -155,21 +143,6 @@ export function reflectance(id: CoatingId, nm: number, n = GLASS_ND['N-BK7']): n
   }
 }
 
-/** What a surface is to the light: where it is in the stack, what it can carry, and what it carries. */
-export interface SurfaceInfo {
-  index: number;
-  role: 'front' | 'back' | 'cemented' | 'mirror' | 'substrate';
-  /** The media either side, by name ("air" for air). */
-  before: string;
-  after: string;
-  /** The coating on it; `null` for a cemented face (glued, so no coating) or a mirror's back. */
-  coating: CoatingId | null;
-  /** Whose the coating is: the vendor's (fixed), this design's, or assumed (a designed mirror with none chosen yet). */
-  from: 'vendor' | 'design' | 'assumed' | null;
-  /** The light meets it. A mirror's back does not. */
-  inLight: boolean;
-}
-
 /** Thorlabs' AR suffix on a part number: -A, -B, -C (AC254-050-A, LA1509-B). */
 export function vendorCoating(mpn: string | undefined): CoatingId | null {
   const m = mpn?.match(/-(A|B|C)$/);
@@ -218,13 +191,6 @@ export function throughput(infos: SurfaceInfo[], nm: number): number {
   return infos.reduce((t, s) => t * (1 - surfaceReflectance(s, nm)), 1);
 }
 
-export interface CoatingCheck {
-  severity: 'warning' | 'info';
-  message: string;
-  /** The surface it is about, when one. */
-  surface?: number;
-}
-
 const pct = (r: number) => `${(r * 100).toFixed(r < 0.1 ? 1 : 0)}%`;
 
 /** What the coatings do to the wavelengths in the design: a face that loses much of one, a mirror that returns little. */
@@ -247,6 +213,31 @@ export function coatingChecks(infos: SurfaceInfo[], wavelengths: number[]): Coat
   return checks;
 }
 
-/** The surfaces with a coating set: `coating` on surface `index`, the rest as they were. */
-export const withCoating = (surfaces: FragmentSurface[], index: number, id: CoatingId): FragmentSurface[] => surfaces.map((s, i) => (i === index ? { ...s, coating: id } : s));
 
+/** An optic as the light sees it, at the design's wavelengths: what the coatings port answers. */
+export function opticLight(optic: Pick<CatalogRecord, 'id' | 'vendor' | 'fragmentSurfaces'>, wavelengths: number[]): OpticLight {
+  const surfaces = surfaceInfo(optic);
+  return {
+    surfaces,
+    reflectance: surfaces.map((info) => {
+      // Past 1100 nm only when the coating's band or the light goes there.
+      const band = info.coating ? coating(info.coating).band : undefined;
+      const to = (band?.[1] ?? 0) > 1100 || wavelengths.some((w) => w > 1100) ? 1700 : 1100;
+      return {
+        curve: Array.from({ length: 161 }, (_, i) => {
+          const nm = 350 + ((to - 350) * i) / 160;
+          return { nm, r: surfaceReflectance(info, nm) };
+        }),
+        at: wavelengths.map((nm) => ({ nm, r: surfaceReflectance(info, nm) })),
+      };
+    }),
+    passes: wavelengths.map((nm) => ({ nm, t: throughput(surfaces, nm) })),
+    checks: coatingChecks(surfaces, wavelengths),
+  };
+}
+
+/** The lab's thin-film model as the app's coatings, every answer over `net`. */
+export const standinCoatings: Coatings = {
+  catalogue: COATINGS,
+  of: ({ optic, wavelengths }) => opticLight(optic, wavelengths),
+};

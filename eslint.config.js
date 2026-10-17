@@ -5,23 +5,6 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { globalIgnores } from 'eslint/config'
 
-// Views that still use a kernel or service stand-in directly, because the real call has another shape
-// (oc-wasm's worker; /v1/generate's meshes). docs/INTEGRATION.md, "Not behind a port yet", says why for each.
-const STANDIN_DIRECT = [
-  'src/components/analysis/BeamLayout.tsx',
-  'src/components/analysis/Plots.tsx',
-  'src/components/editor/optics/CoatingChart.tsx',
-  'src/components/editor/optics/OpticalView.tsx',
-  'src/components/editor/optics/OpticsPanel.tsx',
-  'src/components/editor/optimize/OptimizePane.tsx',
-  'src/components/editor/scene3d/Closeup.tsx',
-  'src/components/editor/scene3d/HolderDesigner.tsx',
-  'src/components/editor/scene3d/holderMesh.ts',
-  'src/components/editor/scene3d/layout3d.ts',
-  'src/components/editor/simulate/checks.ts',
-  'src/components/editor/simulate/SimulatePane.tsx',
-]
-
 // As optikit-v2's frontend (frontend/eslint.config.js); storybook-static is the lab's own build output.
 export default tseslint.config([
   globalIgnores(['dist', 'storybook-static']),
@@ -47,7 +30,7 @@ export default tseslint.config([
   // them in one place (src/standins/StandinsProvider.tsx). Stories and tests may use them as data.
   {
     files: ['src/components/**/*.{ts,tsx}', 'src/app/**/*.{ts,tsx}'],
-    ignores: ['**/*.stories.tsx', '**/*.test.ts', ...STANDIN_DIRECT],
+    ignores: ['**/*.stories.tsx', '**/*.test.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ group: ['**/standins/**'], message: 'Reach the stand-ins through src/ports (docs/INTEGRATION.md).' }] }],
     },

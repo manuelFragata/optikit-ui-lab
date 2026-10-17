@@ -11,35 +11,16 @@
  * bodies go, the cavity it cuts, and a dry run shaped as
  * `POST /v1/generate/plan` answers, with the checks the service makes and
  * the beam checks its wizard does not show yet. Pure numbers; the meshes are
- * holderMesh.ts. The real solids come from CadQuery on the service: this is a
+ * cartridgeMesh.ts. The real solids come from CadQuery on the service: this is a
  * preview, true to the dimensions of v2's own output.
  *
  * Frame: the optical axis is z, the origin the cube centre (the generator's
  * frame). `part_position_mm.x` is sideways across the beam, `.y` up.
  */
 import type { OpticShape } from '../../components/editor/holders/optic';
+import type { BeamAxis, CartridgeParams, CartridgePlan, HolderCheck as Check, PlanBody } from '../../ports/holders';
 
-export type BeamAxis = '+x' | '-x' | '+y' | '-y';
-
-/** lens_cartridge_v4's parameters, by their names in its params.json. */
-export interface CartridgeParams {
-  /** The lens as its record: the service inlines the surface stack. */
-  part_prescription: { component: string };
-  beam_axis: BeamAxis;
-  /** Which lens point `part_position_mm` gives. */
-  reference: 'center' | 'front_vertex' | 'back_vertex';
-  /** The lens from the cube centre: x, y across the beam (±20), z along it (±25). */
-  part_position_mm: { x: number; y: number; z: number };
-  /** Tilt about the lens's own axes (x, y ±90; z ±180). */
-  part_rotation_deg: { x: number; y: number; z: number };
-  /** Clear aperture Ø; the generator defaults it to 90 % of the lens. */
-  clear_aperture_mm?: number;
-  fit_clearance_mm: number;
-  /** Snap the notched master to the cube's 5 mm grid; off: two smooth inserts, the joint exactly at z. */
-  snap_to_notch: boolean;
-  alignment_pins: number;
-  include_master_inserts: boolean;
-}
+export type { BeamAxis, CartridgeParams, CartridgePlan, Check, PlanBody };
 
 export const cartridgeDefaults = (component: string): CartridgeParams => ({
   part_prescription: { component },
@@ -162,37 +143,6 @@ export function cavityRadius(z: number, centre: number, shape: OpticShape, fitMm
 /* ---------------------------------------------------------------------- */
 /* The dry run                                                              */
 /* ---------------------------------------------------------------------- */
-
-export interface Check {
-  /** Stable: the service's codes where it has one (`DRC_APERTURE`, `DRC_BEAM_CLIPPED`), else the lab's (`E_…`, `W_…`). */
-  code: string;
-  severity: 'error' | 'warning' | 'info';
-  message: string;
-}
-
-/** One body in the plan, as `/v1/generate/plan` lists them. */
-export interface PlanBody {
-  name: string;
-  outline: 'round' | 'octagon' | 'lens';
-  axis: BeamAxis;
-  extent_mm: [number, number];
-  radius_mm: number;
-  held: boolean;
-}
-
-/** As `POST /v1/generate/plan` answers (`plan`), plus every check with its code and severity. */
-export interface CartridgePlan {
-  fits: boolean;
-  reasons: string[];
-  warnings: string[];
-  joint_mm: number;
-  beam_axis: BeamAxis;
-  bodies: PlanBody[];
-  /** The bounding box of all the bodies, and whether it fits one 50 mm cell (`meta.fits_envelope`). */
-  bbox_mm: { size: [number, number, number] };
-  fits_envelope: boolean;
-  checks: Check[];
-}
 
 const mm = (n: number) => `${n.toFixed(1)} mm`;
 

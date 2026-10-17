@@ -78,8 +78,15 @@ export function QuoteTable({ quote, terms, onTerms }: QuoteTableProps) {
           hint={`${eur(terms.labourRate)} an hour`}
         />
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
-          <Typography variant="subtitle1">Total, excluding VAT</Typography>
-          <Typography variant="headline">{eur(quote.total)}</Typography>
+          <Box>
+            <Typography variant="subtitle1">Total, excluding VAT</Typography>
+            {quote.unpriced > 0 && (
+              <Typography variant="meta" color="warning.main">
+                {`At least: ${quote.unpriced} ${quote.unpriced === 1 ? 'line has' : 'lines have'} no price yet`}
+              </Typography>
+            )}
+          </Box>
+          <Typography variant="h1">{eur(quote.total)}</Typography>
         </Stack>
       </Stack>
     </Box>

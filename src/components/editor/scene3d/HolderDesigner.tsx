@@ -29,8 +29,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { PillSwitch } from '../../primitives/PillSwitch';
 import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
-import type { BeamAxis, CartridgeParams, CartridgePlan, Check } from '../../../standins/service/cartridge';
-import type { Road } from '../../../standins/service/generators';
+import type { BeamAxis, CartridgeParams, CartridgePlan, HolderCheck as Check, Road } from '../../../ports/holders';
 import type { CatalogRecord, OpticFacts } from '../holders/optic';
 
 /** What is being designed: the road, its parameters, and the beam the checks assume. */
@@ -180,9 +179,9 @@ export function HolderDesigner({ partName, record, facts, roads, draft, onDraft,
         </Section>
 
         {road && draft.road !== PREVIEWED_ROAD && (
-          <Section title="Not in the lab yet">
+          <Section title="Preview">
             <Typography variant="body2" color="text.secondary">
-              The lab previews only the V4 lens cartridge so far. optikit-v2 builds this road with <Box component="span" sx={mono}>{road.spec.script}</Box>.
+              No live preview for this holder yet. It is built with <Box component="span" sx={mono}>{road.spec.script}</Box> when the design is exported.
             </Typography>
           </Section>
         )}
