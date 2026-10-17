@@ -23,6 +23,7 @@ import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { ApertureFill, RayFan, RmsFocusPlot, SpectrumPlot, SpotDiagram } from '../../analysis/Plots';
+import { Figure } from '../../analysis/plot/Chart';
 import { NumberInput } from '../../primitives/NumberInput';
 import { Failed, Refreshing, Waiting } from '../../primitives/RequestState';
 import type { CatalogRecord } from '../holders/optic';
@@ -234,21 +235,21 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
     const heights = heightsAt(t, z);
     const geo = Math.max(0, ...heights.map((h) => Math.abs(h.y)));
     if (shown === 'spot') {
-      plot = <SpotDiagram points={spotAt(t, z)} rmsMm={rmsAt(t, z)} size={320} />;
-      caption = `RMS ${length(rmsAt(t, z))} · GEO ${length(geo)} · ${t.vignetted} of ${rays} rays stopped`;
+      plot = <SpotDiagram points={spotAt(t, z)} rmsMm={rmsAt(t, z)} height={320} />;
+      caption = `RMS ${length(rmsAt(t, z))} · GEO ${length(geo)} · ${t.vignetted}/${rays} stopped`;
     } else if (shown === 'fan') {
       plot = <RayFan fan={heights} />;
-      caption = `Largest error ${length(geo)} · across the pupil, −1 to 1`;
+      caption = `max |εy| ${length(geo)}`;
     } else {
       const best = bestFocus(t, z, focusReach(t, z));
       const reach = Math.max(2, Math.abs(best - z) * 1.6, 5);
       plot = <RmsFocusPlot samples={rmsThroughFocus(t, z, reach)} bestDz={best - z} plane={target.label} />;
-      caption = `Best focus ${best - z >= 0 ? '+' : '−'}${Math.abs(best - z).toFixed(2)} mm from ${target.label} · ${length(rmsAt(t, best))} RMS there`;
+      caption = `best Δz ${best - z >= 0 ? '+' : '−'}${Math.abs(best - z).toFixed(2)} mm · RMS ${length(rmsAt(t, best))}`;
     }
   } else if (shown === 'fill') {
     const r = results(beam, trace(beam, startRay(beam, beamMm)), beamMm);
     plot = <ApertureFill beam={beam} result={r} selectedId={selectedId} onSelect={onSelect} />;
-    caption = 'Click a part to select it on the canvas';
+    caption = 'click a part to select it';
   } else {
     plot = <SpectrumPlot curve={spectrum(beam)} wavelengthNm={nm} />;
   }
@@ -280,7 +281,7 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
               >
                 <Box sx={{ width: 3, alignSelf: 'stretch', borderRadius: 1, bgcolor: `rays.${t.beam.ray.color}` }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: offTarget(t) ? 400 : 600 }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: offTarget(t) ? 400 : 500 }}>
                     {t.label}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" component="div" noWrap>
@@ -320,14 +321,9 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
           ))}
         </ToggleButtonGroup>
 
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider', p: 2 }}>
-          <Box sx={{ maxWidth: 520, mx: 'auto' }}>{plot}</Box>
-          {caption && (
-            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1, textAlign: 'center' }}>
-              {caption}
-            </Typography>
-          )}
-        </Box>
+        <Figure title={`${spec.label} · ${spec.plane ? `at ${target.label}${plane.offsetMm ? ` ${plane.offsetMm > 0 ? '+' : '−'}${Math.abs(plane.offsetMm)} mm` : ''}` : beam.ray.label}`} meta={caption}>
+          {plot}
+        </Figure>
 
         {/* The settings the analysis shown takes, in one row. */}
         <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
@@ -366,7 +362,7 @@ export function SimulatePane({ design, light, trace: traced, recordFor, selected
                 <Box
                   component="span"
                   onClick={a.id !== 'sample' ? () => onSelect(a.id) : undefined}
-                  sx={{ color: 'text.primary', fontWeight: 600, cursor: a.id !== 'sample' ? 'pointer' : 'default', '&:hover': a.id !== 'sample' ? { textDecoration: 'underline' } : undefined }}
+                  sx={{ color: 'text.primary', fontWeight: 500, cursor: a.id !== 'sample' ? 'pointer' : 'default', '&:hover': a.id !== 'sample' ? { textDecoration: 'underline' } : undefined }}
                 >
                   {a.label}
                 </Box>

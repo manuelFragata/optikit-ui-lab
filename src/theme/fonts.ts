@@ -2,3 +2,4 @@
 // The families are named in tokens.ts (`fonts`).
 import './fonts/objectivity/objectivity.css';
 import './fonts/jetbrains-mono/jetbrains-mono.css';
+import './fonts/stix-two-text/stix-two-text.css';

@@ -82,6 +82,20 @@ export function SettingsDialog({ open, onClose, value, onChange }: SettingsDialo
             </Row>
           </Section>
 
+          <Section title="Editor">
+            <Row label="Sidebar" hint="The panels and the split views">
+              <PillSwitch
+                aria-label="Sidebar"
+                value={value.sidebar}
+                options={[
+                  { value: 'left', label: 'Left' },
+                  { value: 'right', label: 'Right' },
+                ]}
+                onChange={(sidebar) => onChange({ sidebar })}
+              />
+            </Row>
+          </Section>
+
           <Section title="Canvas">
             <Row label="Label size" hint="Part and ray names, in 2D and 3D">
               <PillSwitch aria-label="Label size" value={value.labelSize} options={SIZES} onChange={(labelSize) => onChange({ labelSize })} />

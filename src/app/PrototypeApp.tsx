@@ -334,7 +334,7 @@ export function PrototypeApp() {
           showHeader={false}
           schematic={changed[openId] ?? design.schematic}
           onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
-          defaultLeftState={design.empty ? 'expanded' : 'collapsed'}
+          defaultPanelState={design.empty ? 'expanded' : 'collapsed'}
           openPane={route.name === 'workspace' ? route.pane : undefined}
           onNotice={setToast}
         />

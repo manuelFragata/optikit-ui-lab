@@ -1,30 +1,17 @@
 /**
- * The analyses' plots, each one picture: the spot at a plane, the ray fan,
- * the RMS spot through focus, how full each part's aperture is, and what the
- * path passes across the spectrum. Drawn in SVG with the theme's colours.
+ * The analyses' plots, each an engineering plot on the kit (./plot): the
+ * spot at a plane, the ray fan, the RMS spot through focus, how full each
+ * part's aperture is, and what the path passes across the spectrum. Axes
+ * with units, a grid on round ticks, ink for data and dashed rules for
+ * references.
  */
-import type { ReactNode } from 'react';
-import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { nmColor } from '../editor/optics/nmColor';
 import type { Beam } from '../../standins/kernel/simulate/beam';
 import type { BeamResult } from '../../standins/kernel/simulate/paraxial';
-
-const W = 480;
-const H = 210;
-const PAD = { left: 54, right: 12, top: 12, bottom: 30 };
-const ink = 'var(--mui-palette-text-primary)';
-const meta = 'var(--mui-palette-text-meta)';
-const muted = 'var(--mui-palette-text-secondary)';
-const rule = 'var(--mui-palette-divider)';
-
-function Svg({ label, children, height = H }: { label: string; children: ReactNode; height?: number }) {
-  return (
-    <Box component="svg" viewBox={`0 0 ${W} ${height}`} role="img" aria-label={label} sx={{ width: '100%', display: 'block', fontFamily: 'inherit' }}>
-      {children}
-    </Box>
-  );
-}
+import { ACCENT, ALERT, Chart, Dots, INK, Legend, Line, Rule, WARN } from './plot/Chart';
+import { lengthUnit, spotReach } from './plot/scale';
+import { fonts } from '../../theme/tokens';
 
 export function Empty({ children }: { children: string }) {
   return (
@@ -34,228 +21,149 @@ export function Empty({ children }: { children: string }) {
   );
 }
 
+/** The spot at a plane: every ray where it lands, the RMS radius dashed. Square, equal scales; `reachMm` to share a scale with another. */
+export function SpotDiagram({ points, rmsMm, reachMm, color = ACCENT, height = 300, legend = true }: { points: { x: number; y: number }[]; rmsMm: number; reachMm?: number; color?: string; height?: number; legend?: boolean }) {
+  const reach = reachMm ?? spotReach(points, rmsMm);
+  const { unit, perMm } = lengthUnit(reach);
+  const r = reach * perMm;
+  const at = points.map((p) => ({ x: p.x * perMm, y: p.y * perMm }));
+  const ring = Array.from({ length: 97 }, (_, k): [number, number] => [rmsMm * perMm * Math.cos((k / 96) * 2 * Math.PI), rmsMm * perMm * Math.sin((k / 96) * 2 * Math.PI)]);
+  return (
+    <Chart
+      square
+      height={height}
+      label="Spot diagram"
+      x={{ domain: [-r, r], label: '*x*', unit, count: 4, zero: true }}
+      y={{ domain: [-r, r], label: '*y*', unit, count: 4, zero: true }}
+      overlay={(s) =>
+        legend && (
+          <Legend
+            s={s}
+            items={[
+              { label: 'Rays', color, dot: true },
+              { label: 'RMS radius', color: INK, dash: '4 3' },
+            ]}
+          />
+        )
+      }
+    >
+      {(s) => (
+        <>
+          <Dots s={s} points={at} color={color} r={1.5} />
+          <Line s={s} points={ring} color={INK} width={1} dash="4 3" />
+        </>
+      )}
+    </Chart>
+  );
+}
+
+/** The transverse error of each ray at the plane, against its place in the pupil. */
+export function RayFan({ fan, height = 240 }: { fan: { rho: number; y: number }[]; height?: number }) {
+  const max = Math.max(1e-6, ...fan.map((p) => Math.abs(p.y)));
+  const { unit, perMm } = lengthUnit(max);
+  const m = max * perMm;
+  return (
+    <Chart
+      height={height}
+      label="Ray fan"
+      x={{ domain: [-1, 1], label: 'Normalized pupil coordinate *P*_{*y*}', values: [-1, -0.5, 0, 0.5, 1], zero: true }}
+      y={{ domain: [-m * 1.1, m * 1.1], label: 'Transverse aberration *ε*_{*y*}', unit, zero: true }}
+    >
+      {(s) => <Line s={s} points={fan.map((p) => [p.rho, p.y * perMm])} color={ACCENT} />}
+    </Chart>
+  );
+}
+
+/** The RMS spot radius against a shift of the plane; the plane at 0, the best focus marked. */
+export function RmsFocusPlot({ samples, bestDz, plane, height = 240 }: { samples: { dz: number; rms: number }[]; bestDz: number; plane: string; height?: number }) {
+  const max = Math.max(1e-6, ...samples.map((p) => p.rms));
+  const { unit, perMm } = lengthUnit(max);
+  const dz = samples.map((p) => p.dz);
+  return (
+    <Chart
+      height={height}
+      label="RMS spot radius through focus"
+      x={{ domain: [Math.min(...dz), Math.max(...dz)], label: 'Defocus Δ*z*', unit: 'mm', nice: false, count: 6 }}
+      y={{ domain: [0, max * perMm * 1.05], label: 'RMS spot radius *r*_{RMS}', unit }}
+      overlay={(s) => (
+        <>
+          <Rule s={s} at={0} label={plane} color={INK} dash="none" side="left" />
+          {Math.abs(bestDz) > 1e-3 && <Rule s={s} at={bestDz} label="Best focus" color={WARN} />}
+        </>
+      )}
+    >
+      {(s) => <Line s={s} points={samples.map((p) => [p.dz, p.rms * perMm])} color={ACCENT} />}
+    </Chart>
+  );
+}
+
 /** Each part's clear aperture, and how much of it the beam fills: past 100 % it clips. A row clicked selects its part. */
 export function ApertureFill({ beam, result, selectedId, onSelect }: { beam: Beam; result: BeamResult; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const rows = beam.elements.flatMap((e, i) => (e.apertureMm ? [{ e, fill: result.elements[i].beamMm / e.apertureMm }] : []));
   if (!rows.length) return <Empty>No part states an aperture.</Empty>;
-  const row = 26;
-  const height = PAD.top + rows.length * row + 22;
-  const left = 130;
-  const max = Math.max(1.2, ...rows.map((r) => r.fill));
-  const x = (f: number) => left + (f / max) * (W - left - PAD.right - 40);
+  const max = Math.max(120, ...rows.map((r) => r.fill * 110));
+  const at = (i: number) => rows.length - i - 0.5;
   return (
-    <Svg label="Aperture fill per part" height={height}>
-      {rows.map(({ e, fill }, i) => {
-        const y = PAD.top + i * row;
-        const over = fill > 1;
-        const pick = onSelect && e.symbol ? () => onSelect(e.id) : undefined;
-        return (
-          <Box
-            component="g"
-            key={e.id}
-            onClick={pick}
-            role={pick ? 'button' : undefined}
-            aria-label={pick ? `Select ${e.label}` : undefined}
-            sx={pick ? { cursor: 'pointer', '&:hover rect:first-of-type': { opacity: 1 } } : undefined}
-          >
-            {e.id === selectedId && <rect x={0} y={y + 1} width={W} height={22} rx={3} fill="var(--mui-palette-primary-soft)" />}
-            <text x={left - 8} y={y + 15} textAnchor="end" fontSize={12} fill={ink} fontWeight={e.id === selectedId ? 600 : 400}>
-              {e.label}
-            </text>
-            <rect x={left} y={y + 4} width={x(1) - left} height={16} fill={rule} opacity={0.6} rx={2} />
-            <rect x={left} y={y + 4} width={Math.max(1, x(fill) - left)} height={16} fill={over ? 'var(--mui-palette-error-main)' : 'var(--mui-palette-primary-main)'} rx={2} />
-            <text x={x(Math.max(fill, 1)) + 6} y={y + 16} fontSize={11} fill={over ? 'var(--mui-palette-error-main)' : muted}>
-              {`${Math.round(fill * 100)}%`}
-            </text>
-          </Box>
-        );
-      })}
-      <line x1={x(1)} x2={x(1)} y1={PAD.top} y2={height - 18} stroke={ink} strokeDasharray="3 3" />
-      <text x={x(1)} y={height - 4} textAnchor="middle" fontSize={10} fill={meta}>
-        clear aperture
-      </text>
-    </Svg>
+    <Chart
+      height={Math.max(150, 56 + rows.length * 30)}
+      label="Aperture fill per part"
+      x={{ domain: [0, max], label: 'Fill of the clear aperture', unit: '%', count: 6 }}
+      y={{ domain: [0, rows.length], label: '', values: rows.map((_, i) => at(i)), format: (v) => rows[Math.round(rows.length - v - 0.5)]?.e.label ?? '', names: true }}
+      overlay={(s) => <Rule s={s} at={100} label="Clear aperture" color={ALERT} foot />}
+    >
+      {(s) =>
+        rows.map(({ e, fill }, i) => {
+          const y = s.y(at(i));
+          const pick = onSelect && e.symbol ? () => onSelect(e.id) : undefined;
+          return (
+            <g key={e.id} onClick={pick} style={{ cursor: pick ? 'pointer' : undefined }} role={pick ? 'button' : undefined} aria-label={pick ? `Select ${e.label}` : undefined}>
+              <rect x={s.left} y={y - 13} width={s.right - s.left} height={26} fill={e.id === selectedId ? 'var(--mui-palette-primary-soft)' : 'transparent'} />
+              <rect x={s.x(0)} y={y - 6} width={Math.max(1, s.x(fill * 100) - s.x(0))} height={12} fill={fill > 1 ? ALERT : ACCENT} />
+              <text x={s.x(fill * 100) + 5} y={y + 4} fontFamily={fonts.plot} fontSize={11.5} fill={fill > 1 ? ALERT : INK} style={{ fontVariantNumeric: 'lining-nums tabular-nums' }}>
+                {`${Math.round(fill * 100)}%`}
+              </text>
+            </g>
+          );
+        })
+      }
+    </Chart>
   );
 }
 
-/** What the path passes across the spectrum, with its wavelength marked. */
-export function SpectrumPlot({ curve, wavelengthNm }: { curve: { nm: number; t: number }[] | null; wavelengthNm: number | null }) {
+/** What the path passes across the spectrum, with its wavelength marked; the visible band along the foot. */
+export function SpectrumPlot({ curve, wavelengthNm, height = 240 }: { curve: { nm: number; t: number }[] | null; wavelengthNm: number | null; height?: number }) {
   if (!curve) return <Empty>No coatings known on this path.</Empty>;
   const [x0, x1] = [curve[0].nm, curve[curve.length - 1].nm];
-  const lo = Math.min(0.8, Math.floor(Math.min(...curve.map((c) => c.t)) * 10) / 10);
-  const x = (nm: number) => PAD.left + ((nm - x0) / (x1 - x0)) * (W - PAD.left - PAD.right);
-  const y = (t: number) => PAD.top + (1 - (t - lo) / (1 - lo)) * (H - PAD.top - PAD.bottom);
-  const bottom = H - PAD.bottom;
-  const path = curve.map((c, i) => `${i ? 'L' : 'M'}${x(c.nm).toFixed(1)} ${y(c.t).toFixed(1)}`).join('');
   const at = wavelengthNm && wavelengthNm >= x0 && wavelengthNm <= x1 ? curve.reduce((a, b) => (Math.abs(b.nm - wavelengthNm) < Math.abs(a.nm - wavelengthNm) ? b : a)) : null;
   const visible = [380, 440, 490, 520, 570, 600, 650, 750];
   return (
-    <Svg label="Transmission across the spectrum">
-      <defs>
-        <linearGradient id="sim-visible" x1={x(380)} x2={x(750)} gradientUnits="userSpaceOnUse">
-          {visible.map((nm) => (
-            <stop key={nm} offset={(nm - 380) / 370} stopColor={nmColor(nm)} />
-          ))}
-        </linearGradient>
-      </defs>
-      {[lo, (lo + 1) / 2, 1].map((t) => (
-        <g key={t}>
-          <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke={rule} />
-          <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={10} fill={muted}>
-            {`${Math.round(t * 100)}%`}
-          </text>
-        </g>
-      ))}
-      <rect x={x(380)} width={x(750) - x(380)} y={bottom + 1} height={3} fill="url(#sim-visible)" />
-      {[400, 600, 800, 1000].map((nm) => (
-        <text key={nm} x={x(nm)} y={H - 6} textAnchor="middle" fontSize={10} fill={muted}>
-          {nm}
-        </text>
-      ))}
-      <path d={path} fill="none" stroke="var(--mui-palette-primary-main)" strokeWidth={2} />
-      {at && (
-        <g>
-          <line x1={x(at.nm)} x2={x(at.nm)} y1={PAD.top} y2={bottom} stroke={nmColor(at.nm)} strokeDasharray="3 2" />
-          <circle cx={x(at.nm)} cy={y(at.t)} r={4} fill={nmColor(at.nm)} />
-          <text x={x(at.nm) + 7} y={y(at.t) < PAD.top + 24 ? y(at.t) + 18 : y(at.t) - 8} fontSize={11} fill={ink}>
-            {`${(at.t * 100).toFixed(1)}% at ${wavelengthNm} nm`}
-          </text>
-        </g>
-      )}
-    </Svg>
-  );
-}
-
-const um = (mm: number) => {
-  const u = mm * 1000;
-  return Math.abs(u) >= 100 ? u.toFixed(0) : Math.abs(u) >= 10 ? u.toFixed(1) : u.toFixed(2);
-};
-/** An axis label for a length, with its unit: µm below a millimetre, mm from one. */
-const lengthTick = (mm: number) => (mm === 0 ? '0' : Math.abs(mm) >= 1 ? `${Math.abs(mm) >= 10 ? mm.toFixed(0) : mm.toFixed(1)} mm` : `${um(mm)} µm`);
-
-/** The spot at a plane: every ray where it lands, the RMS radius dashed. Square, µm. */
-export function SpotDiagram({
-  points,
-  rmsMm,
-  color = 'var(--mui-palette-primary-main)',
-  size = 300,
-  title,
-}: {
-  points: { x: number; y: number }[];
-  rmsMm: number;
-  color?: string;
-  size?: number;
-  title?: string;
-}) {
-  const reach = Math.max(rmsMm * 1.6, ...points.map((p) => Math.hypot(p.x, p.y)), 1e-6) * 1.1;
-  const half = size / 2;
-  const s = (v: number) => (v / reach) * (half - 14);
-  return (
-    <Box
-      component="svg"
-      viewBox={`0 0 ${size} ${size + 22}`}
-      role="img"
-      aria-label={title ?? 'Spot diagram'}
-      sx={{ width: '100%', maxWidth: size, display: 'block', mx: 'auto', fontFamily: 'inherit' }}
+    <Chart
+      height={height}
+      label="Transmission across the spectrum"
+      x={{ domain: [x0, x1], label: 'Wavelength *λ*', unit: 'nm', nice: false, count: 8 }}
+      y={{ domain: [0, 100], label: 'Transmittance *T*', unit: '%', values: [0, 20, 40, 60, 80, 100] }}
+      overlay={(s) =>
+        at && (
+          <>
+            <Rule s={s} at={at.nm} label={`${(at.t * 100).toFixed(1)} % at ${wavelengthNm} nm`} color={INK} />
+            <circle cx={s.x(at.nm)} cy={s.y(at.t * 100)} r={3} fill={nmColor(at.nm)} stroke={INK} strokeWidth={1} />
+          </>
+        )
+      }
     >
-      <rect x={0.5} y={0.5} width={size - 1} height={size - 1} rx={6} fill="none" stroke={rule} />
-      <line x1={half} x2={half} y1={8} y2={size - 8} stroke={rule} />
-      <line y1={half} y2={half} x1={8} x2={size - 8} stroke={rule} />
-      <circle cx={half} cy={half} r={s(rmsMm)} fill="none" stroke={ink} strokeDasharray="4 3" />
-      {points.map((p, i) => (
-        <circle key={i} cx={half + s(p.x)} cy={half - s(p.y)} r={1.6} fill={color} />
-      ))}
-      <text x={size - 8} y={size - 10} textAnchor="end" fontSize={11} fill={muted}>
-        {reach >= 1 ? `±${reach.toFixed(1)} mm` : `±${um(reach)} µm`}
-      </text>
-      {title && (
-        <text x={size / 2} y={size + 16} textAnchor="middle" fontSize={12} fill={ink}>
-          {title}
-        </text>
+      {(s) => (
+        <>
+          <defs>
+            <linearGradient id="spectrum-visible" x1={s.x(380)} x2={s.x(750)} gradientUnits="userSpaceOnUse">
+              {visible.map((nm) => (
+                <stop key={nm} offset={(nm - 380) / 370} stopColor={nmColor(nm)} />
+              ))}
+            </linearGradient>
+          </defs>
+          <rect x={s.x(380)} width={s.x(750) - s.x(380)} y={s.bottom - 4} height={4} fill="url(#spectrum-visible)" />
+          <Line s={s} points={curve.map((c) => [c.nm, c.t * 100])} color={ACCENT} />
+        </>
       )}
-    </Box>
-  );
-}
-
-/** A line plot with its axes: `x` across, `y` up, both labelled at their ends and middle. */
-function LinePlot({
-  data,
-  xLabel,
-  yLabel,
-  markers = [],
-  zeroLine,
-  label,
-}: {
-  data: { x: number; y: number }[];
-  xLabel: (v: number) => string;
-  yLabel: (v: number) => string;
-  markers?: { x: number; text: string; tone?: 'warning' | 'ink' }[];
-  zeroLine?: boolean;
-  label: string;
-}) {
-  const xs = data.map((d) => d.x);
-  const ys = data.map((d) => d.y);
-  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
-  let [y0, y1] = [Math.min(0, ...ys), Math.max(...ys)];
-  if (y1 - y0 < 1e-12) [y0, y1] = [y0 - 1, y1 + 1];
-  const pad = (y1 - y0) * 0.08;
-  [y0, y1] = [y0 - (y0 < 0 ? pad : 0), y1 + pad];
-  const x = (v: number) => PAD.left + ((v - x0) / (x1 - x0 || 1)) * (W - PAD.left - PAD.right);
-  const y = (v: number) => PAD.top + (1 - (v - y0) / (y1 - y0)) * (H - PAD.top - PAD.bottom);
-  const bottom = H - PAD.bottom;
-  return (
-    <Svg label={label}>
-      {[y0, (y0 + y1) / 2, y1].map((v) => (
-        <g key={v}>
-          <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke={rule} />
-          <text x={PAD.left - 6} y={y(v) + 4} textAnchor="end" fontSize={10} fill={muted}>
-            {yLabel(v)}
-          </text>
-        </g>
-      ))}
-      {zeroLine && y0 < 0 && <line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} stroke={ink} strokeWidth={0.75} />}
-      <path d={data.map((d, i) => `${i ? 'L' : 'M'}${x(d.x).toFixed(1)} ${y(d.y).toFixed(1)}`).join('')} fill="none" stroke="var(--mui-palette-primary-main)" strokeWidth={2} />
-      {markers
-        .filter((m) => m.x >= x0 && m.x <= x1)
-        .map((m) => (
-          <g key={m.text}>
-            <line
-              x1={x(m.x)}
-              x2={x(m.x)}
-              y1={PAD.top}
-              y2={bottom}
-              stroke={m.tone === 'warning' ? 'var(--mui-palette-warning-main)' : ink}
-              strokeDasharray={m.tone === 'warning' ? '4 3' : undefined}
-              strokeWidth={m.tone === 'warning' ? 1 : 1.5}
-            />
-            <text x={x(m.x) + 5} y={PAD.top + 12} fontSize={11} fill={m.tone === 'warning' ? 'var(--mui-palette-warning-main)' : ink}>
-              {m.text}
-            </text>
-          </g>
-        ))}
-      {[x0, (x0 + x1) / 2, x1].map((v) => (
-        <text key={v} x={x(v)} y={H - 6} textAnchor={v === x0 ? 'start' : v === x1 ? 'end' : 'middle'} fontSize={10} fill={muted}>
-          {xLabel(v)}
-        </text>
-      ))}
-    </Svg>
-  );
-}
-
-/** The transverse error of each ray at the plane, against its place in the pupil, µm. */
-export function RayFan({ fan }: { fan: { rho: number; y: number }[] }) {
-  return <LinePlot label="Ray fan" data={fan.map((p) => ({ x: p.rho, y: p.y }))} xLabel={(v) => (v === 0 ? '0' : v.toFixed(1))} yLabel={lengthTick} zeroLine />;
-}
-
-/** The RMS spot radius against a shift of the plane, µm; the plane at 0, the best focus marked. */
-export function RmsFocusPlot({ samples, bestDz, plane }: { samples: { dz: number; rms: number }[]; bestDz: number; plane: string }) {
-  return (
-    <LinePlot
-      label="RMS spot through focus"
-      data={samples.map((s) => ({ x: s.dz, y: s.rms }))}
-      xLabel={(v) => `${v > 0 ? '+' : ''}${Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(1)} mm`}
-      yLabel={lengthTick}
-      markers={[{ x: 0, text: plane, tone: 'ink' }, ...(Math.abs(bestDz) > 1e-3 ? [{ x: bestDz, text: 'best', tone: 'warning' as const }] : [])]}
-    />
+    </Chart>
   );
 }

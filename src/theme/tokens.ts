@@ -444,18 +444,22 @@ export type LayoutTokens = typeof layout;
 
 const SANS_FALLBACK = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 const MONO_FALLBACK = 'ui-monospace, "SFMono-Regular", Consolas, monospace';
+const SERIF_FALLBACK = '"Cambria Math", "Times New Roman", Georgia, serif';
 
 /**
- * The two typefaces, both SIL OFL 1.1 and self-hosted (theme/fonts), so no
+ * The three typefaces, all SIL OFL 1.1 and self-hosted (theme/fonts), so no
  * page load asks a font service.
  * - ui: Objectivity, a geometric sans. The openUC2 brand guide names it as
  *   the free stand-in for Stolzl. Everything that is read.
  * - mono: JetBrains Mono, tall x-height and clear figures. Values, versions,
  *   coordinates, prices.
+ * - plot: STIX Two Text, the serif of scientific publishing. Only the text
+ *   inside plots (ticks, axis titles, legends), as in a paper's figures.
  */
 export const fonts = {
   ui: `"Objectivity", ${SANS_FALLBACK}`,
   mono: `"JetBrains Mono", ${MONO_FALLBACK}`,
+  plot: `"STIX Two Text", ${SERIF_FALLBACK}`,
 } as const;
 
 export const fontWeight = {

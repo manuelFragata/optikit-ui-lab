@@ -15,19 +15,15 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     headerVariant: 'light',
-    leftState: 'collapsed',
-    leftPanel: 'palette',
-    rightState: 'collapsed',
-    rightPanel: 'properties',
+    panelState: 'collapsed',
+    panel: 'palette',
     selectedId: null,
     view: '2d',
     density: 'comfortable',
   },
   argTypes: {
-    leftState: { name: 'Left panel', control: 'inline-radio', options: PANEL_STATES },
-    leftPanel: { name: 'Left panel shows', control: 'inline-radio', options: ['palette', 'layers', 'parts', 'bom'] },
-    rightState: { name: 'Right panel', control: 'inline-radio', options: PANEL_STATES },
-    rightPanel: { name: 'Right panel shows', control: 'inline-radio', options: ['properties', 'info'] },
+    panelState: { name: 'Sidebar panel', control: 'inline-radio', options: PANEL_STATES },
+    panel: { name: 'Sidebar shows', control: 'inline-radio', options: ['sketch', 'palette', 'properties', 'layers', 'parts', 'bom', 'info'] },
     selectedId: { name: 'Selected part', control: 'select', options: [null, 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'] },
     view: { name: 'Canvas view', control: 'inline-radio', options: ['2d', '3d'] },
     headerVariant: { name: 'Header style', control: 'inline-radio', options: ['navy', 'light'] },
@@ -48,10 +44,8 @@ const meta = {
     return (
       <EditorShell
         {...args}
-        onLeftStateChange={(leftState) => updateArgs({ leftState })}
-        onLeftPanelChange={(leftPanel) => updateArgs({ leftPanel })}
-        onRightStateChange={(rightState) => updateArgs({ rightState })}
-        onRightPanelChange={(rightPanel) => updateArgs({ rightPanel })}
+        onPanelStateChange={(panelState) => updateArgs({ panelState })}
+        onPanelChange={(panel) => updateArgs({ panel })}
         onSelectedIdChange={(selectedId) => updateArgs({ selectedId })}
         onViewChange={(view) => updateArgs({ view })}
       />
@@ -68,15 +62,15 @@ export const Default: Story = {
 
 export const SymbolSelected: Story = {
   name: 'Part selected',
-  args: { selectedId: 'S3', rightState: 'expanded' },
+  args: { selectedId: 'S3', panelState: 'expanded', panel: 'properties' },
 };
 
 export const Working: Story = {
-  name: 'Working (palette + properties pinned)',
-  args: { leftState: 'pinned', rightState: 'pinned', selectedId: 'S3' },
+  name: 'Working (properties pinned)',
+  args: { panelState: 'pinned', panel: 'properties', selectedId: 'S3' },
 };
 
 export const ThreeD: Story = {
   name: '3D view',
-  args: { view: '3d', rightState: 'pinned', rightPanel: 'info' },
+  args: { view: '3d', panelState: 'pinned', panel: 'info' },
 };

@@ -45,7 +45,7 @@ import { SidePanel, type SidePanelState } from '../panels/SidePanel';
 import { SplitPane } from '../panels/SplitPane';
 import type { AccountUser } from './AccountMenu';
 import type { HeaderVariant } from './AppHeader';
-import type { EditorActions, LeftPanelId, RightPanelId } from './editor/actions';
+import type { EditorActions, PanelId } from './editor/actions';
 import { addParts, copyParts, mountAll, moveParts, newPart, nextIds, removeParts, turnParts, updateParts } from './editor/designEdits';
 import { EditorHeader } from './editor/EditorHeader';
 import { EditorStatusBar } from './editor/EditorStatusBar';
@@ -57,7 +57,7 @@ import { usePlacing } from './editor/usePlacing';
 import { useSelection } from './editor/useSelection';
 import { useShortcuts } from './editor/useShortcuts';
 
-export type { LeftPanelId, RightPanelId };
+export type { PanelId };
 
 // three.js and its helpers load only when the 3D view (or the close-up) is first opened.
 const DesignScene3D = lazy(() => import('../editor/scene3d/DesignScene3D').then((m) => ({ default: m.DesignScene3D })));
@@ -89,7 +89,10 @@ const HINTS: Record<CanvasTool, string> = {
 };
 const HINT_3D = 'Click a part to select it, double-click for its properties · right drag orbits, middle drag pans, the wheel zooms';
 
-/** How the right panel's slide-in is eased, for the dock and the layer preview stepping aside. */
+/** The sidebar's panels, top to bottom: making first, then the part, then the design's lists. */
+const PANEL_ORDER: PanelId[] = ['sketch', 'palette', 'properties', 'layers', 'parts', 'bom', 'info'];
+
+/** How a panel's slide-in is eased, for the dock and the layer preview stepping aside. */
 const STEP_ASIDE = '260ms cubic-bezier(0.22, 1, 0.36, 1)';
 
 export interface EditorShellProps {
@@ -105,21 +108,16 @@ export interface EditorShellProps {
   /** The design after each edit (and undo), so the other tabs can show it. */
   onDesignChange?: (design: Schematic) => void;
 
-  /** Left panel (library, layers, parts, files). Controlled if set; otherwise `defaultLeftState`. */
-  leftState?: SidePanelState;
-  defaultLeftState?: SidePanelState;
-  onLeftStateChange?: (state: SidePanelState) => void;
-  leftPanel?: LeftPanelId;
-  defaultLeftPanel?: LeftPanelId;
-  onLeftPanelChange?: (id: LeftPanelId) => void;
-
-  /** Right panel (properties, history, info). Controlled if set; otherwise `defaultRightState`. */
-  rightState?: SidePanelState;
-  defaultRightState?: SidePanelState;
-  onRightStateChange?: (state: SidePanelState) => void;
-  rightPanel?: RightPanelId;
-  defaultRightPanel?: RightPanelId;
-  onRightPanelChange?: (id: RightPanelId) => void;
+  /**
+   * The sidebar: every panel (sketch, parts, properties, layers, lists, info), one open at a time,
+   * and the split views beside the canvas. On the edge Settings names. Controlled if set; otherwise `defaultPanelState`.
+   */
+  panelState?: SidePanelState;
+  defaultPanelState?: SidePanelState;
+  onPanelStateChange?: (state: SidePanelState) => void;
+  panel?: PanelId;
+  defaultPanel?: PanelId;
+  onPanelChange?: (id: PanelId) => void;
 
   /** The selected part (the one the inspector shows); `null` for none. Controlled if set. Shift-click selects more. */
   selectedId?: string | null;
@@ -151,18 +149,12 @@ export function EditorShell({
   user = demoUser,
   schematic: initialDesign = demoSchematic,
   onDesignChange,
-  leftState: leftStateProp,
-  defaultLeftState = 'collapsed',
-  onLeftStateChange,
-  leftPanel: leftPanelProp,
-  defaultLeftPanel = 'palette',
-  onLeftPanelChange,
-  rightState: rightStateProp,
-  defaultRightState = 'collapsed',
-  onRightStateChange,
-  rightPanel: rightPanelProp,
-  defaultRightPanel = 'properties',
-  onRightPanelChange,
+  panelState: panelStateProp,
+  defaultPanelState = 'collapsed',
+  onPanelStateChange,
+  panel: panelProp,
+  defaultPanel = 'palette',
+  onPanelChange,
   selectedId: selectedIdProp,
   defaultSelectedId = null,
   onSelectedIdChange,
@@ -182,10 +174,8 @@ export function EditorShell({
   /* ---------------------------------------------------------------- */
 
   // Panels, view and selection can be controlled from outside (stories, the workspace).
-  const [leftState, setLeftState] = useControllable(leftStateProp, defaultLeftState, onLeftStateChange);
-  const [leftPanel, setLeftPanel] = useControllable(leftPanelProp, defaultLeftPanel, onLeftPanelChange);
-  const [rightState, setRightState] = useControllable(rightStateProp, defaultRightState, onRightStateChange);
-  const [rightPanel, setRightPanel] = useControllable(rightPanelProp, defaultRightPanel, onRightPanelChange);
+  const [panelState, setPanelState] = useControllable(panelStateProp, defaultPanelState, onPanelStateChange);
+  const [panel, setPanel] = useControllable(panelProp, defaultPanel, onPanelChange);
   const [selectedId, setSelectedId] = useControllable<string | null>(selectedIdProp, defaultSelectedId, onSelectedIdChange);
   const [view, setView] = useControllable(viewProp, defaultView, onViewChange);
 
@@ -264,36 +254,36 @@ export function EditorShell({
   /* Doing things                                                      */
   /* ---------------------------------------------------------------- */
 
-  const openLeft = (id: LeftPanelId) => {
-    setLeftPanel(id);
-    if (leftState === 'collapsed') setLeftState('expanded');
+  const openPanel = (id: PanelId) => {
+    if (panel !== id) setPanel(id);
+    if (panelState === 'collapsed') setPanelState('expanded');
   };
-  const openRight = (id: RightPanelId) => {
-    if (rightPanel !== id) setRightPanel(id);
-    if (rightState === 'collapsed') setRightState('expanded');
+  /** A split view opens beside the canvas, on the sidebar's side when it is on the right: a floating panel there would cover it, so it steps back. */
+  const stepAside = () => {
+    if (prefs.sidebar === 'right' && panelState === 'expanded') setPanelState('collapsed');
   };
 
-  /** The close-up opens beside the canvas; the floating inspector would cover it, so it steps back. */
+  /** The close-up opens beside the canvas. */
   const toggleCloseup = () => {
-    if (!closeup && rightState === 'expanded') setRightState('collapsed');
+    if (!closeup) stepAside();
     setCloseup(!closeup);
   };
   /** Optimize takes the same place beside the canvas. */
   const toggleOptimize = () => {
-    if (pane !== 'optimize' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'optimize') stepAside();
     if (pane !== 'optimize') setSplit((f) => Math.min(f, 0.45));
     setPane(pane === 'optimize' ? null : 'optimize');
   };
   /** Choose parts takes the same place: from the sketch to real parts, one after the other. */
   const toggleChoose = () => {
-    if (pane !== 'choose' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'choose') stepAside();
     if (pane !== 'choose') setSplit((f) => Math.min(f, 0.5));
     setPane(pane === 'choose' ? null : 'choose');
   };
   const openChoose = () => pane !== 'choose' && toggleChoose();
   /** Simulate takes the same place: the light's checks, and the analyses behind them. */
   const toggleSimulate = () => {
-    if (pane !== 'simulate' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'simulate') stepAside();
     if (pane !== 'simulate') setSplit((f) => Math.min(f, 0.55));
     setPane(pane === 'simulate' ? null : 'simulate');
   };
@@ -303,7 +293,7 @@ export function EditorShell({
   }, [openPane]);
   /** Freeze: the holder is designed in the close-up, on the selected part. */
   const designHolder = () => {
-    if (rightState === 'expanded') setRightState('collapsed');
+    stepAside();
     setCloseup(true);
     // The designer takes a column of the close-up: give it room.
     setSplit((f) => Math.min(f, 0.42));
@@ -312,12 +302,12 @@ export function EditorShell({
   /** Select exactly these parts. Deselecting closes the properties, unless the panel is pinned. */
   const select = (ids: string[]) => {
     selection.set(ids);
-    if (ids.length === 0 && rightState === 'expanded' && rightPanel === 'properties') setRightState('collapsed');
+    if (ids.length === 0 && panelState === 'expanded' && panel === 'properties') setPanelState('collapsed');
   };
   /** A double-click (or Enter) also opens the properties; inside a multi-selection it keeps the selection. */
   const inspect = (id: string) => {
     if (!selection.ids.includes(id)) select([id]);
-    openRight('properties');
+    openPanel('properties');
   };
   /** The previous or next part, from the properties panel. */
   const step = (delta: -1 | 1) => {
@@ -383,7 +373,7 @@ export function EditorShell({
 
     selectPart: (id) => select([id]),
     selectAllOnLayer: () => select(design.symbols.filter((s) => s.z === layer).map((s) => s.id)),
-    openProperties: () => openRight('properties'),
+    openProperties: () => openPanel('properties'),
 
     openAdd: () => setFlyout('add'),
     addPart: (entry) => beginPlacing(entry, false),
@@ -399,8 +389,7 @@ export function EditorShell({
     zoomOut: () => (view === '3d' ? move3d('out') : zoom2d('out')),
     actualSize: () => view === '2d' && zoom2d('actual'),
 
-    openLeft,
-    openRight,
+    openPanel,
     toggleCloseup,
     toggleOptimize,
     toggleChoose,
@@ -461,10 +450,11 @@ export function EditorShell({
       ? `Let go to place ${placing.entry.label} on z${layer} · Shift: off the grid`
       : `Click to place ${placing.entry.label} on z${layer} · Shift: off the grid · Ctrl-click to place more · Esc to stop`;
 
-  // An expanded side panel floats over the canvas: the toolbar, the dock and the layer preview step aside for it.
-  const leftOut = leftState === 'expanded';
-  // With the close-up open, the right panel floats over the close-up, not the canvas.
-  const rightOut = rightState === 'expanded' && !pane;
+  // An expanded sidebar panel floats over the canvas: the toolbar, the dock and the layer preview step aside for it.
+  // On the right with a split view open, it floats over the split view, not the canvas.
+  const sidebarRight = prefs.sidebar === 'right';
+  const leftOut = !sidebarRight && panelState === 'expanded';
+  const rightOut = sidebarRight && panelState === 'expanded' && !pane;
   /** How far an expanded panel reaches into the canvas, with its margin. */
   const panelReach = (t: Theme) => `(${t.spacing(t.layout.sidePanelWidth)} + ${t.spacing(1)})`;
   /** The middle of the canvas the panels leave free. */
@@ -476,6 +466,74 @@ export function EditorShell({
     top: theme.spacing(leftOut || pane ? 8.5 : 2.5),
     maxWidth: `calc(100% - ${leftOut ? panelReach(theme) : '0px'} - ${rightOut ? panelReach(theme) : '0px'} - ${theme.spacing(4)})`,
   };
+
+  // The one sidebar: every panel, then the split views. On the edge Settings names.
+  const panels = [
+    ...leftPanels({
+      design,
+      name: projectName,
+      palette: library.palette,
+      libraryStatus: library.status,
+      onReloadLibrary: library.reload,
+      bom,
+      selectedId,
+      selectedIds: ids,
+      onSelect: actions.selectPart,
+      onSelectParts: (picked) => select(picked),
+      placingId: placing.entry?.id,
+      onPick: (id) => {
+        const entry = libraryEntry(id);
+        if (entry) beginPlacing(entry, false);
+      },
+      onDragStart: (id) => {
+        const entry = libraryEntry(id);
+        if (entry) beginPlacing(entry, true);
+      },
+      onDragEnd: placing.stop,
+    }),
+    ...rightPanels({
+      design,
+      selected,
+      selectedParts: selection.parts,
+      realizeOptions: selected ? modulesFor(selected.kind) : [],
+      onChange: (patch: Partial<SchematicSymbol>) => selected && edit((d) => updateParts(d, [selected.id], () => patch)),
+      onSelect: actions.selectPart,
+      onStep: step,
+      onDelete: actions.deleteSelection,
+      unmounted: unmounted.length,
+      onFreeze: designHolder,
+      onSnap: openChoose,
+    }),
+  ];
+  const sidebar = (
+    <SidePanel
+      side={prefs.sidebar}
+      aria-label="Sidebar"
+      state={panelState}
+      onStateChange={setPanelState}
+      activeId={panel}
+      onActiveChange={(id) => setPanel(id as PanelId)}
+      items={PANEL_ORDER.flatMap((id) => panels.find((item) => item.id === id) ?? [])}
+      railToggles={[
+        { id: 'closeup', label: closeup ? 'Close the close-up' : 'Close-up: split the canvas to look at a part', icon: <CenterFocusStrongOutlinedIcon />, on: closeup, onToggle: toggleCloseup },
+        {
+          id: 'choose',
+          label: pane === 'choose' ? 'Close Choose parts' : 'Choose parts: from the sketch to real parts',
+          icon: <ChecklistOutlinedIcon />,
+          on: pane === 'choose',
+          onToggle: toggleChoose,
+        },
+        {
+          id: 'simulate',
+          label: pane === 'simulate' ? 'Close Simulate' : 'Simulate: check the light, split the canvas',
+          icon: <InsightsOutlinedIcon />,
+          on: pane === 'simulate',
+          onToggle: toggleSimulate,
+        },
+        { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
+      ]}
+    />
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
@@ -489,41 +547,13 @@ export function EditorShell({
           onLogIn={onLogIn}
           onAccount={onAccount}
           onLogOut={onLogOut}
-          onShowInfo={() => openRight('info')}
+          onShowInfo={() => openPanel('info')}
           actions={headerActions}
         />
       )}
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <SidePanel
-          aria-label="Design tools"
-          state={leftState}
-          onStateChange={setLeftState}
-          activeId={leftPanel}
-          onActiveChange={(id) => setLeftPanel(id as LeftPanelId)}
-          items={leftPanels({
-            design,
-            name: projectName,
-            palette: library.palette,
-            libraryStatus: library.status,
-            onReloadLibrary: library.reload,
-            bom,
-            selectedId,
-            selectedIds: ids,
-            onSelect: actions.selectPart,
-            onSelectParts: (picked) => select(picked),
-            placingId: placing.entry?.id,
-            onPick: (id) => {
-              const entry = libraryEntry(id);
-              if (entry) beginPlacing(entry, false);
-            },
-            onDragStart: (id) => {
-              const entry = libraryEntry(id);
-              if (entry) beginPlacing(entry, true);
-            },
-            onDragEnd: placing.stop,
-          })}
-        />
+        {!sidebarRight && sidebar}
 
         <SplitPane
           aria-label="Resize the canvas and the close-up"
@@ -716,45 +746,7 @@ export function EditorShell({
           }
         />
 
-        <SidePanel
-          side="right"
-          aria-label="Inspector"
-          state={rightState}
-          onStateChange={setRightState}
-          activeId={rightPanel}
-          onActiveChange={(id) => setRightPanel(id as RightPanelId)}
-          railToggles={[
-            { id: 'closeup', label: closeup ? 'Close the close-up' : 'Close-up: split the canvas to look at a part', icon: <CenterFocusStrongOutlinedIcon />, on: closeup, onToggle: toggleCloseup },
-            {
-              id: 'choose',
-              label: pane === 'choose' ? 'Close Choose parts' : 'Choose parts: from the sketch to real parts',
-              icon: <ChecklistOutlinedIcon />,
-              on: pane === 'choose',
-              onToggle: toggleChoose,
-            },
-            {
-              id: 'simulate',
-              label: pane === 'simulate' ? 'Close Simulate' : 'Simulate: check the light, split the canvas',
-              icon: <InsightsOutlinedIcon />,
-              on: pane === 'simulate',
-              onToggle: toggleSimulate,
-            },
-            { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
-          ]}
-          items={rightPanels({
-            design,
-            selected,
-            selectedParts: selection.parts,
-            realizeOptions: selected ? modulesFor(selected.kind) : [],
-            onChange: (patch: Partial<SchematicSymbol>) => selected && edit((d) => updateParts(d, [selected.id], () => patch)),
-            onSelect: actions.selectPart,
-            onStep: step,
-            onDelete: actions.deleteSelection,
-            unmounted: unmounted.length,
-            onFreeze: designHolder,
-            onSnap: openChoose,
-          })}
-        />
+        {sidebarRight && sidebar}
       </Box>
 
       <EditorStatusBar
@@ -769,7 +761,7 @@ export function EditorShell({
         lightPaths={light.paths.length}
         misses={misses}
         trace={trace}
-        onShowParts={() => openLeft('parts')}
+        onShowParts={() => openPanel('parts')}
       />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commands} />

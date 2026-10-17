@@ -19,6 +19,10 @@ export interface Preferences {
   orbitButton: 'right' | 'middle';
   /** Wheel up zooms out instead of in (2D and 3D). */
   invertZoom: boolean;
+  /** The edge the editor's sidebar (its panels and panes) sits on. */
+  sidebar: 'left' | 'right';
+  /** The ground exported plots are saved on: 'white', 'transparent', 'dark' or a '#rrggbb' colour. */
+  plotGround: string;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -27,6 +31,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   arrowSize: 'medium',
   orbitButton: 'right',
   invertZoom: false,
+  sidebar: 'left',
+  plotGround: 'white',
 };
 
 interface PreferencesState {

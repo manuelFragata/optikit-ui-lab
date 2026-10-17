@@ -2,8 +2,8 @@ import type { PartEntry } from '../../editor/AddPartSearch';
 import type { Size } from '../../../settings/preferences';
 import type { CanvasTool, EditorView, ViewOptions } from '../../editor/viewOptions';
 
-export type LeftPanelId = 'sketch' | 'palette' | 'layers' | 'parts' | 'bom';
-export type RightPanelId = 'properties' | 'info';
+/** The sidebar's panels, one open at a time. */
+export type PanelId = 'sketch' | 'palette' | 'properties' | 'layers' | 'parts' | 'bom' | 'info';
 
 /** View options that switch on and off. */
 export type ToggleOption = keyof Pick<ViewOptions, 'showPartLabels' | 'showRays' | 'showRayLabels' | 'showCages' | 'onionSkin' | 'snapToGrid'>;
@@ -51,8 +51,7 @@ export interface EditorActions {
   actualSize: () => void;
 
   // Panels.
-  openLeft: (id: LeftPanelId) => void;
-  openRight: (id: RightPanelId) => void;
+  openPanel: (id: PanelId) => void;
   /** Split the canvas, with the selected part up close beside it; again: close it. */
   toggleCloseup: () => void;
   toggleOptimize: () => void;

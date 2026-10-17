@@ -18,8 +18,11 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import { BeamLayout } from '../../analysis/BeamLayout';
 import { SpotDiagram } from '../../analysis/Plots';
+import { ACCENT, Figure, INK } from '../../analysis/plot/Chart';
+import { lengthText, spotReach } from '../../analysis/plot/scale';
 import { NumberInput } from '../../primitives/NumberInput';
 import type { CatalogRecord } from '../holders/optic';
 import type { Light } from '../../../ports/light';
@@ -59,6 +62,9 @@ function Section({ title, children, aside }: { title: string; children: ReactNod
   );
 }
 
+/** A change as a share of where it started: "−99.9 %". */
+const change = (from: number, to: number) => (Math.abs(from) < 1e-12 ? '—' : `${to >= from ? '+' : '−'}${Math.abs(((to - from) / from) * 100).toFixed(1)} %`);
+
 const fmt = (v: number, unit: string) => {
   // Spots of a millimetre or more read in mm.
   if (unit === 'µm' && Math.abs(v) >= 1000) return `${(v / 1000).toFixed(2)} mm`;
@@ -76,6 +82,7 @@ export function OptimizePane({ design, light, recordFor, onApply, onSelect, onCl
   /** The ticked variables, by id, with their bounds. */
   const [chosenByTarget, setChosenByTarget] = useState<Record<string, Record<string, { min: number; max: number }>>>({});
   const [result, setResult] = useState<{ design: Schematic; key: string; run: Run } | null>(null);
+  const [sameScale, setSameScale] = useState(false);
 
   const header = (
     <Stack
@@ -126,6 +133,12 @@ export function OptimizePane({ design, light, recordFor, onApply, onSelect, onCl
   const spotNow = realTrace(beam, pupil, MERIT_RAYS);
   const spotNext = proposed ? realTrace(proposed, pupil, MERIT_RAYS) : null;
   const zNow = planeZ(beam, spotPlane);
+  const rmsNow = rmsAt(spotNow, zNow);
+  const zNext = proposed ? planeZ(proposed, spotPlane) : 0;
+  const pointsNext = spotNext ? spotAt(spotNext, zNext) : null;
+  const rmsNext = spotNext ? rmsAt(spotNext, zNext) : null;
+  const sharedReach = Math.max(spotReach(spotAt(spotNow, zNow), rmsNow), pointsNext && rmsNext !== null ? spotReach(pointsNext, rmsNext) : 0);
+  const spotLabel = spotPlane.part === 'end' ? 'the end' : (beam.elements.find((e) => e.id === spotPlane.part)?.label ?? target.label);
 
   const pickKind = (kind: Objective['kind']) => {
     const p = { part: target.part, offsetMm: 0 };
@@ -147,26 +160,62 @@ export function OptimizePane({ design, light, recordFor, onApply, onSelect, onCl
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, bgcolor: 'canvas.ground' }}>
       {header}
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* What the run does: the beam with the proposal dashed over it, and the spots before and after. */}
-        <Stack sx={{ flex: 1, minWidth: 0, p: 2, gap: 2, overflow: 'auto' }}>
-          <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider', p: 1.5 }}>
-            <BeamLayout beam={beam} trace={t} result={r} proposal={proposalDraw} color={`var(--mui-palette-rays-${beam.ray.color})`} selected={null} onSelect={() => undefined} />
-          </Box>
-          <Stack direction="row" sx={{ gap: 2, justifyContent: 'center' }}>
-            <Box sx={{ flex: 1, maxWidth: 280, bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider', p: 1.5 }}>
-              <SpotDiagram points={spotAt(spotNow, zNow)} rmsMm={rmsAt(spotNow, zNow)} title={`Now · ${fmt(rmsAt(spotNow, zNow) * 1000, 'µm')} RMS`} size={240} />
-            </Box>
+        {/* What the run does: the beam envelope with the proposal dashed over it, the spots before and after, and the numbers side by side. */}
+        <Stack sx={{ flex: 1, minWidth: 0, p: 1.5, gap: 1.5, overflow: 'auto', scrollbarWidth: 'thin' }}>
+          <Figure title={`Beam envelope · ${beam.ray.label}`} meta={proposed ? 'current solid · proposed dashed' : undefined}>
+            <BeamLayout beam={beam} trace={t} result={r} proposal={proposalDraw} color={`var(--mui-palette-rays-${beam.ray.color})`} />
+          </Figure>
+          <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: proposed ? 'repeat(auto-fit, minmax(200px, 1fr))' : 'minmax(200px, 420px)' }}>
+            <Figure title="Spot · current" meta={`RMS ${lengthText(rmsNow)}`}>
+              <SpotDiagram points={spotAt(spotNow, zNow)} rmsMm={rmsNow} reachMm={sameScale ? sharedReach : undefined} color={INK} height={250} legend={!proposed} />
+            </Figure>
             {spotNext && proposed && (
-              <Box sx={{ flex: 1, maxWidth: 280, bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'primary.main', p: 1.5 }}>
-                <SpotDiagram
-                  points={spotAt(spotNext, planeZ(proposed, spotPlane))}
-                  rmsMm={rmsAt(spotNext, planeZ(proposed, spotPlane))}
-                  title={`Proposed · ${fmt(rmsAt(spotNext, planeZ(proposed, spotPlane)) * 1000, 'µm')} RMS`}
-                  size={240}
-                />
-              </Box>
+              <Figure title="Spot · proposed" meta={`RMS ${lengthText(rmsNext!)}`}>
+                <SpotDiagram points={pointsNext!} rmsMm={rmsNext!} reachMm={sameScale ? sharedReach : undefined} color={ACCENT} height={250} legend={false} />
+              </Figure>
             )}
-          </Stack>
+          </Box>
+          {proposed && (
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+              <FormControlLabel
+                control={<Checkbox size="small" checked={sameScale} onChange={(_, c) => setSameScale(c)} />}
+                label={<Typography variant="caption">{`Same scale for both spots · at ${spotLabel} · dashed circle: RMS radius`}</Typography>}
+                sx={{ ml: 0 }}
+              />
+            </Stack>
+          )}
+          {current && proposed && (
+            <Figure title="Current and proposed">
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', '& th, & td': { py: 0.5, px: 1, borderTop: 1, borderColor: 'divider', typography: 'caption' }, '& td': { typography: 'mono', fontSize: 11, textAlign: 'right' }, '& th': { textAlign: 'left', fontWeight: 'fontWeightRegular', color: 'text.secondary' } }}>
+                <thead>
+                  <tr>
+                    <Box component="th" sx={{ borderTop: '0 !important' }} />
+                    {['Current', 'Proposed', 'Change'].map((h) => (
+                      <Box component="th" key={h} sx={{ borderTop: '0 !important', textAlign: 'right !important' }}>
+                        {h}
+                      </Box>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: OBJECTIVES.find((o) => o.kind === objective.kind)!.label, now: fmt(current.before, unit), next: fmt(current.after, unit), change: change(current.before, current.after) },
+                    ...(objective.kind === 'rms-spot' ? [] : [{ label: `RMS spot radius at ${spotLabel}`, now: lengthText(rmsNow), next: lengthText(rmsNext!), change: change(rmsNow, rmsNext!) }]),
+                    ...chosen.map((v) => ({ label: `${beam.elements.find((e) => e.id === v.part)?.label} · ${v.label}`, now: `${v.value.toFixed(2)} mm`, next: `${current.values[v.id].toFixed(2)} mm`, change: `${current.values[v.id] - v.value >= 0 ? '+' : '−'}${Math.abs(current.values[v.id] - v.value).toFixed(2)} mm` })),
+                  ].map((row) => (
+                    <tr key={row.label}>
+                      <th>{row.label}</th>
+                      <td>{row.now}</td>
+                      <Box component="td" sx={{ color: 'primary.main' }}>
+                        {row.next}
+                      </Box>
+                      <td>{row.change}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Box>
+            </Figure>
+          )}
         </Stack>
 
         <Stack component="aside" aria-label="Optimize" sx={{ width: 360, flexShrink: 0, minHeight: 0, bgcolor: 'background.paper', borderLeft: 1, borderColor: 'divider' }}>
@@ -248,7 +297,7 @@ export function OptimizePane({ design, light, recordFor, onApply, onSelect, onCl
               <Stack spacing={1.25}>
                 {groups.map((g) => (
                   <Box key={g.part.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onSelect(g.part.id)}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, cursor: 'pointer' }} onClick={() => onSelect(g.part.id)}>
                       {g.part.label}
                       {g.fixed && (
                         <Typography component="span" variant="caption" color="text.meta" sx={{ fontWeight: 400, ml: 1 }}>

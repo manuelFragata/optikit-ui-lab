@@ -1,0 +1,40 @@
+/*
+ * STIX Two Text by the STIX Fonts Project Authors, SIL Open Font License 1.1 (see OFL.txt).
+ * The serif of scientific publishing, for the text inside plots: tick numbers,
+ * axis titles, legends. Self-hosted. Regular and Italic only (italic for the
+ * variables: x, y, λ, Δz), in two subsets (from Fontsource 5.3.0); the browser
+ * fetches a subset only when the page uses one of its characters. Greek is here
+ * for λ, Δ and ε; Latin has µ and the minus sign.
+ */
+@font-face {
+  font-family: 'STIX Two Text';
+  src: url('./STIXTwoText-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'STIX Two Text';
+  src: url('./STIXTwoText-latin-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'STIX Two Text';
+  src: url('./STIXTwoText-greek-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: 'STIX Two Text';
+  src: url('./STIXTwoText-greek-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}

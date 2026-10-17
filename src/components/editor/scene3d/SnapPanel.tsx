@@ -115,7 +115,7 @@ export function SnapPanel({ label, spec, candidates, request, shown, onShow, pic
                     })}
                   >
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }} noWrap>
+                      <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }} noWrap>
                         {c.record.vendor?.mpn ?? c.record.id}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" noWrap>

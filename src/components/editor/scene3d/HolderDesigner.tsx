@@ -165,7 +165,7 @@ export function HolderDesigner({ partName, record, facts, roads, draft, onDraft,
                 <Stack spacing={0.75} sx={{ pl: 1, pt: 0.5 }}>
                   {refused.map((r) => (
                     <Box key={r.spec.script}>
-                      <Typography variant="caption" component="div" sx={{ fontWeight: 600 }}>
+                      <Typography variant="caption" component="div" sx={{ fontWeight: 500 }}>
                         {r.spec.holds.label.replace(/^./, (c) => c.toUpperCase())}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" component="div">

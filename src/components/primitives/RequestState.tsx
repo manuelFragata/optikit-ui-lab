@@ -58,7 +58,7 @@ export function Failed({ message, onRetry, sx }: { message: string; onRetry?: ()
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="body2">{message}</Typography>
         {onRetry && (
-          <Button size="small" color="inherit" onClick={onRetry} sx={{ mt: 0.5, ml: -1, fontWeight: 600 }}>
+          <Button size="small" color="inherit" onClick={onRetry} sx={{ mt: 0.5, ml: -1, fontWeight: 500 }}>
             Try again
           </Button>
         )}

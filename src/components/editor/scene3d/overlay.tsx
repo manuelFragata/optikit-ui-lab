@@ -84,7 +84,7 @@ export function Labels({ labels, pins, rays, size }: { labels: PlacedLabel[]; pi
           borderRadius: 1,
           typography: 'caption',
           fontSize: LABEL_PX[size],
-          fontWeight: l.tone === 'part' || l.tone === 'ray' ? 500 : 600,
+          fontWeight: 500,
           lineHeight: 1.4,
           color: toneColor(l, rays),
           bgcolor: 'color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)',
@@ -128,7 +128,7 @@ export function ComponentTag({ ref, part, children }: { ref: Ref<HTMLDivElement>
         whiteSpace: 'nowrap',
       }}
     >
-      <Typography variant="caption" component="div" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+      <Typography variant="caption" component="div" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
         {children}
       </Typography>
       {part && (

@@ -37,8 +37,8 @@ export const Default: Story = {
 };
 
 export const Working: Story = {
-  name: 'Working (palette + properties)',
-  args: { defaultLeftState: 'pinned', defaultLeftPanel: 'palette', defaultRightState: 'pinned', defaultSelectedId: 'S3' },
+  name: 'Working (properties pinned)',
+  args: { defaultPanelState: 'pinned', defaultPanel: 'properties', defaultSelectedId: 'S3' },
 };
 
 export const Empty: Story = {
@@ -47,6 +47,6 @@ export const Empty: Story = {
     projectName: 'Untitled design',
     version: '0.0.1',
     schematic: { ...demoSchematic, symbols: [] },
-    defaultLeftState: 'expanded',
+    defaultPanelState: 'expanded',
   },
 };

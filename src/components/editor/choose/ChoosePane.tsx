@@ -69,7 +69,7 @@ function ChoiceRow({ choice, n, onPick }: { choice: Choice; n: number; onPick: (
         {n <= 9 ? n : ''}
       </Typography>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+        <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
           {choice.title}
         </Typography>
         <Typography variant="caption" color="text.secondary" component="div" noWrap>
@@ -197,7 +197,7 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
                   {i + 1}
                 </Typography>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" noWrap sx={{ fontWeight: on ? 600 : 400 }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: on ? 500 : 400 }}>
                     {s.label}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" component="div" noWrap>
