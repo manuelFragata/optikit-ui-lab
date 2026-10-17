@@ -36,9 +36,9 @@ export interface Trace {
   end: RayState & { z: number };
 }
 
-/** The ray the beam starts with: a laser's collimated beam of `beamMm`, or the sample's cone at the objective's NA. */
+/** The ray the beam starts with: a source's beam of `beamMm`, opening at its divergence, or the sample's cone at the objective's NA. */
 export function startRay(beam: Beam, beamMm: number): RayState {
-  if (!beam.fromSample) return { y: beamMm / 2, u: 0 };
+  if (!beam.fromSample) return { y: beamMm / 2, u: Math.tan((beam.divergenceRad ?? 0) / 2) };
   const objective = beam.elements.find((e) => e.role === 'objective');
   const na = objective?.symbol?.inputs?.find((i) => i.label === 'Numerical aperture')?.value ?? 0.1;
   return { y: 0, u: na };

@@ -1,13 +1,16 @@
 /**
- * The inspector's Shape section, for a lens or mirror designed here: the
- * optic drawn as it is, its surfaces to edit (radius, thickness, glass, as a
- * lens data editor does), its diameter, and the focal length that follows,
- * with a way to bend it to another. Every edit keeps the part's inputs in
+ * The shape of a lens or mirror designed here, as rows of the spec sheet:
+ * the optic drawn in section; its focal length and Ø (changing them bends
+ * or widens the shape); then each surface, as a lens data editor lists them:
+ * its radius, then how thick the glass after it is, and which glass. A form
+ * to start again from is in a menu. Every edit keeps the part's inputs in
  * step with its prescription (designs.ts).
  */
+import { useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
@@ -16,9 +19,10 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { NumberInput } from '../../primitives/NumberInput';
+import { ScrubNumber } from '../../primitives/ScrubNumber';
 import { designChecks, designedValues, designLens, designMirror, focalLength, LENS_FORMS, MIRROR_FORMS, mirrorForm, withDiameter, withFocalLength, type MirrorForm } from '../holders/designs';
 import { GLASS_ND, opticShape, type FragmentSurface } from '../holders/optic';
 import type { SchematicSymbol } from '../model';
@@ -30,23 +34,26 @@ export interface ShapeSectionProps {
 }
 
 const GLASSES = Object.keys(GLASS_ND);
-const fmt = (n: number, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : '–');
 const radiusOf = (s: FragmentSurface) => (typeof s.geometry?.radius === 'number' ? s.geometry.radius : null);
+const round = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 
-function Readout({ label, value }: { label: string; value: string }) {
+/** A small heading inside the sheet, with an action at its right. */
+function Head({ children, action }: { children: string; action?: ReactNode }) {
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary" component="div">
-        {label}
+    <Stack direction="row" sx={{ alignItems: 'center', mt: 1, mb: 0.25 }}>
+      <Typography variant="overline" color="text.meta" sx={{ fontSize: 10, lineHeight: 2, flex: 1 }}>
+        {children}
       </Typography>
-      <Typography variant="mono" component="div">
-        {value}
-      </Typography>
-    </Box>
+      {action}
+    </Stack>
   );
 }
 
 export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
+  const [forms, setForms] = useState<HTMLElement | null>(null);
+  /** The row the pointer is on (R1, t1…): shown in the picture. */
+  const [active, setActive] = useState<string | null>(null);
+  const point = (key: string) => ({ onPointerEnter: () => setActive(key), onPointerLeave: () => setActive(null) });
   const surfaces = symbol.prescription;
   const mirror = symbol.kind === 'mirror';
   const shape = opticShape({ fragmentSurfaces: surfaces });
@@ -60,21 +67,29 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
     onChange({ prescription: next, ...(symbol.inputs && { inputs: symbol.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }) });
   };
   const setSurface = (i: number, patch: Partial<FragmentSurface>) => reshape(surfaces.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  /** A mirror of focal length `to`: R = 2f, concave for f > 0, convex for f < 0, flat at 0. */
+  const mirrorAt = (to: number) => designMirror(to === 0 ? 'flat' : to > 0 ? 'concave' : 'convex', 2 * Math.abs(to), diameter, surfaces[0].thickness);
 
   return (
-    <Stack spacing={1.5}>
-      <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.sunken', border: 1, borderColor: 'divider' }}>
-        <OpticProfileSvg surfaces={surfaces} title={`${symbol.label}, in section`} sx={{ width: '100%', height: 110, display: 'block' }} />
-      </Box>
+    <Box>
+      <OpticProfileSvg surfaces={surfaces} title={`${symbol.label}, in section`} labels={!mirror} active={active} sx={{ width: '100%', height: mirror ? 64 : 104, display: 'block', mb: 0.5 }} />
 
-      <Stack direction="row" spacing={2}>
-        <Readout label="Focal length" value={f === null ? '∞ (flat)' : `${fmt(f)} mm`} />
-        {!mirror && shape && <Readout label="Centre" value={`${fmt(shape.centreThicknessMm, 2)} mm`} />}
-        {!mirror && shape && <Readout label="Edge" value={`${fmt(shape.edgeThicknessMm, 2)} mm`} />}
-      </Stack>
+      <ScrubNumber
+        label="Focal length"
+        value={round(f ?? 0, 1)}
+        step={1}
+        unit="mm"
+        hint={mirror ? '0: flat · positive: concave · negative: convex' : 'Bends the lens: every radius scales; a singlet keeps a 2 mm rim'}
+        onChange={(to) => (mirror ? reshape(mirrorAt(to)) : to !== 0 && reshape(withFocalLength(surfaces, to)))}
+      />
+      <ScrubNumber label="Diameter" value={round(diameter, 1)} min={1} max={100} step={0.5} unit="mm" onChange={(d) => d > 0 && reshape(withDiameter(surfaces, d))} />
+      {!mirror && shape && (
+        <ScrubNumber label="Centre · edge" value={0} text={`${round(shape.centreThicknessMm)} · ${round(shape.edgeThicknessMm)} mm`} hint="How thick the lens is, at its centre and at its rim" />
+      )}
 
       {mirror ? (
         <>
+          <Head>Face</Head>
           <ToggleButtonGroup
             exclusive
             fullWidth
@@ -82,6 +97,7 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
             value={mirrorForm(surfaces)}
             onChange={(_, form: MirrorForm | null) => form && reshape(designMirror(form, Math.abs(radiusOf(surfaces[0]) ?? 200), diameter, surfaces[0].thickness))}
             aria-label="Mirror form"
+            sx={{ mb: 0.5, '& .MuiToggleButton-root': { py: 0.25, textTransform: 'none' } }}
           >
             {MIRROR_FORMS.map((m) => (
               <ToggleButton key={m.form} value={m.form}>
@@ -89,104 +105,113 @@ export function ShapeSection({ symbol, onChange }: ShapeSectionProps) {
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
-          <Stack direction="row" spacing={1}>
-            <NumberInput
+          {radiusOf(surfaces[0]) !== null && (
+            <ScrubNumber
               label="Radius"
-              value={Math.abs(radiusOf(surfaces[0]) ?? 0)}
-              disabled={radiusOf(surfaces[0]) === null}
-              onChange={(r) => reshape(designMirror(mirrorForm(surfaces), Math.max(r, diameter / 2), diameter, surfaces[0].thickness))}
-              min={1}
-              step={10}
-              precision={1}
+              value={Math.abs(radiusOf(surfaces[0])!)}
+              min={diameter / 2}
+              step={1}
               unit="mm"
-              size="small"
+              onChange={(r) => reshape(designMirror(mirrorForm(surfaces), Math.max(r, diameter / 2), diameter, surfaces[0].thickness))}
             />
-            <NumberInput label="Substrate" value={surfaces[0].thickness ?? 6} onChange={(t) => setSurface(0, { thickness: t })} min={0.5} step={0.5} precision={1} unit="mm" size="small" />
-          </Stack>
+          )}
+          <ScrubNumber label="Substrate" value={surfaces[0].thickness ?? 6} min={0.5} step={0.5} unit="mm" onChange={(t) => setSurface(0, { thickness: t })} />
         </>
       ) : (
         <>
-          <Box>
-            <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
-              Start again as
-            </Typography>
-            <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-              {LENS_FORMS.map((l) => (
-                <Button
-                  key={l.form}
-                  size="small"
-                  variant="outlined"
-                  sx={{ textTransform: 'none', py: 0, minWidth: 0 }}
-                  onClick={() => reshape(designLens(l.form, Math.abs(f ?? 50), diameter, surfaces[0].material_post))}
-                >
-                  {l.label}
-                </Button>
-              ))}
-            </Stack>
-          </Box>
+          <Head
+            action={
+              <Button size="small" endIcon={<ArrowDropDownIcon />} onClick={(e) => setForms(e.currentTarget)} sx={{ color: 'text.secondary', py: 0, minWidth: 0, fontSize: 12 }}>
+                Start again
+              </Button>
+            }
+          >
+            Surfaces
+          </Head>
+          <Menu anchorEl={forms} open={Boolean(forms)} onClose={() => setForms(null)} slotProps={{ list: { dense: true } }}>
+            {LENS_FORMS.map((l) => (
+              <MenuItem
+                key={l.form}
+                onClick={() => {
+                  setForms(null);
+                  reshape(designLens(l.form, Math.abs(f ?? 50), diameter, surfaces[0].material_post));
+                }}
+              >
+                {l.label}
+              </MenuItem>
+            ))}
+          </Menu>
 
-          {/* The surfaces, as a lens data editor lists them: each radius, then how much of which glass follows it. */}
-          <Stack spacing={1}>
-            {surfaces.map((s, i) => {
-              const r = radiusOf(s);
-              const last = i === surfaces.length - 1;
-              return (
-                <Box key={i}>
-                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                    <Typography variant="mono" color="text.secondary" sx={{ width: 14, flexShrink: 0 }}>
-                      {i + 1}
-                    </Typography>
-                    {r === null ? (
-                      <Typography variant="body2" sx={{ flex: 1, pl: 1.5 }}>
-                        Flat (R = ∞)
-                      </Typography>
-                    ) : (
-                      <NumberInput label="Radius" value={r} onChange={(v) => setSurface(i, { geometry: { radius: v === 0 ? 'inf' : v } })} step={1} precision={2} unit="mm" size="small" sx={{ flex: 1 }} />
-                    )}
-                    <Tooltip title={r === null ? 'Curve it' : 'Make it flat'}>
-                      <IconButton size="small" aria-pressed={r === null} aria-label={`Surface ${i + 1} flat`} onClick={() => setSurface(i, { geometry: { radius: r === null ? (i === 0 ? 50 : -50) : 'inf' } })}>
-                        <AllInclusiveIcon sx={{ fontSize: '1rem', color: r === null ? 'primary.main' : 'text.meta' }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                  {!last && (
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.75, pl: 2.5 }}>
-                      <NumberInput label="Then" value={s.thickness ?? 0} onChange={(t) => setSurface(i, { thickness: t })} min={0.1} step={0.5} precision={2} unit="mm" size="small" sx={{ width: 104, flexShrink: 0 }} />
-                      <Select size="small" value={s.material_post ?? 'N-BK7'} onChange={(e) => setSurface(i, { material_post: e.target.value })} aria-label={`Glass after surface ${i + 1}`} sx={{ flex: 1, typography: 'body2' }}>
-                        {GLASSES.map((g) => (
-                          <MenuItem key={g} value={g}>
-                            {`${g} · n ${GLASS_ND[g].toFixed(3)}`}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </Stack>
+          {/* As a lens data editor lists them: each radius, then how much of which glass follows it. */}
+          {surfaces.map((s, i) => {
+            const r = radiusOf(s);
+            const last = i === surfaces.length - 1;
+            return (
+              <Box key={i}>
+                <Box {...point(`R${i + 1}`)} sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center' }}>
+                  {r === null ? (
+                    <ScrubNumber label={`R${i + 1}`} value={0} text="∞ (flat)" hint="A flat surface" />
+                  ) : (
+                    <ScrubNumber
+                      label={`R${i + 1}`}
+                      value={r}
+                      step={0.1}
+                      unit="mm"
+                      hint="Radius: + when its centre is after it"
+                      onChange={(v) => setSurface(i, { geometry: { radius: v === 0 ? 'inf' : v } })}
+                    />
                   )}
+                  <Tooltip title={r === null ? 'Curve it' : 'Make it flat'}>
+                    <IconButton
+                      size="small"
+                      aria-pressed={r === null}
+                      aria-label={`Surface ${i + 1} flat`}
+                      onClick={() => setSurface(i, { geometry: { radius: r === null ? (i === 0 ? 50 : -50) : 'inf' } })}
+                    >
+                      <AllInclusiveIcon sx={{ fontSize: '0.9rem', color: r === null ? 'primary.main' : 'text.meta' }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-              );
-            })}
-          </Stack>
-
-          <NumberInput
-            label="Bend to a focal length"
-            value={Math.round((f ?? 50) * 10) / 10}
-            onChange={(target) => target !== 0 && reshape(withFocalLength(surfaces, target))}
-            step={5}
-            precision={1}
-            unit="mm"
-            size="small"
-            helperText="Scales every radius; a singlet gets a 2 mm rim again"
-          />
+                {!last && (
+                  <Box {...point(`t${i + 1}`)} sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 104px', alignItems: 'center', columnGap: 0.5, pr: 0.25 }}>
+                    <ScrubNumber
+                      label={`t${i + 1}`}
+                      value={s.thickness ?? 0}
+                      min={0.1}
+                      step={0.05}
+                      unit="mm"
+                      hint={`Thickness after R${i + 1}, on the axis, and its glass`}
+                      onChange={(t) => setSurface(i, { thickness: t })}
+                    />
+                    <Select
+                      variant="standard"
+                      disableUnderline
+                      value={s.material_post ?? 'N-BK7'}
+                      onChange={(e) => setSurface(i, { material_post: e.target.value })}
+                      aria-label={`Glass after surface ${i + 1}`}
+                      renderValue={(g) => g}
+                      sx={{ fontSize: 12, '& .MuiSelect-select': { py: 0.25, px: 0.75, borderRadius: 0.75 }, '&:hover .MuiSelect-select': { bgcolor: 'action.hover' } }}
+                    >
+                      {GLASSES.map((g) => (
+                        <MenuItem key={g} value={g} dense>
+                          {`${g} · n ${GLASS_ND[g].toFixed(3)}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
         </>
       )}
 
-      <NumberInput label="Diameter" value={Math.round(diameter * 10) / 10} onChange={(d) => d > 0 && reshape(withDiameter(surfaces, d))} min={1} max={100} step={0.5} precision={1} unit="mm" size="small" />
-
       {checks.map((c) => (
-        <Stack key={c.message} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-          {c.severity === 'error' ? <ErrorOutlineIcon fontSize="small" color="error" /> : <WarningAmberIcon fontSize="small" color="warning" />}
-          <Typography variant="body2">{c.message}</Typography>
+        <Stack key={c.message} direction="row" spacing={1} sx={{ alignItems: 'flex-start', mt: 1 }}>
+          {c.severity === 'error' ? <ErrorOutlineIcon sx={{ fontSize: 16 }} color="error" /> : <WarningAmberIcon sx={{ fontSize: 16 }} color="warning" />}
+          <Typography variant="caption">{c.message}</Typography>
         </Stack>
       ))}
-    </Stack>
+    </Box>
   );
 }

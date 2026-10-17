@@ -48,7 +48,7 @@ describe('what an ideal part could become', () => {
   });
 
   it('reads a dichroic’s cut-on and a splitter’s ratio off the records’ `response` blocks, as the library writes them', () => {
-    expect(choicesFor(ideal('dichroic'), catalogList, modulesFor)[0]).toMatchObject({ title: 'DMLP505', cube: { module: 'Dichroic holder' }, differs: [] });
+    expect(choicesFor(ideal('dichroic'), catalogList, modulesFor)[0]).toMatchObject({ title: 'DMLP505', cube: { module: 'Dichroic holder' }, differs: ['Ø43.8: wider than needed'] });
     const [splitter] = choicesFor(ideal('beamsplitter', { Reflectance: 30 }), catalogList, modulesFor);
     expect(splitter).toMatchObject({ title: 'BS013', cube: { module: 'Beam splitter cube 50:50' } });
     expect(splitter.differs).toEqual(['Reflectance 50 %, asked 30']);

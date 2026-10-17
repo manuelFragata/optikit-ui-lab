@@ -34,7 +34,7 @@ import { CameraControls, Line } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Box3, DoubleSide, MeshStandardMaterial, Plane, Quaternion, Sphere, Vector3, type Group } from 'three';
 import { holderPart, specLine, type HolderSpec, type ModuleOption, type SchematicSymbol } from '../model';
-import { withCoating } from '../holders/designs';
+import { designedRecord, withCoating } from '../holders/designs';
 import { useCoatings, type OpticLight } from '../../../ports/coatings';
 import { useHolders, type BeamAxis, type CartridgeParams, type Road } from '../../../ports/holders';
 import { answer, useRequest } from '../../../ports/request';
@@ -45,9 +45,10 @@ import { ROLE_LABEL, SOURCE_LABEL, type ComponentRole } from './components';
 import { CUBE_MM, type MeshRef } from './layout3d';
 import { COMPONENT_KEY, poseMatrix, useModuleMesh, type MeshComponent, type PreparedMesh } from './meshes';
 import { disposeComponents, lensComponent, useHolderComponents } from './holderMesh';
-import { SnapPanel } from './SnapPanel';
+import { SnapPanel, type MakeReal } from './SnapPanel';
 import { HolderDesigner, PREVIEWED_ROAD, type HolderDraft } from './HolderDesigner';
-import { ComponentMesh, CubeEdges, Glyph, MeshBoundary } from './shapes';
+import { ComponentMesh, CubeEdges, Glyph, MeshBoundary, Sketch } from './shapes';
+import { sketchShape } from '../sketchShapes';
 import { OpticalView } from '../optics/OpticalView';
 import { OpticsPanel } from '../optics/OpticsPanel';
 import { EmptyState } from '../../primitives/EmptyState';
@@ -79,6 +80,8 @@ export interface CloseupProps {
   onRealize?: (option: ModuleOption) => void;
   /** An ideal part designed as a real optic, from this prescription. */
   onDesign?: (prescription: FragmentSurface[]) => void;
+  /** An ideal part: the way to make it real shown first. */
+  makeReal?: MakeReal;
   /** The wavelengths of the design's sources, nm: what the Optical side checks coatings against. */
   wavelengths?: number[];
   /** A designed optic's prescription changed here (its coatings). */
@@ -104,7 +107,7 @@ function initialDraft(saved: HolderSpec | undefined, defaults: CartridgeParams, 
   return { road: open.includes(PREVIEWED_ROAD) ? PREVIEWED_ROAD : (open[0] ?? PREVIEWED_ROAD), params: defaults, beamMm: DEFAULT_BEAM_MM };
 }
 
-export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, candidatesFor, onSnap, modules = [], onRealize, onDesign, wavelengths = [], onPrescription }: CloseupProps) {
+export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, candidatesFor, onSnap, modules = [], onRealize, onDesign, makeReal, wavelengths = [], onPrescription }: CloseupProps) {
   const colors = useSceneColors();
   const [hover, setHover] = useState<string | null>(null);
   const [xray, setXray] = useState(false);
@@ -157,6 +160,9 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   const chosen = candidates.find((c) => c.record.id === picked) ?? candidates[0];
   const candidate = candidates.find((c) => c.record.id === snapShown) ?? chosen;
   const candidateShape = useMemo(() => (candidate ? opticShape(candidate.record) : null), [candidate]);
+  // Designing it instead: the form the pointer is on, else the ideal part as the canvas draws it.
+  const [way, setWay] = useState<MakeReal>(makeReal ?? 'catalogue');
+  const [designShown, setDesignShown] = useState<FragmentSurface[] | null>(null);
 
   // The components, once the mesh has loaded or the holder is built (inside the canvas, so they report back).
   const source = preview && part ? `holder ${part.id}` : mesh?.url;
@@ -192,7 +198,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
 
   const view = { colors, focus, hover, xray, isolate, section, fitAll, onHover: setHover, onFocus };
   const module = part?.placement.state === 'in-cube' ? part.placement.module : undefined;
-  const subtitle = module ?? (partName ? `${partName} · not mounted yet` : ideal && part ? `Ideal ${part.kind} · ${specLine(part) || 'no part chosen'}` : undefined);
+  const subtitle = module ?? (partName ? `${partName} · not mounted yet` : ideal && part ? `Ideal ${part.kind} · ${specLine(part) || 'no numbers set'}` : undefined);
   const tools = optical ? (
     <ToolButton label="Fit the optic" onClick={() => setFitAll((n) => n + 1)} icon={<FitScreenOutlinedIcon fontSize="small" />} />
   ) : (
@@ -293,7 +299,13 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
                   <>
                     {/* Where its cube would go, and the candidate's glass in it (or the symbol, when there is none). */}
                     <CubeEdges color={colors.accent} opacity={0.4} dashed />
-                    {candidate && candidateShape ? <CandidateLens key={candidate.record.id} record={candidate.record} /> : <Glyph kind={part.kind} turns={0} color={colors.glyphs[part.kind]} outline={null} />}
+                    {way === 'design' && designShown ? (
+                      <CandidateLens record={designedRecord(part.id, part.kind, designShown)} />
+                    ) : way === 'catalogue' && candidate && candidateShape ? (
+                      <CandidateLens key={candidate.record.id} record={candidate.record} />
+                    ) : (
+                      <Sketch shape={sketchShape(part)} turns={0} color={colors.accent} selected />
+                    )}
                     <Framing fitAll={fitAll} />
                   </>
                 ) : (
@@ -358,6 +370,10 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
 
         {!optical && ideal && part && onSnap && (
           <SnapPanel
+            part={part}
+            start={makeReal}
+            onWay={setWay}
+            onShowDesign={setDesignShown}
             label={part.label}
             spec={specLine(part)}
             candidates={candidates}

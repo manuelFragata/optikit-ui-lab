@@ -1,252 +1,227 @@
+/**
+ * The selected part's properties, as a spec sheet: everything said once.
+ *
+ * - the title is the part's name, edited in place (PropertiesTitle);
+ * - the header: its step (ideal, real optic, mounted: PartStage) and what it is now;
+ * - a designed lens or mirror: its shape, f and Ø first (ShapeSection);
+ * - its numbers, one row each: drag a label to change it, or type (ScrubNumber);
+ * - where it sits, in one row: x, y, layer, its turn and its locks;
+ * - a note, when it has one;
+ * - the footer: the way to its next step, and stepping through the parts (PropertiesFooter).
+ *
+ * Explanations are in tooltips, not on the page.
+ */
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
+import Checkbox from '@mui/material/Checkbox';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
+import InputBase from '@mui/material/InputBase';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import ListSubheader from '@mui/material/ListSubheader';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AcUnitIcon from '@mui/icons-material/AcUnit';
-import BlurOnIcon from '@mui/icons-material/BlurOn';
-import DrawOutlinedIcon from '@mui/icons-material/DrawOutlined';
-import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import UndoIcon from '@mui/icons-material/Undo';
-import LinkOffIcon from '@mui/icons-material/LinkOff';
+import ArchitectureIcon from '@mui/icons-material/Architecture';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
+import RotateRightIcon from '@mui/icons-material/RotateRight';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { DisclosureSection } from '../../panels/DisclosureSection';
-import { SliderField } from '../../primitives/SliderField';
-import { TagChip } from '../../primitives/TagChip';
-import { Vec3Field } from '../../primitives/Vec3Field';
-import { ShapeSection } from './ShapeSection';
-import { frozen, holderMismatch, isLocked, realize, seatOf, sketched, specLine, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
 import { EmptyState } from '../../primitives/EmptyState';
+import { ScrubNumber } from '../../primitives/ScrubNumber';
+import { ShapeSection } from './ShapeSection';
+import { frozen, holderMismatch, isLocked, ORIGINS, realize, seatOf, shifted, sketched, stageOf, STEPS, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
+import { STEP_TONE, StepDots } from '../PartStage';
 
 export type { ModuleOption };
 
 export interface PropertiesPanelProps {
   symbol: SchematicSymbol | null;
   onChange: (patch: Partial<SchematicSymbol>) => void;
-  /** Existing modules the selected part can be realized as (swapped for). */
+  /** Existing modules the selected part can go in. */
   realizeOptions?: ModuleOption[];
-  /** Freeze opens the holder designer (the close-up) instead of freezing on the spot. */
-  onFreeze?: () => void;
-  /** Choose a real part for an ideal one: a catalogue part, in its cube when a module holds it (Choose parts, beside the canvas). */
-  onSnap?: () => void;
 }
 
-const SEATS: Seat[] = [0, 1, 2, 3];
 const LOCKS: { value: Lock; label: string }[] = [
-  { value: 'x', label: 'x' },
-  { value: 'y', label: 'y' },
-  { value: 'z', label: 'z' },
-  { value: 'turn', label: 'turn' },
+  { value: 'x', label: 'Along x' },
+  { value: 'y', label: 'Along y' },
+  { value: 'z', label: 'Layer' },
+  { value: 'turn', label: 'Turn' },
 ];
 
-/**
- * In a cube or not mounted yet, and the operations between the two:
- * realize (swap for an existing module), freeze (generate a holder here)
- * and unbind (take the optic out of its cube).
- */
-function PlacementSection({ symbol, realizeOptions = [], onChange, onFreeze, onSnap }: { symbol: SchematicSymbol; realizeOptions?: ModuleOption[]; onChange: PropertiesPanelProps['onChange']; onFreeze?: () => void; onSnap?: () => void }) {
-  const [menu, setMenu] = useState<HTMLElement | null>(null);
-  const p = symbol.placement;
-  const mounted = p.state === 'in-cube';
-  const ideal = p.state === 'ideal';
-
-  const realizeAs = (option: ModuleOption) => {
-    setMenu(null);
-    onChange(realize(symbol, option));
-  };
-  const freeze = () => (onFreeze ? onFreeze() : onChange({ placement: frozen(p) }));
-  const unbind = () => onChange({ placement: unbound(symbol) });
-  const mismatch = holderMismatch(symbol, realizeOptions);
-
-  return (
-    <Stack spacing={1.25}>
-      <Stack
-        direction="row"
-        spacing={1.25}
-        sx={(t) => ({
-          alignItems: 'center',
-          p: 1,
-          borderRadius: 1,
-          bgcolor: 'background.sunken',
-          border: `${t.layout.hairline}px ${mounted ? 'solid' : 'dashed'} ${(t.vars ?? t).palette.divider}`,
-        })}
-      >
-        <Box sx={{ display: 'grid', placeItems: 'center', p: 0.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper', color: mounted ? 'text.primary' : 'text.meta' }}>
-          {mounted ? <ViewInArOutlinedIcon sx={{ fontSize: '1rem' }} /> : ideal ? <DrawOutlinedIcon sx={{ fontSize: '1rem' }} /> : <BlurOnIcon sx={{ fontSize: '1rem' }} />}
-        </Box>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="body2" noWrap>
-            {p.state === 'in-cube' ? p.module : p.state === 'unmounted' ? p.part : `Ideal ${symbol.kind}`}
-          </Typography>
-          <Typography variant="meta" color="text.meta" noWrap component="div">
-            {p.state === 'ideal' ? specLine(symbol) || 'No part chosen' : p.source}
-            {p.state === 'in-cube' && p.version && ` · v${p.version}`}
-          </Typography>
-        </Box>
-      </Stack>
-
-      <TagChip
-        label={mounted ? (p.state === 'in-cube' && p.frozen ? 'In a cube · frozen holder' : 'In a cube') : ideal ? 'Ideal · no part chosen' : 'Not mounted yet'}
-        tone={mounted ? 'success' : ideal ? 'primary' : 'warning'}
-        dot
-        sx={{ alignSelf: 'flex-start' }}
-      />
-
-      {mismatch && (
-        <Box role="alert" sx={{ p: 1, borderRadius: 1, bgcolor: 'warning.soft', color: 'warning.onSoft' }}>
-          <Typography variant="body2">
-            {mismatch.inputs.map((i) => `The holder takes ${i.label.toLowerCase()} ${i.module} ${i.unit}; this part is set to ${i.part} ${i.unit}.`).join(' ')}
-          </Typography>
-          {mismatch.fits ? (
-            <Button size="small" variant="outlined" color="inherit" startIcon={<SwapHorizIcon fontSize="small" />} onClick={() => onChange(realize(symbol, mismatch.fits!))} sx={{ mt: 1 }}>
-              Swap for {mismatch.fits.module}
-            </Button>
-          ) : (
-            <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
-              No module fits it yet: unbind it, then freeze a holder for it.
-            </Typography>
-          )}
-        </Box>
-      )}
-
-      <Box>
-        <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
-          {p.state === 'in-cube' ? 'Seat' : 'Turned'}
-        </Typography>
-        <ToggleButtonGroup
-          exclusive
-          fullWidth
-          size="small"
-          value={seatOf(p)}
-          disabled={isLocked(symbol, 'turn')}
-          onChange={(_, seat: Seat | null) => seat !== null && onChange({ placement: { ...p, seat } })}
-          aria-label="Seat, in quarter turns"
-        >
-          {SEATS.map((seat) => (
-            <ToggleButton key={seat} value={seat} aria-label={`${seat * 90} degrees`}>
-              {seat * 90}°
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Box>
-
-      <Stack direction="row" spacing={1}>
-        {ideal ? (
-          <>
-            {onSnap && (
-              <Tooltip title="Choose a catalogue part for it, up close">
-                <Button variant="contained" size="small" startIcon={<TravelExploreIcon fontSize="small" />} onClick={onSnap}>
-                  Choose a part…
-                </Button>
-              </Tooltip>
-            )}
-            <Tooltip title="Swap it for an existing module">
-              <Button variant="outlined" size="small" startIcon={<ViewInArOutlinedIcon fontSize="small" />} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu">
-                Realize…
-              </Button>
-            </Tooltip>
-          </>
-        ) : mounted ? (
-          <Tooltip title="Take the optic out of its cube. It stays where it is.">
-            <Button variant="outlined" size="small" startIcon={<LinkOffIcon fontSize="small" />} onClick={unbind}>
-              Unbind
-            </Button>
-          </Tooltip>
-        ) : (
-          <>
-            <Tooltip title="Swap it for an existing module">
-              <Button variant="contained" size="small" startIcon={<ViewInArOutlinedIcon fontSize="small" />} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu">
-                Realize…
-              </Button>
-            </Tooltip>
-            <Tooltip title={onFreeze ? 'Design a holder for it, in the close-up' : 'Generate a holder at the current position'}>
-              <Button variant="outlined" size="small" startIcon={<AcUnitIcon fontSize="small" />} onClick={freeze}>
-                {onFreeze ? 'Freeze…' : 'Freeze'}
-              </Button>
-            </Tooltip>
-          </>
-        )}
-      </Stack>
-      {p.state === 'unmounted' && (
-        <Button size="small" startIcon={<UndoIcon fontSize="small" />} onClick={() => onChange({ placement: sketched(p), prescription: undefined })} sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}>
-          Back to the sketch
-        </Button>
-      )}
-      {ideal ? (
-        <Typography variant="caption" color="text.secondary">
-          An ideal part traces as an ideal optic of its specification. Choose a real part for it before the design can be built.
-        </Typography>
-      ) : (
-        !mounted && (
-          <Typography variant="caption" color="text.secondary">
-            Parts that are not mounted yet can be saved and shared, but the design isn't buildable until every part is in a cube.
-          </Typography>
-        )
-      )}
-
-      <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
-        {realizeOptions.length === 0 && <MenuItem disabled>No matching module</MenuItem>}
-        {realizeOptions.map((o) => (
-          <MenuItem key={o.module} onClick={() => realizeAs(o)}>
-            <ListItemText primary={o.module} secondary={`${o.source}${o.version ? ` · v${o.version}` : ''}`} />
-          </MenuItem>
-        ))}
-      </Menu>
-    </Stack>
-  );
+/** The part's name as the panel's title, edited in place: Enter or leaving keeps it (one undo step), Esc puts it back. */
+export function PropertiesTitle({ symbol, onChange }: { symbol: SchematicSymbol; onChange: (patch: Partial<SchematicSymbol>) => void }) {
+  return <NameField key={`${symbol.id}:${symbol.label}`} name={symbol.label} onRename={(label) => onChange({ label })} />;
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: (t) => `${t.spacing(11)} 1fr`, gap: 1 }}>
-      <Typography variant="body2" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body2">{value}</Typography>
-    </Box>
-  );
-}
-
-/** The part's name, as the views show it: kept on Enter or when the field is left (one undo step), Esc puts it back. */
 function NameField({ name, onRename }: { name: string; onRename: (name: string) => void }) {
   const [draft, setDraft] = useState(name);
   const commit = () => (draft.trim() && draft.trim() !== name ? onRename(draft.trim()) : setDraft(name));
   return (
-    <TextField
-      label="Name"
-      size="small"
-      fullWidth
+    <InputBase
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
         e.stopPropagation(); // the editor's shortcuts are not for this field
-        if (e.key === 'Enter') commit();
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         if (e.key === 'Escape') setDraft(name);
       }}
-      sx={{ mb: 0.75 }}
+      inputProps={{ 'aria-label': 'Name' }}
+      sx={{
+        width: '100%',
+        typography: 'subtitle2',
+        '& input': { p: 0.25, mx: -0.25, borderRadius: 0.5, textOverflow: 'ellipsis' },
+        '& input:hover': { bgcolor: 'action.hover' },
+        '& input:focus': { bgcolor: 'action.selected' },
+      }}
     />
   );
 }
 
+/** Its step and what it is now, in two short lines. */
+function Header({ symbol }: { symbol: SchematicSymbol }) {
+  const p = symbol.placement;
+  const { step, origin } = stageOf(symbol);
+  const what =
+    p.state === 'in-cube'
+      ? `${p.module}${p.version ? ` v${p.version}` : ''} · ${origin === 'holder' ? ORIGINS.holder.toLowerCase() : p.source}`
+      : p.state === 'unmounted'
+        ? origin === 'designed'
+          ? `${p.part} · designed here`
+          : `${p.part} · ${p.source}`
+        : null;
+  return (
+    <Box sx={{ px: 2, pt: 1.25, pb: 1 }}>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, color: `${STEP_TONE[step]}.main` }} title={step === 'ideal' ? 'It does what its numbers say' : undefined}>
+          {STEPS.find((s) => s.step === step)!.label}
+        </Typography>
+        <Box sx={{ flex: 1 }} />
+        <StepDots part={symbol} />
+      </Stack>
+      {what && (
+        <Typography variant="meta" color="text.meta" component="div" noWrap title={what}>
+          {what}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+/** x, y and layer, its turn and its locks, in one row. */
+function PlaceRow({ symbol, onChange }: { symbol: SchematicSymbol; onChange: PropertiesPanelProps['onChange'] }) {
+  const [locks, setLocks] = useState<HTMLElement | null>(null);
+  const p = symbol.placement;
+  const anyLock = LOCKS.some((l) => isLocked(symbol, l.value));
+  const turnLocked = isLocked(symbol, 'turn');
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) auto auto', alignItems: 'center', columnGap: 0.5, px: 2, py: 0.75 }}>
+      <ScrubNumber compact label="x" value={symbol.x} step={0.1} readOnly={isLocked(symbol, 'x')} hint={isLocked(symbol, 'x') ? 'Locked along x' : 'x, in cubes'} onChange={(x) => onChange({ x })} />
+      <ScrubNumber compact label="y" value={symbol.y} step={0.1} readOnly={isLocked(symbol, 'y')} hint={isLocked(symbol, 'y') ? 'Locked along y' : 'y, in cubes'} onChange={(y) => onChange({ y })} />
+      <ScrubNumber
+        compact
+        label="z"
+        value={symbol.z}
+        min={0}
+        readOnly={isLocked(symbol, 'z')}
+        hint={isLocked(symbol, 'z') ? 'Locked on its layer' : 'Layer'}
+        onChange={(z) => onChange({ z: shifted(symbol, { z: z - symbol.z }).z })}
+      />
+      <Tooltip title={turnLocked ? 'Locked: it does not turn' : `Turned ${seatOf(p) * 90}°: click to turn a quarter (R)`} placement="top" enterDelay={700} disableInteractive>
+        <span>
+          <ButtonBase
+            disabled={turnLocked}
+            onClick={() => onChange({ placement: { ...p, seat: ((seatOf(p) + 1) % 4) as Seat } })}
+            aria-label="Turn a quarter"
+            sx={{ gap: 0.25, px: 0.5, height: 26, borderRadius: 0.75, color: 'text.secondary', '&:hover': { bgcolor: 'action.hover' } }}
+          >
+            <RotateRightIcon sx={{ fontSize: 16 }} />
+            <Typography variant="mono" sx={{ fontSize: 12, minWidth: 26, textAlign: 'left' }}>
+              {seatOf(p) * 90}°
+            </Typography>
+          </ButtonBase>
+        </span>
+      </Tooltip>
+      <Tooltip
+        title={
+          anyLock
+            ? `Locked: ${LOCKS.filter((l) => isLocked(symbol, l.value))
+                .map((l) => l.label.toLowerCase())
+                .join(', ')}`
+            : 'Free to move and turn. Click to lock.'
+        }
+        placement="top"
+        enterDelay={700}
+        disableInteractive
+      >
+        <IconButton size="small" aria-label="Locks" onClick={(e) => setLocks(e.currentTarget)} sx={{ color: anyLock ? 'text.primary' : 'text.meta' }}>
+          {anyLock ? <LockOutlinedIcon sx={{ fontSize: 16 }} /> : <LockOpenOutlinedIcon sx={{ fontSize: 16 }} />}
+        </IconButton>
+      </Tooltip>
+      <Menu anchorEl={locks} open={Boolean(locks)} onClose={() => setLocks(null)} slotProps={{ list: { dense: true } }}>
+        <ListSubheader sx={{ lineHeight: 2.5 }}>Keep it still</ListSubheader>
+        {LOCKS.map((l) => (
+          <MenuItem key={l.value} onClick={() => onChange({ locks: { ...symbol.locks, [l.value]: !isLocked(symbol, l.value) } })}>
+            <Checkbox size="small" checked={isLocked(symbol, l.value)} sx={{ p: 0, mr: 1 }} />
+            {l.label}
+          </MenuItem>
+        ))}
+        <Divider />
+        <MenuItem onClick={() => onChange({ locks: Object.fromEntries(LOCKS.map((l) => [l.value, !anyLock])) })}>{anyLock ? 'Unlock all' : 'Lock all'}</MenuItem>
+      </Menu>
+    </Box>
+  );
+}
+
+/** A note: a link while there is none, then a field. */
+function NoteRow({ notes, onChange }: { notes: string; onChange: (notes: string) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!notes && !open)
+    return (
+      <Button size="small" startIcon={<EditNoteOutlinedIcon fontSize="small" />} onClick={() => setOpen(true)} sx={{ mx: 1.5, my: 0.5, color: 'text.secondary', alignSelf: 'flex-start' }}>
+        Add a note
+      </Button>
+    );
+  return (
+    <Box sx={{ px: 2, py: 1 }}>
+      <TextField
+        fullWidth
+        multiline
+        minRows={2}
+        autoFocus={open && !notes}
+        variant="standard"
+        placeholder="Design intent, tolerances, open questions…"
+        value={notes}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => e.stopPropagation()}
+        slotProps={{ htmlInput: { 'aria-label': 'Notes' }, input: { disableUnderline: true, sx: { fontSize: 13 } } }}
+      />
+    </Box>
+  );
+}
+
 /** Contextual properties of the selected part. */
-export function PropertiesPanel({ symbol, onChange, realizeOptions, onFreeze, onSnap }: PropertiesPanelProps) {
+export function PropertiesPanel({ symbol, onChange, realizeOptions = [] }: PropertiesPanelProps) {
   if (!symbol) {
     return (
       <EmptyState icon={<NearMeOutlinedIcon sx={{ transform: 'scaleX(-1)' }} />} title="Nothing selected">
@@ -255,70 +230,43 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions, onFreeze, on
     );
   }
 
-  // A designed optic's focal length and diameter follow from its shape: set there, not here.
-  const shownInputs = (symbol.inputs ?? []).filter((i) => !symbol.prescription || (i.label !== 'Focal length' && i.label !== 'Diameter'));
+  // A designed optic's focal length and diameter are its shape's: ShapeSection shows and sets them.
+  const fromShape = (label: string) => Boolean(symbol.prescription) && (label === 'Focal length' || label === 'Diameter');
+  const inputs = symbol.inputs ?? [];
+  const shown = inputs.filter((i) => !fromShape(i.label));
+  const mismatch = holderMismatch(symbol, realizeOptions);
+  const line = <Divider sx={{ mx: 2 }} />;
 
   return (
-    <Box>
-      <Stack spacing={0.75} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-        {/* Keyed by the name too: renamed from elsewhere (a module swap), the field starts over. */}
-        <NameField key={`${symbol.id}:${symbol.label}`} name={symbol.label} onRename={(label) => onChange({ label })} />
-        <Detail label="Part" value={symbol.id} />
-        <Detail label="Type" value={symbol.type} />
-        <Detail label="Layer" value={`z = ${symbol.z}`} />
-      </Stack>
+    <Stack>
+      <Header symbol={symbol} />
 
-      <DisclosureSection title="Position">
-        <Vec3Field
-          label="Position"
-          value={{ x: symbol.x, y: symbol.y, z: symbol.z }}
-          onChange={(v) => onChange({ x: v.x, y: v.y, z: v.z })}
-          step={1}
-          precision={1}
-          locked={symbol.locks}
-        />
-        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.75 }}>
-          grid units · 1 unit = 1 cube
-        </Typography>
-
-        {/* Locks: the part keeps still along these, on the canvas, with the keys and here. */}
-        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1.5, mb: 0.5 }}>
-          Locks
-        </Typography>
-        <ToggleButtonGroup
-          fullWidth
-          size="small"
-          value={LOCKS.filter((l) => isLocked(symbol, l.value)).map((l) => l.value)}
-          onChange={(_, on: Lock[]) => onChange({ locks: Object.fromEntries(LOCKS.map((l) => [l.value, on.includes(l.value)])) })}
-          aria-label="Locks"
-        >
-          {LOCKS.map((l) => {
-            const on = isLocked(symbol, l.value);
-            return (
-              <ToggleButton key={l.value} value={l.value} aria-label={`Lock ${l.label}`} sx={{ gap: 0.5, typography: 'mono', textTransform: 'none' }}>
-                {on ? <LockOutlinedIcon sx={{ fontSize: '0.9rem' }} /> : <LockOpenOutlinedIcon sx={{ fontSize: '0.9rem', opacity: 0.5 }} />}
-                {l.label}
-              </ToggleButton>
-            );
-          })}
-        </ToggleButtonGroup>
-      </DisclosureSection>
-
-      <DisclosureSection title="Placement">
-        <PlacementSection symbol={symbol} realizeOptions={realizeOptions} onChange={onChange} onFreeze={onFreeze} onSnap={onSnap} />
-      </DisclosureSection>
-
-      {symbol.prescription && (
-        <DisclosureSection title={symbol.kind === 'mirror' ? 'Shape · mirror' : 'Shape · lens'}>
-          <ShapeSection symbol={{ ...symbol, prescription: symbol.prescription }} onChange={onChange} />
-        </DisclosureSection>
+      {mismatch && (
+        <Box role="alert" sx={{ mx: 2, mb: 1, p: 1, borderRadius: 1, bgcolor: 'warning.soft', color: 'warning.onSoft' }}>
+          <Typography variant="body2">{mismatch.inputs.map((i) => `The holder takes ${i.label.toLowerCase()} ${i.module} ${i.unit}; this part is ${i.part} ${i.unit}.`).join(' ')}</Typography>
+          {mismatch.fits && (
+            <Button size="small" color="inherit" startIcon={<SwapHorizIcon fontSize="small" />} onClick={() => onChange(realize(symbol, mismatch.fits!))} sx={{ mt: 0.5 }}>
+              Swap for {mismatch.fits.module}
+            </Button>
+          )}
+        </Box>
       )}
 
-      <DisclosureSection title="Inputs">
-        {shownInputs.length ? (
-          <Stack spacing={2}>
-            {shownInputs.map((input) => (
-              <SliderField
+      {symbol.prescription && (
+        <>
+          {line}
+          <Box sx={{ px: 2, py: 0.75 }}>
+            <ShapeSection symbol={{ ...symbol, prescription: symbol.prescription }} onChange={onChange} />
+          </Box>
+        </>
+      )}
+
+      {shown.length > 0 && (
+        <>
+          {line}
+          <Box sx={{ px: 2, py: 0.75 }}>
+            {shown.map((input) => (
+              <ScrubNumber
                 key={input.label}
                 label={input.label}
                 value={input.value}
@@ -326,35 +274,19 @@ export function PropertiesPanel({ symbol, onChange, realizeOptions, onFreeze, on
                 max={input.max}
                 step={input.step}
                 unit={input.unit}
-                onChange={(value) => onChange({ inputs: symbol.inputs!.map((x) => (x.label === input.label ? { ...x, value } : x)) })}
+                hint={symbol.kind === 'mirror' && input.label === 'Focal length' ? '0: flat · positive: concave · negative: convex' : undefined}
+                onChange={(value) => onChange({ inputs: inputs.map((x) => (x.label === input.label ? { ...x, value } : x)) })}
               />
             ))}
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            This part has no inputs to set.
-          </Typography>
-        )}
-      </DisclosureSection>
+          </Box>
+        </>
+      )}
 
-      <DisclosureSection title="Notes">
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          placeholder="Design intent, tolerances, open questions…"
-          value={symbol.notes}
-          onChange={(e) => onChange({ notes: e.target.value })}
-          slotProps={{ htmlInput: { 'aria-label': 'Notes' } }}
-        />
-      </DisclosureSection>
-
-      <DisclosureSection title="Advanced" defaultOpen={false}>
-        <Typography variant="body2" color="text.secondary">
-          Tolerances, part substitution rules and export units.
-        </Typography>
-      </DisclosureSection>
-    </Box>
+      {line}
+      <PlaceRow symbol={symbol} onChange={onChange} />
+      {line}
+      <NoteRow notes={symbol.notes} onChange={(notes) => onChange({ notes })} />
+    </Stack>
   );
 }
 
@@ -383,37 +315,127 @@ export function SelectionSummary({ parts, onPick }: { parts: SchematicSymbol[]; 
 }
 
 export interface PropertiesFooterProps {
+  symbol: SchematicSymbol;
   total: number;
-  symbolId: string;
   onPrev: () => void;
   onNext: () => void;
   onDelete: () => void;
+  onChange: (patch: Partial<SchematicSymbol>) => void;
+  realizeOptions?: ModuleOption[];
+  /** Make a holder: the holder designer (the close-up). Without it, a holder is made on the spot. */
+  onFreeze?: () => void;
+  /** Make an ideal part real from the catalogue (Choose parts). */
+  onSnap?: () => void;
+  /** Make an ideal lens or mirror real by designing it (the close-up). */
+  onDesign?: () => void;
 }
 
-/** Actions under the properties: replace, delete, and stepping through the parts. */
-export function PropertiesFooter({ total, symbolId, onPrev, onNext, onDelete }: PropertiesFooterProps) {
+/**
+ * Under the properties: the way to the part's next step (one main button,
+ * the other ways in ⋯), then delete and stepping through the parts.
+ */
+export function PropertiesFooter({ symbol, total, onPrev, onNext, onDelete, onChange, realizeOptions = [], onFreeze, onSnap, onDesign }: PropertiesFooterProps) {
+  const [more, setMore] = useState<HTMLElement | null>(null);
+  const p = symbol.placement;
+  const { step } = stageOf(symbol);
+  const canDesign = Boolean(onDesign) && (symbol.kind === 'lens' || symbol.kind === 'mirror');
+  const close = (then: () => void) => () => {
+    setMore(null);
+    then();
+  };
+  const modules = realizeOptions.length > 0 && [
+    <ListSubheader key="h" sx={{ lineHeight: 2.5 }}>
+      Ready modules
+    </ListSubheader>,
+    ...realizeOptions.map((o) => (
+      <MenuItem key={o.module} onClick={close(() => onChange(realize(symbol, o)))}>
+        <ListItemIcon>
+          <ViewInArOutlinedIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary={o.module} secondary={`${o.source}${o.version ? ` · v${o.version}` : ''}`} />
+      </MenuItem>
+    )),
+  ];
+
   return (
-    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', px: 1, py: 0.75 }}>
-      <Tooltip title="Replace part">
-        <IconButton size="small" aria-label="Replace part">
-          <SwapHorizIcon fontSize="small" />
+    <Box>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', px: 1.5, pt: 1.25, pb: 0.75 }}>
+        {step === 'ideal' && (
+          <>
+            {onSnap && (
+              <Tooltip title="Make it real: a part that exists, from a vendor">
+                <Button variant="contained" size="small" startIcon={<TravelExploreIcon fontSize="small" />} onClick={onSnap} sx={{ flex: 1, whiteSpace: 'nowrap' }}>
+                  Catalogue
+                </Button>
+              </Tooltip>
+            )}
+            {canDesign && (
+              <Tooltip title="Make it real: your own lens or mirror (radii, glass, Ø)">
+                <Button variant="outlined" size="small" startIcon={<ArchitectureIcon fontSize="small" />} onClick={onDesign} sx={{ flex: 1, whiteSpace: 'nowrap' }}>
+                  Design
+                </Button>
+              </Tooltip>
+            )}
+          </>
+        )}
+        {step === 'real' && (
+          <Tooltip title={onFreeze ? 'Mount it: make a holder for it in a cube, up close' : 'Mount it: make a holder for it in a cube, here'}>
+            <Button variant="contained" size="small" startIcon={<AcUnitIcon fontSize="small" />} onClick={() => (onFreeze ? onFreeze() : onChange({ placement: frozen(p) }))} sx={{ flex: 1 }}>
+              Make a holder
+            </Button>
+          </Tooltip>
+        )}
+        {step === 'mounted' && (
+          <Stack direction="row" spacing={0.75} sx={{ flex: 1, alignItems: 'center', color: 'success.main', px: 0.5 }}>
+            <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />
+            <Typography variant="body2">Ready to build</Typography>
+          </Stack>
+        )}
+        <Tooltip title="More ways">
+          <IconButton size="small" aria-label="More ways" onClick={(e) => setMore(e.currentTarget)} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+            <MoreHorizIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      <Menu anchorEl={more} open={Boolean(more)} onClose={() => setMore(null)} slotProps={{ list: { dense: true } }}>
+        {step !== 'mounted' && modules}
+        {step === 'ideal' && realizeOptions.length === 0 && <MenuItem disabled>No ready module of this kind</MenuItem>}
+        {step === 'real' && [
+          <Divider key="d" />,
+          <MenuItem key="back" onClick={close(() => onChange({ placement: sketched(p), prescription: undefined }))}>
+            <ListItemIcon>
+              <UndoIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Back to ideal" secondary="The numbers stay" />
+          </MenuItem>,
+        ]}
+        {step === 'mounted' && (
+          <MenuItem onClick={close(() => onChange({ placement: unbound(symbol) }))}>
+            <ListItemIcon>
+              <LinkOffIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Take out of the cube" secondary="It stays here, as a real optic" />
+          </MenuItem>
+        )}
+      </Menu>
+
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', px: 1, pb: 0.5 }}>
+        <Tooltip title="Delete part (Del)">
+          <IconButton size="small" aria-label="Delete part" onClick={onDelete}>
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Box sx={{ flex: 1 }} />
+        <IconButton size="small" aria-label="Previous part" onClick={onPrev}>
+          <ChevronLeftIcon fontSize="small" />
         </IconButton>
-      </Tooltip>
-      <Tooltip title="Delete part">
-        <IconButton size="small" aria-label="Delete part" onClick={onDelete}>
-          <DeleteOutlineIcon fontSize="small" />
+        <Typography variant="mono" color="text.secondary" sx={{ fontSize: 12 }}>
+          {symbol.id} / {total}
+        </Typography>
+        <IconButton size="small" aria-label="Next part" onClick={onNext}>
+          <ChevronRightIcon fontSize="small" />
         </IconButton>
-      </Tooltip>
-      <Box sx={{ flex: 1 }} />
-      <IconButton size="small" aria-label="Previous part" onClick={onPrev}>
-        <ChevronLeftIcon fontSize="small" />
-      </IconButton>
-      <Typography variant="mono" color="text.secondary">
-        {symbolId} / {total}
-      </Typography>
-      <IconButton size="small" aria-label="Next part" onClick={onNext}>
-        <ChevronRightIcon fontSize="small" />
-      </IconButton>
-    </Stack>
+      </Stack>
+    </Box>
   );
 }

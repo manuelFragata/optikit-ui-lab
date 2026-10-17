@@ -16,6 +16,16 @@ describe('the beam and its paraxial trace', () => {
     expect(r.out.focusMm).toBeCloseTo(118, 6);
   });
 
+  it('focuses at f off an ideal curved mirror, and starts a source beam at its waist, opening at its divergence', () => {
+    const { design, path } = straight([part('L', 'laser', 0, { 'Waist diameter': 2, Divergence: 0 }), part('M', 'mirror', 2, { 'Focal length': 50 }, { state: 'ideal' }), part('C', 'camera', 4)]);
+    const beam = beamOf(design, path, lookup)!;
+    expect(beam.sourceBeamMm).toBe(2);
+    expect(results(beam, trace(beam, startRay(beam, 2)), 2).out.focusMm).toBeCloseTo(150, 6);
+    // 4 mrad: the edge ray climbs 2 µm per mm.
+    const opening = beamOf(straight([part('L', 'laser', 0, { 'Waist diameter': 2, Divergence: 4 }), part('C', 'camera', 2)]).design, straight([part('L', 'laser', 0), part('C', 'camera', 2)]).path, lookup)!;
+    expect(startRay(opening, 2).u).toBeCloseTo(0.002, 6);
+  });
+
   it('expands a laser beam with two lenses a sum of focal lengths apart', () => {
     const { design, path } = straight([
       part('L', 'laser', 0, { Wavelength: 488, Power: 10 }),

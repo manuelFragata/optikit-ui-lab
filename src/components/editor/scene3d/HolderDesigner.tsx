@@ -99,11 +99,11 @@ export function HolderDesigner({ partName, record, facts, roads, draft, onDraft,
   const status = !plan ? null : !plan.fits ? (
     <TagChip label="Won't build" tone="error" dot />
   ) : frozen && !changed ? (
-    <TagChip label="Frozen" tone="success" dot />
+    <TagChip label="Mounted in it" tone="success" dot />
   ) : frozen ? (
     <TagChip label="Changed" tone="warning" dot />
   ) : (
-    <TagChip label="Fits · not frozen yet" tone="success" dot />
+    <TagChip label="Fits · not mounted yet" tone="success" dot />
   );
 
   const copyParams = async () => {
@@ -253,7 +253,7 @@ export function HolderDesigner({ partName, record, facts, roads, draft, onDraft,
         <Tooltip title={!plan ? 'Pick the lens cartridge to freeze it here' : !plan.fits ? 'Fix the errors in the checks first' : frozen && !changed ? 'This is the frozen holder' : 'Keep this holder on the part: it goes into its cube'}>
           <span style={{ flex: 1, display: 'flex' }}>
             <Button fullWidth variant="contained" startIcon={<AcUnitIcon fontSize="small" />} disabled={!plan?.fits || (frozen && !changed)} onClick={onFreeze}>
-              {frozen ? 'Update holder' : 'Freeze holder'}
+              {frozen ? 'Update the holder' : 'Mount it in this holder'}
             </Button>
           </span>
         </Tooltip>

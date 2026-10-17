@@ -5,7 +5,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { TagChip } from '../../primitives/TagChip';
-import { seatOf, specLine, type SchematicSymbol } from '../model';
+import { ORIGINS, seatOf, specLine, stageOf, type SchematicSymbol } from '../model';
 
 export interface PartsListPanelProps {
   symbols: SchematicSymbol[];
@@ -31,7 +31,7 @@ function Row({ s, selected, onSelect }: { s: SchematicSymbol; selected: boolean;
         )}
       </Stack>
       <Typography variant="body2" color="text.secondary" noWrap sx={{ pl: 3.5 }}>
-        {p.state === 'in-cube' ? `${p.module} · ${p.source}` : p.state === 'unmounted' ? `${p.part} · ${p.source}` : `Ideal · ${specLine(s) || 'no part chosen'}`}
+        {p.state === 'in-cube' ? `${p.module} · ${ORIGINS[stageOf(s).origin!]}` : p.state === 'unmounted' ? `${p.part} · ${ORIGINS[stageOf(s).origin!]}` : specLine(s) || 'no numbers set'}
       </Typography>
     </ListItemButton>
   );
@@ -47,15 +47,15 @@ export function PartsListPanel({ symbols, selectedId, onSelect }: PartsListPanel
   return (
     <Box sx={{ py: 1 }}>
       <Stack direction="row" spacing={1} sx={{ px: 2, py: 1, alignItems: 'center' }}>
-        <TagChip label={`${mounted.length} in a cube`} tone="success" dot />
         {ideal.length > 0 && <TagChip label={`${ideal.length} ideal`} tone="primary" dot />}
-        {loose.length > 0 && <TagChip label={`${loose.length} not mounted yet`} tone="warning" dot />}
+        {loose.length > 0 && <TagChip label={`${loose.length} real, not mounted`} tone="warning" dot />}
+        <TagChip label={`${mounted.length} mounted`} tone="success" dot />
         {loose.length + ideal.length === 0 && <TagChip label="Buildable" tone="success" />}
       </Stack>
       <List disablePadding>
         {ideal.length > 0 && (
           <>
-            <ListSubheader sx={subheader}>Ideal · no part chosen</ListSubheader>
+            <ListSubheader sx={subheader}>1 · Ideal</ListSubheader>
             {ideal.map((s) => (
               <Row key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} />
             ))}
@@ -63,13 +63,13 @@ export function PartsListPanel({ symbols, selectedId, onSelect }: PartsListPanel
         )}
         {loose.length > 0 && (
           <>
-            <ListSubheader sx={subheader}>Not mounted yet</ListSubheader>
+            <ListSubheader sx={subheader}>2 · Real optic, not mounted</ListSubheader>
             {loose.map((s) => (
               <Row key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} />
             ))}
           </>
         )}
-        <ListSubheader sx={subheader}>In a cube</ListSubheader>
+        <ListSubheader sx={subheader}>3 · Mounted</ListSubheader>
         {mounted.map((s) => (
           <Row key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} />
         ))}

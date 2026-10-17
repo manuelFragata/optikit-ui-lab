@@ -16,13 +16,14 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
+import ArchitectureIcon from '@mui/icons-material/Architecture';
 import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { Failed, Waiting } from '../../primitives/RequestState';
 import type { Light } from '../../../ports/light';
 import { useRequest } from '../../../ports/request';
 import type { Choice } from '../../../ports/service';
-import { sketched, specLine, type Schematic, type SchematicSymbol } from '../model';
+import { ORIGINS, sketched, specLine, stageOf, type Schematic, type SchematicSymbol } from '../model';
 import { inLightOrder, statusOf, type ChoiceStatus } from './order';
 
 export interface ChoosePaneProps {
@@ -37,14 +38,16 @@ export interface ChoosePaneProps {
   onChoose: (id: string, patch: Partial<SchematicSymbol>) => void;
   /** Design a holder for a chosen part (the close-up's designer). */
   onDesignHolder: (id: string) => void;
+  /** Design an ideal lens or mirror instead of choosing one (the close-up). */
+  onDesignOwn?: (id: string) => void;
   onClose: () => void;
 }
 
 /** A row's state as the Simulate list shows one: a dot and a word, in the tone's colour. */
 const STATUS: Record<ChoiceStatus, { label: string; color: string }> = {
-  ideal: { label: 'Sketch', color: 'primary.main' },
-  chosen: { label: 'Holder needed', color: 'warning.main' },
-  cube: { label: 'In a cube', color: 'success.main' },
+  ideal: { label: 'Ideal', color: 'primary.main' },
+  chosen: { label: 'Real optic', color: 'warning.main' },
+  cube: { label: 'Mounted', color: 'success.main' },
 };
 
 const Status = ({ status }: { status: ChoiceStatus }) => (
@@ -110,7 +113,7 @@ function ChoiceRow({ choice, n, onPick }: { choice: Choice; n: number; onPick: (
   );
 }
 
-export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, onChoose, onDesignHolder, onClose }: ChoosePaneProps) {
+export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, onChoose, onDesignHolder, onDesignOwn, onClose }: ChoosePaneProps) {
   const parts = useMemo(() => inLightOrder(design, light), [design, light]);
   const sketchedLeft = parts.filter((s) => statusOf(s) === 'ideal').length;
   const current = parts.find((s) => s.id === selectedId) ?? parts.find((s) => statusOf(s) === 'ideal') ?? parts[0];
@@ -227,9 +230,9 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
               <Typography variant="h6">{current.label}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {status === 'ideal'
-                  ? `Sketched as ${specLine(current) || `a ${current.kind}`}`
+                  ? `Ideal: ${specLine(current) || `a ${current.kind}`}. Pick a real part from the catalogue.`
                   : status === 'chosen'
-                    ? `${current.placement.state === 'unmounted' && current.placement.part} · no holder yet`
+                    ? `${current.placement.state === 'unmounted' && current.placement.part} · ${ORIGINS[stageOf(current).origin!].toLowerCase()} · not mounted yet`
                     : `In ${current.placement.state === 'in-cube' && current.placement.module} · ready to build`}
               </Typography>
             </Box>
@@ -257,10 +260,16 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
               </>
             ))}
 
+          {status === 'ideal' && current && onDesignOwn && (current.kind === 'lens' || current.kind === 'mirror') && (
+            <Button variant="outlined" size="small" startIcon={<ArchitectureIcon fontSize="small" />} onClick={() => onDesignOwn(current.id)} sx={{ alignSelf: 'flex-start' }}>
+              Design my own instead…
+            </Button>
+          )}
+
           {status === 'chosen' && current && (
             <Stack direction="row" spacing={1}>
               <Button variant="contained" size="small" startIcon={<ViewInArOutlinedIcon fontSize="small" />} onClick={() => onDesignHolder(current.id)}>
-                Design a holder
+                Make a holder
               </Button>
               <Button
                 size="small"
@@ -268,7 +277,7 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
                 onClick={() => onChoose(current.id, { placement: sketched(current.placement), prescription: undefined })}
                 sx={{ color: 'text.secondary' }}
               >
-                Back to the sketch
+                Back to ideal
               </Button>
             </Stack>
           )}

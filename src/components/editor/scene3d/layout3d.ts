@@ -8,6 +8,7 @@
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
 import type { CartridgeParams } from '../../../ports/holders';
+import { sketchShape, type SketchShape } from '../sketchShapes';
 import type { CatalogRecord, FragmentSurface } from '../holders/optic';
 import type { Light, LightPath, Point } from '../../../ports/light';
 import { layerShow } from '../layers';
@@ -55,16 +56,12 @@ export interface HolderMeshRef {
 /** A lens or mirror's glass, when known. */
 export type GlassFor = (s: SchematicSymbol) => FragmentSurface[] | undefined;
 
-/** How much the 3D view draws (UI-V4 §1.3, the fidelity dial). Editor state only. */
-export type Fidelity = 'symbols' | 'cubes' | 'solids';
-
 /** The editor's view state the 3D view depends on. */
 export interface View3D {
   /** The layer being worked on. */
   layer: number;
   /** The other layers as ghosts (true), or not at all. */
   otherLayers: boolean;
-  fidelity: Fidelity;
   /** Cube cages around mounted parts. */
   cages: boolean;
   rays: boolean;
@@ -72,17 +69,21 @@ export interface View3D {
   partLabels: boolean;
   rayLabels: boolean;
   selectedIds: string[];
+  /** 2D: seen from the top. Names sit inside their cubes, and parts move across the layer only. */
+  fromTop?: boolean;
 }
 
 /**
- * How a part is drawn:
- * - `symbol`: the optic as a small 3D glyph;
- * - `cube`: a translucent cube with the glyph inside;
- * - `solid`: the module's real mesh;
+ * How a part is drawn. Its state alone sets it; there is no detail to choose:
+ * - `sketch`: an ideal part, the only schematic look: the line art of what
+ *   it does, at its true size, from its inputs (`sketch`, sketchShapes.ts);
+ * - `optic`: a real part not in a cube: its glass from its prescription
+ *   (`glass`), as a solid; its own mesh where it has one; else its glyph;
+ * - `solid`: in a cube: the module's meshes, its holder with it;
  * - `placeholder`: in a cube, but its module has no mesh: a plain box;
  * - `ghost`: on another layer: edges only, not clickable.
  */
-export type Look = 'symbol' | 'cube' | 'solid' | 'placeholder' | 'ghost';
+export type Look = 'sketch' | 'optic' | 'solid' | 'placeholder' | 'ghost';
 
 export interface PlacedPart {
   id: string;
@@ -101,6 +102,8 @@ export interface PlacedPart {
   mesh?: MeshRef;
   /** A lens or mirror not in a cube whose glass is known (designed here, or its catalogue record's): drawn as it is. */
   glass?: FragmentSurface[];
+  /** An ideal part's line art, from its inputs. */
+  sketch?: SketchShape;
   selected: boolean;
   /** Locked along any axis (shown with a padlock). */
   locked: boolean;
@@ -163,21 +166,19 @@ export interface Layout3D {
 /* The rules                                                           */
 /* ------------------------------------------------------------------ */
 
-function lookOf(s: SchematicSymbol, onLayer: boolean, fidelity: Fidelity, mesh: MeshRef | undefined): Look {
+function lookOf(s: SchematicSymbol, onLayer: boolean, mesh: MeshRef | undefined): Look {
   if (!onLayer) return 'ghost';
-  // An ideal part is no part yet: its symbol, whatever the fidelity.
-  if (fidelity === 'symbols' || s.placement.state === 'ideal') return 'symbol';
-  if (fidelity === 'cubes') return 'cube';
-  // Solids: the real module where there is one. An unmounted optic has no holder, so it stays a glyph (in a dashed cube).
-  if (s.placement.state !== 'in-cube') return 'symbol';
+  if (s.placement.state === 'ideal') return 'sketch';
+  if (s.placement.state === 'unmounted') return 'optic';
   return mesh ? 'solid' : 'placeholder';
 }
 
 function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbol) => MeshRef | undefined, glassFor: GlassFor): PlacedPart {
   const onLayer = layerShow(s.z, view.layer, view.otherLayers) === 'current';
   const mounted = s.placement.state === 'in-cube';
-  const mesh = mounted ? meshFor(s) : undefined;
-  const look = lookOf(s, onLayer, view.fidelity, mesh);
+  // A part in a cube is its module's meshes; one not in a cube, its own mesh where it has one.
+  const mesh = s.placement.state === 'ideal' ? undefined : meshFor(s);
+  const look = lookOf(s, onLayer, mounted ? mesh : undefined);
   return {
     id: s.id,
     label: s.label,
@@ -188,14 +189,29 @@ function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbo
     look,
     mounted,
     // A cube is its edges; an optic with no holder shows a dashed one; cages add them to mounted parts. An ideal part has no cube to show.
-    cage: look !== 'ghost' && s.placement.state !== 'ideal' && (look === 'cube' || !mounted || view.cages),
+    cage: look !== 'ghost' && s.placement.state !== 'ideal' && (!mounted || view.cages),
     mesh,
-    // Its glass, where the symbol would be: not in a cube, not ideal, and the view draws more than symbols.
-    glass: look === 'symbol' && view.fidelity !== 'symbols' && s.placement.state === 'unmounted' && (s.kind === 'lens' || s.kind === 'mirror') ? glassFor(s) : undefined,
+    // A real part's glass, from its prescription; an ideal part's line art, from its inputs.
+    glass: look === 'optic' ? glassFor(s) : undefined,
+    sketch: look === 'sketch' ? sketchShape(s) : undefined,
     selected: view.selectedIds.includes(s.id),
     locked: Boolean(s.locks && Object.values(s.locks).some(Boolean)),
   };
 }
+
+/**
+ * How much to enlarge an optic so it stays visible at `pxPerMm` (2D, zoomed
+ * out): across its axis to at least `minAcross` pixels, along it (its
+ * thickness) to at least `minAlong`. Never smaller than it is.
+ */
+export function minimumScale(size: { across: number; along: number }, pxPerMm: number, minAcross = 12, minAlong = 3): { across: number; along: number } {
+  if (!(pxPerMm > 0)) return { across: 1, along: 1 };
+  const grow = (mm: number, min: number) => (mm > 0 ? Math.max(1, min / (mm * pxPerMm)) : 1);
+  return { across: grow(size.across, minAcross), along: grow(size.along, minAlong) };
+}
+
+/** How far apart paths along the same line are drawn, as a share of the light source's spread: 2.5 mm a step. */
+const SIDE_BY_SIDE = 0.25;
 
 /** A light path at the height of its layer's cube centres, in mm. */
 function placeRay({ ray, z, points, open }: LightPath, misses: Light['misses'], view: View3D): PlacedRay | null {
@@ -207,7 +223,8 @@ function placeRay({ ray, z, points, open }: LightPath, misses: Light['misses'], 
     id: ray.id,
     label: ray.label,
     color: ray.color,
-    points: points.map((p) => at(p, ray.offset)),
+    // Paths along the same line sit side by side, a few mm apart: inside the optics they pass through, not beside them.
+    points: points.map((p) => at(p, ray.offset * SIDE_BY_SIDE)),
     open,
     miss: miss ? [at(miss.from), at(miss.at)] : null,
     ghost: show === 'ghost',
@@ -243,16 +260,17 @@ const above = ([x, y, z]: Vec3, mm: number): Vec3 => [x, y, z + mm];
 /**
  * The names: each part on the current layer over its cube (with a lock and
  * "no mesh" where they apply), each ray over its first leg, the layer at its
- * floor's corner.
+ * floor's corner. From the top, "over its cube" would be on its optic: there
+ * the name sits under the cube, clear of it.
  */
 function labelsOf(parts: PlacedPart[], rays: PlacedRay[], floor: Floor | null, view: View3D): PlacedLabel[] {
   const partLabels = parts
     .filter((p) => view.partLabels && p.look !== 'ghost')
     .map((p): PlacedLabel => ({
       key: p.id,
-      at: above(p.center, CUBE_MM / 2 + 8),
       text: `${p.locked ? '🔒 ' : ''}${p.label}${p.look === 'placeholder' ? ' · no mesh' : ''}`,
       tone: p.selected ? 'selected' : 'part',
+      ...(view.fromTop ? { at: [p.center[0], p.center[1] - CUBE_MM / 2, p.center[2]] as Vec3, below: true } : { at: above(p.center, CUBE_MM / 2 + 8) }),
     }));
   const rayLabels = view.rayLabels
     ? rays
@@ -265,7 +283,7 @@ function labelsOf(parts: PlacedPart[], rays: PlacedRay[], floor: Floor | null, v
 
 /**
  * Everything the 3D view shows for a design: the parts on the current layer
- * as the fidelity says, the others as ghosts (or left out), the light paths,
+ * as their states say, the others as ghosts (or left out), the light paths,
  * the names, the current layer's floor, and where the camera and the action
  * bar should look.
  */
@@ -287,7 +305,7 @@ export function layout3d(
   const anchor: Vec3 | null = centre && selection ? [centre[0], centre[1], selection.min[2]] : null;
 
   const selectedHere = schematic.symbols.filter((s) => view.selectedIds.includes(s.id) && s.z === view.layer);
-  const axes = (['x', 'y', 'z'] as const).filter((axis) => selectedHere.some((s) => !isLocked(s, axis)));
+  const axes = (view.fromTop ? (['x', 'y'] as const) : (['x', 'y', 'z'] as const)).filter((axis) => selectedHere.some((s) => !isLocked(s, axis)));
   const handles = centre && axes.length ? { at: centre, axes } : null;
 
   return { parts, rays, labels: labelsOf(parts, rays, floor, view), floor, anchor, handles, bounds: { all: boundsOf(parts), selection } };

@@ -124,13 +124,14 @@ export const holderPart = (p: Placement): string | undefined =>
  * holder. Its inputs take the part's own values (the focal length it really
  * has), so the light is traced through what will be built.
  */
-export function snapped(s: Pick<SchematicSymbol, 'placement' | 'inputs'> & { label?: string }, part: string, source: string, values: Readonly<Record<string, number>> = {}): Partial<SchematicSymbol> {
+export function snapped(s: Pick<SchematicSymbol, 'placement' | 'inputs'> & { label?: string; type?: string }, part: string, source: string, values: Readonly<Record<string, number>> = {}): Partial<SchematicSymbol> {
   if (s.placement.state !== 'ideal') return {};
   return {
     placement: { state: 'unmounted', part, source, ...keepSeat(s.placement) },
     prescription: undefined,
     // Still called as the sketch named it ("Ideal lens"): now it has a name of its own.
     ...(s.label?.startsWith('Ideal ') && { label: part }),
+    ...(s.type?.startsWith('Ideal ') && { type: part }),
     ...(s.inputs && { inputs: s.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }),
   };
 }
@@ -146,13 +147,22 @@ const SPEC_NAMES: Readonly<Record<string, string>> = {
   Bandwidth: 'Δλ',
   'Cut-on wavelength': 'cut-on',
   Reflectance: 'R =',
+  'Waist diameter': 'waist Ø',
+  'Emitter size': 'Ø',
+  Divergence: 'θ',
 };
 
 /** What an ideal part is, in a line: "f = 50 mm · Ø 25 mm". */
-export const specLine = (s: Pick<SchematicSymbol, 'inputs'>) =>
+export const specLine = (s: Pick<SchematicSymbol, 'inputs'> & { kind?: SymbolKind }) =>
   (s.inputs ?? [])
     .filter((i) => i.label in SPEC_NAMES)
-    .map((i) => (i.unit === 'NA' ? `NA ${i.value}` : `${SPEC_NAMES[i.label]} ${i.value}${i.unit === '×' ? '×' : ` ${i.unit}`}`.trim()))
+    .map((i) =>
+      i.unit === 'NA'
+        ? `NA ${i.value}`
+        : s.kind === 'mirror' && i.label === 'Focal length' && i.value === 0
+          ? 'flat'
+          : `${SPEC_NAMES[i.label]} ${i.value}${i.unit === '×' || i.unit === '°' ? i.unit : ` ${i.unit}`}`.trim(),
+    )
     .join(' · ');
 
 /** Where a designed optic comes from, in the catalogue's place. */
@@ -162,10 +172,14 @@ export const DESIGNED_HERE = 'Designed here';
  * Design it: an ideal part becomes a real optic designed here, from its
  * prescription; its inputs follow from it.
  */
-export function designed(s: Pick<SchematicSymbol, 'placement' | 'inputs' | 'kind'>, prescription: FragmentSurface[], values: Readonly<Record<string, number>>): Partial<SchematicSymbol> {
+export function designed(s: Pick<SchematicSymbol, 'placement' | 'inputs' | 'kind'> & { label?: string; type?: string }, prescription: FragmentSurface[], values: Readonly<Record<string, number>>): Partial<SchematicSymbol> {
   if (s.placement.state === 'in-cube') return {};
+  const name = s.kind === 'mirror' ? 'Designed mirror' : 'Designed lens';
   return {
-    placement: { state: 'unmounted', part: s.kind === 'mirror' ? 'Designed mirror' : 'Designed lens', source: DESIGNED_HERE, ...keepSeat(s.placement) },
+    placement: { state: 'unmounted', part: name, source: DESIGNED_HERE, ...keepSeat(s.placement) },
+    // Still called as the sketch named it ("Ideal lens"): now it is glass of its own.
+    ...(s.label?.startsWith('Ideal ') && { label: name }),
+    ...(s.type?.startsWith('Ideal ') && { type: name }),
     prescription,
     ...(s.inputs && { inputs: s.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }),
   };
@@ -182,6 +196,40 @@ export const unbound = (s: { label: string; placement: Placement }): Placement =
     ? { state: 'unmounted', part: p.module.replace(/^Holder for /, ''), source: 'Holder removed', ...keepSeat(p) }
     : { state: 'unmounted', part: s.label, source: `Taken out of ${p.module}`, ...keepSeat(p) };
 };
+
+/**
+ * The three steps of a part, as every view names them:
+ *
+ *   Ideal ──▶ Real optic ──▶ Mounted
+ *
+ * An ideal part does what its numbers say (a lens of f and Ø). A real optic
+ * is glass that exists: from the catalogue, or designed here (its radii,
+ * glass and Ø). A mounted part is in a cube: a ready module, or a holder
+ * made for it. A ready module can also take an ideal part straight to step 3.
+ */
+export type Step = 'ideal' | 'real' | 'mounted';
+/** Where its optic (step 2) or its cube (step 3) comes from. */
+export type Origin = 'catalogue' | 'designed' | 'module' | 'holder';
+
+export const STEPS: readonly { step: Step; label: string; what: string }[] = [
+  { step: 'ideal', label: 'Ideal', what: 'It does what its numbers say. It is not a real part yet.' },
+  { step: 'real', label: 'Real optic', what: 'Real glass. It has no holder yet.' },
+  { step: 'mounted', label: 'Mounted', what: 'In a cube, with its holder. Ready to build.' },
+];
+
+export const ORIGINS: Readonly<Record<Origin, string>> = {
+  catalogue: 'From the catalogue',
+  designed: 'Designed here',
+  module: 'Ready module',
+  holder: 'Holder made here',
+};
+
+export function stageOf(s: Pick<SchematicSymbol, 'placement' | 'prescription'>): { step: Step; origin: Origin | null } {
+  const p = s.placement;
+  if (p.state === 'ideal') return { step: 'ideal', origin: null };
+  if (p.state === 'unmounted') return { step: 'real', origin: s.prescription ? 'designed' : 'catalogue' };
+  return { step: 'mounted', origin: p.frozen ? 'holder' : 'module' };
+}
 
 /** One numeric, kind-specific input of a part, shown as a slider (e.g. cut-on wavelength). */
 export interface SymbolParam {

@@ -100,24 +100,24 @@ export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties
           {one.placement.state === 'ideal' ? (
             <>
               {onSnap && (
-                <Action label="Snap: choose a catalogue part for it, up close" onClick={onSnap}>
+                <Action label="Make it real: from the catalogue or your own design, up close" onClick={onSnap}>
                   <TravelExploreIcon fontSize="small" />
                 </Action>
               )}
-              <Action label="Realize: swap for an existing module" onClick={(e) => setMenu(e.currentTarget)}>
+              <Action label="Ready module: a library module that holds such a part" onClick={(e) => setMenu(e.currentTarget)}>
                 <SwapHorizIcon fontSize="small" />
               </Action>
             </>
           ) : one.placement.state === 'in-cube' ? (
-            <Action label="Unbind: take it out of its cube" onClick={() => onUpdate((s) => ({ placement: unbound(s) }))}>
+            <Action label="Take it out of the cube" onClick={() => onUpdate((s) => ({ placement: unbound(s) }))}>
               <LinkOffIcon fontSize="small" />
             </Action>
           ) : (
             <>
-              <Action label="Realize: swap for an existing module" onClick={(e) => setMenu(e.currentTarget)}>
+              <Action label="Ready module: a library module that holds it" onClick={(e) => setMenu(e.currentTarget)}>
                 <SwapHorizIcon fontSize="small" />
               </Action>
-              <Action label={onFreeze ? 'Freeze: design a holder for it, up close' : 'Freeze: make a holder for it here'} onClick={() => (onFreeze ? onFreeze() : onUpdate((s) => ({ placement: frozen(s.placement) })))}>
+              <Action label={onFreeze ? 'Mount it: make a holder for it, up close' : 'Mount it: make a holder for it here'} onClick={() => (onFreeze ? onFreeze() : onUpdate((s) => ({ placement: frozen(s.placement) })))}>
                 <AcUnitIcon fontSize="small" />
               </Action>
             </>

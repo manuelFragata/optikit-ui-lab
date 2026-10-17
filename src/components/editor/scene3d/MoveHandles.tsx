@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { PerspectiveCamera, Vector3, type Group } from 'three';
+import { OrthographicCamera, PerspectiveCamera, Vector3, type Group } from 'three';
 import type { Size } from '../../../settings/preferences';
 import { CUBE_MM, type MoveAxis, type Vec3 } from './layout3d';
 
@@ -25,7 +25,12 @@ export function MoveHandles({ at, axes, size, onPress }: { at: Vec3; axes: MoveA
   const [hovered, setHovered] = useState<MoveAxis | null>(null);
   const arrows = useRef<(Group | null)[]>([]);
   // One unit of the arrows' geometry is one pixel on screen (at medium), at their distance from the camera.
+  // Without perspective (2D) the zoom is pixels per mm, the same everywhere.
   useFrame(({ camera, size: frame }) => {
+    if (camera instanceof OrthographicCamera) {
+      for (const arrow of arrows.current) arrow?.scale.setScalar(SCALE[size] / camera.zoom);
+      return;
+    }
     if (!(camera instanceof PerspectiveCamera)) return;
     const mmPerPx = ((2 * Math.tan((camera.fov * Math.PI) / 360)) / frame.height) * SCALE[size];
     for (const arrow of arrows.current) {

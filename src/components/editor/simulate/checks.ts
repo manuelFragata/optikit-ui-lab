@@ -28,7 +28,7 @@ export const ANALYSES: { id: AnalysisId; label: string; plane: boolean; rays: bo
 ];
 
 /** How light is sent in and read until the person says otherwise: a typical diode module's 2 mm beam, the objective's own NA, 41 rays, each source's wavelength. */
-export const DEFAULT_SETTINGS: SimulateSettings = { beamMm: 2, na: null, rays: 41, nm: null, shiftMm: {} };
+export const DEFAULT_SETTINGS: SimulateSettings = { beamMm: null, na: null, rays: 41, nm: null, shiftMm: {} };
 
 /** ok: works; warn: worth a look; bad: does not work as drawn; none: nothing to say (not known). */
 export type Tone = 'ok' | 'warn' | 'bad' | 'none';

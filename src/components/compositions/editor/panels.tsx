@@ -29,7 +29,7 @@ import { DesignInfoPanel } from '../../editor/panels/DesignInfoPanel';
 import { LayersPanel } from '../../editor/panels/LayersPanel';
 import { PartsListPanel } from '../../editor/panels/PartsListPanel';
 import { SketchPanel } from '../../editor/panels/SketchPanel';
-import { PropertiesFooter, PropertiesPanel, SelectionSummary } from '../../editor/panels/PropertiesPanel';
+import { PropertiesFooter, PropertiesPanel, PropertiesTitle, SelectionSummary } from '../../editor/panels/PropertiesPanel';
 import { SymbolPalettePanel } from '../../editor/panels/SymbolPalettePanel';
 import type { SidePanelItem } from '../../panels/SidePanel';
 import { download } from '../../primitives/download';
@@ -128,24 +128,37 @@ export interface RightPanelsProps {
   onFreeze?: () => void;
   /** Opens Choose parts, for an ideal part. */
   onSnap?: () => void;
+  /** Opens the close-up to design an ideal lens or mirror. */
+  onDesign?: () => void;
 }
 
-export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted, onFreeze, onSnap }: RightPanelsProps): SidePanelItem[] {
+export function rightPanels({ design, selected, selectedParts, realizeOptions, onChange, onSelect, onStep, onDelete, unmounted, onFreeze, onSnap, onDesign }: RightPanelsProps): SidePanelItem[] {
   const several = selectedParts.length > 1;
   return [
     {
       id: 'properties',
       label: 'Properties',
-      title: several ? `${selectedParts.length} parts selected` : (selected?.label ?? 'Properties'),
+      title: several ? `${selectedParts.length} parts selected` : selected ? <PropertiesTitle symbol={selected} onChange={onChange} /> : 'Properties',
       icon: <TuneIcon />,
       // Several parts: which ones (pick one to see it alone). One part: its properties.
       content: several ? (
         <SelectionSummary parts={selectedParts} onPick={onSelect} />
       ) : (
-        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} onFreeze={onFreeze} onSnap={onSnap} />
+        <PropertiesPanel symbol={selected} realizeOptions={realizeOptions} onChange={onChange} />
       ),
       footer: !several && selected && (
-        <PropertiesFooter symbolId={selected.id} total={design.symbols.length} onPrev={() => onStep(-1)} onNext={() => onStep(1)} onDelete={onDelete} />
+        <PropertiesFooter
+          symbol={selected}
+          total={design.symbols.length}
+          onPrev={() => onStep(-1)}
+          onNext={() => onStep(1)}
+          onDelete={onDelete}
+          onChange={onChange}
+          realizeOptions={realizeOptions}
+          onFreeze={onFreeze}
+          onSnap={onSnap}
+          onDesign={onDesign}
+        />
       ),
     },
     {

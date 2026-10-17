@@ -23,6 +23,7 @@ import { useTheme, type Theme } from '@mui/material/styles';
 import { demoInputs, demoSchematic, demoSketch } from '../../demo/editorContent';
 import { useLibrary, type PaletteGroup } from '../../ports/library';
 import { snappedValues } from '../editor/holders/optic';
+import type { MakeReal } from '../editor/scene3d/SnapPanel';
 import { useRequest } from '../../ports/request';
 import { useService } from '../../ports/service';
 import { STORE_MESHES } from '../../demo/assemblies';
@@ -36,11 +37,10 @@ import { CommandPalette } from '../editor/CommandPalette';
 import { LayerPreview } from '../editor/LayerPreview';
 import { designed, frozen, realize, snapped, type Move, type Schematic, type SchematicSymbol } from '../editor/model';
 import { designedValues, recordOf } from '../editor/holders/designs';
-import { SchematicCanvas, type Camera } from '../editor/SchematicCanvas';
 import type { CameraCommand, CameraMove } from '../editor/scene3d/Camera';
 import { SelectionActions } from '../editor/SelectionActions';
 import { useHistory } from '../editor/useHistory';
-import { ViewDock, type Detail, type Flyout, type ZoomCommand } from '../editor/ViewDock';
+import { ViewDock, type Flyout, type ZoomCommand } from '../editor/ViewDock';
 import { SidePanel, type SidePanelState } from '../panels/SidePanel';
 import { SplitPane } from '../panels/SplitPane';
 import type { AccountUser } from './AccountMenu';
@@ -70,13 +70,7 @@ const SimulatePane = lazy(() => import('../editor/simulate/SimulatePane').then((
 export type EditorPane = 'closeup' | 'optimize' | 'choose' | 'simulate';
 
 /** The sketch's entries, as parts to place. */
-const SKETCH: PartEntry[] = demoSketch.flatMap((g) =>
-  g.entries.map((e) => {
-    const mount = e.mount ?? ('ideal' as const);
-    const label = mount === 'ideal' && !/^Ideal /.test(e.label) ? `Ideal ${e.label.toLowerCase()}` : e.label;
-    return { id: e.id, kind: e.kind, inputs: e.inputs, prescription: e.prescription, label, mount, source: 'Sketch' };
-  }),
-);
+const SKETCH: PartEntry[] = demoSketch.flatMap((g) => g.entries.map((e) => ({ id: e.id, kind: e.kind, inputs: e.inputs, label: `Ideal ${e.label.toLowerCase()}`, mount: 'ideal' as const, source: 'Sketch' })));
 
 /** Every part there is to place, in one list for the Add search and the command palette: the sketch's, then the library's. */
 const partsOf = (palette: readonly PaletteGroup[]): PartEntry[] => [...SKETCH, ...palette.flatMap((g) => g.entries.map((e) => ({ ...e, mount: g.mount, source: g.label })))];
@@ -201,9 +195,9 @@ export function EditorShell({
   const { prefs, update: updatePrefs, setSettingsOpen } = usePreferences();
   // One layer is worked on at a time; the design opens on the lowest layer with parts.
   const [layer, setLayer] = useState(() => Math.min(...initialDesign.symbols.map((s) => s.z), 1));
-  const [detail, setDetail] = useState<Detail>('solids');
-  const [camera2d, setCamera2d] = useState<Camera | 'fit'>('fit');
-  // The 3D camera moves on commands; `n` counts them, so the same one can repeat.
+  // The 2D zoom, as the camera says it, 1 = 100 %.
+  const [zoom, setZoom] = useState(1);
+  // The camera moves on commands (2D and 3D); `n` counts them, so the same one can repeat.
   const [camera3d, setCamera3d] = useState<CameraCommand>();
   const [flyout, setFlyout] = useState<Flyout | null>(null);
   // On a narrow canvas the dock and the layer preview overlap: the one the pointer or focus is on comes to the front.
@@ -237,7 +231,6 @@ export function EditorShell({
   const unmounted = design.symbols.filter((s) => s.placement.state !== 'in-cube');
   // Every layer from the ground to one above the highest part, so there is always a free layer to stack into.
   const layers = Array.from({ length: Math.max(0, ...design.symbols.map((s) => s.z)) + 2 }, (_, z) => z);
-  const zoom = typeof camera2d === 'object' ? camera2d.zoom : 1;
 
   // The selected part went to another layer (picked from a list, moved, undone): the view goes with it.
   const selectedZ = selected?.z;
@@ -291,8 +284,11 @@ export function EditorShell({
   useEffect(() => {
     if (openPane) setPane(openPane);
   }, [openPane]);
-  /** Freeze: the holder is designed in the close-up, on the selected part. */
-  const designHolder = () => {
+  /** An ideal part in the close-up: made real from the catalogue, or designed. */
+  const [makeReal, setMakeReal] = useState<MakeReal>('catalogue');
+  /** Freeze: the holder is designed in the close-up, on the selected part (an ideal part: made real there, from the catalogue first). */
+  const designHolder = (way: MakeReal = 'catalogue') => {
+    setMakeReal(way);
     stepAside();
     setCloseup(true);
     // The designer takes a column of the close-up: give it room.
@@ -347,12 +343,8 @@ export function EditorShell({
     if (!more) select([id]);
   };
 
-  const zoom2d = (command: ZoomCommand) => {
-    if (command === 'fit' || typeof camera2d !== 'object') return setCamera2d('fit');
-    const next = command === 'actual' ? 1 : command === 'in' ? zoom * 1.25 : zoom / 1.25;
-    setCamera2d({ ...camera2d, zoom: Math.min(5, Math.max(0.2, next)) });
-  };
   const move3d = (move: CameraMove) => setCamera3d((c) => ({ move, n: (c?.n ?? 0) + 1 }));
+  const zoom2d = (command: ZoomCommand) => move3d(command);
 
   const ids = selection.ids;
   const actions: EditorActions = {
@@ -383,11 +375,11 @@ export function EditorShell({
     goToLayer: setLayer,
     toggleOption: (option) => setOptions({ ...options, [option]: options[option] === false }),
     setLabelSize: (labelSize) => updatePrefs({ labelSize }),
-    fit: () => (view === '3d' ? move3d('fit') : zoom2d('fit')),
-    fitSelection: () => (view === '3d' ? move3d('fitSelection') : zoom2d('fit')),
-    zoomIn: () => (view === '3d' ? move3d('in') : zoom2d('in')),
-    zoomOut: () => (view === '3d' ? move3d('out') : zoom2d('out')),
-    actualSize: () => view === '2d' && zoom2d('actual'),
+    fit: () => move3d('fit'),
+    fitSelection: () => move3d('fitSelection'),
+    zoomIn: () => move3d('in'),
+    zoomOut: () => move3d('out'),
+    actualSize: () => view === '2d' && move3d('actual'),
 
     openPanel,
     toggleCloseup,
@@ -438,8 +430,8 @@ export function EditorShell({
       onProperties={actions.openProperties}
       onDuplicate={actions.duplicateSelection}
       onDelete={actions.deleteSelection}
-      onFreeze={designHolder}
-      onSnap={designHolder}
+      onFreeze={() => designHolder()}
+      onSnap={() => designHolder()}
     />
   );
 
@@ -502,8 +494,9 @@ export function EditorShell({
       onStep: step,
       onDelete: actions.deleteSelection,
       unmounted: unmounted.length,
-      onFreeze: designHolder,
+      onFreeze: () => designHolder(),
       onSnap: openChoose,
+      onDesign: () => designHolder('design'),
     }),
   ];
   const sidebar = (
@@ -562,57 +555,34 @@ export function EditorShell({
           onFraction={setSplit}
           first={
             <Box sx={{ position: 'relative', display: 'flex', flex: 1, minWidth: 0 }}>
-              {view === '3d' ? (
-                <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
-                  <DesignScene3D
-                    schematic={design}
-                    layer={layer}
-                    options={options}
-                    prefs={prefs}
-                    fidelity={detail}
-                    selectedIds={ids}
-                    tool={tool}
-                    snap={options.snapToGrid}
-                    onMove={applyMove}
-                    meshFor={library.meshFor}
-                    glassFor={glassOf}
-                    onSelect={onCanvasSelect}
-                    onSelectMany={onCanvasSelectMany}
-                    onInspect={inspect}
-                    onPickComponent={(partId, key) => setCloseupFocus({ partId, key })}
-                    command={camera3d}
-                    hint={HINT_3D}
-                    hintPlace={hintPlace}
-                    selectionActions={selectionActions}
-                  />
-                </Suspense>
-              ) : (
-                <SchematicCanvas
+              {/* One scene for both views: 2D is the same parts from the top, without perspective. */}
+              <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+                <DesignScene3D
                   schematic={design}
-                  selectedId={selectedId}
-                  selectedIds={ids}
-                  onSelect={onCanvasSelect}
-                  onSelectMany={onCanvasSelectMany}
-                  onInspect={inspect}
-                  opticFor={glassOf}
-                  view={view}
+                  flat={view === '2d'}
                   layer={layer}
                   options={options}
                   prefs={prefs}
-                  hint={hint2d}
-                  hintAt="top"
-                  hintPlace={hintPlace}
-                  camera={camera2d}
-                  onCamera={setCamera2d}
+                  selectedIds={ids}
                   tool={tool}
+                  snap={options.snapToGrid}
+                  onMove={applyMove}
+                  meshFor={library.meshFor}
+                  glassFor={glassOf}
+                  onSelect={onCanvasSelect}
+                  onSelectMany={onCanvasSelectMany}
+                  onInspect={inspect}
+                  onPickComponent={(partId, key) => setCloseupFocus({ partId, key })}
+                  command={camera3d}
+                  hint={view === '3d' && !placing.entry ? HINT_3D : hint2d}
+                  hintPlace={hintPlace}
+                  selectionActions={selectionActions}
                   placing={placing.entry && { kind: placing.entry.kind, drag: placing.dragging }}
                   onPlace={place}
-                  onMove={applyMove}
-                  snap={options.snapToGrid}
-                  selectionActions={selectionActions}
                   focusRay={pane === 'simulate' ? focusRay : null}
+                  onZoom={setZoom}
                 />
-              )}
+              </Suspense>
 
               {/* 2D or 3D, and search: top left, beside the left panel when it is out. */}
               <Box
@@ -654,8 +624,6 @@ export function EditorShell({
                   onTool={setTool}
                   options={options}
                   onOptions={setOptions}
-                  detail={detail}
-                  onDetail={setDetail}
                   zoom={zoom}
                   onZoom={zoom2d}
                   onCamera={move3d}
@@ -713,6 +681,10 @@ export function EditorShell({
                     select([id]);
                     designHolder();
                   }}
+                  onDesignOwn={(id) => {
+                    select([id]);
+                    designHolder('design');
+                  }}
                   onClose={() => setPane(null)}
                 />
               </Suspense>
@@ -737,6 +709,7 @@ export function EditorShell({
                   modules={selected ? modulesFor(selected.kind) : []}
                   onRealize={(option) => selected && edit((d) => updateParts(d, [selected.id], (s) => realize(s, option)))}
                   onDesign={(prescription) => selected && edit((d) => updateParts(d, [selected.id], (s) => designed(s, prescription, designedValues(prescription))))}
+                  makeReal={makeReal}
                   wavelengths={wavelengths}
                   onPrescription={(prescription) => selected && edit((d) => updateParts(d, [selected.id], () => ({ prescription })))}
                 />

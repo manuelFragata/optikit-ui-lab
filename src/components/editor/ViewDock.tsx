@@ -8,7 +8,6 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -26,7 +25,6 @@ import StraightenIcon from '@mui/icons-material/Straighten';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import UndoIcon from '@mui/icons-material/Undo';
-import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
@@ -34,13 +32,8 @@ import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import { floatingCardSx } from '../panels/floatingCard';
 import type { CanvasTool, EditorView, ViewOptions } from './viewOptions';
 import type { CameraMove } from './scene3d/Camera';
-import type { Fidelity } from './scene3d/layout3d';
-
-/** How much the 3D view draws: the symbols, their cubes, or the real solids (the brief's fidelity dial). */
-export type Detail = Fidelity;
-
 /** The dock's pop-up option lists; one is open at a time. */
-export type Flyout = 'add' | 'show' | 'detail' | 'zoom' | 'views' | 'build';
+export type Flyout = 'add' | 'show' | 'zoom' | 'views' | 'build';
 
 export type ZoomCommand = 'in' | 'out' | 'actual' | 'fit';
 
@@ -63,8 +56,6 @@ export interface ViewDockProps {
   onTool: (tool: CanvasTool) => void;
   options: ViewOptions;
   onOptions: (options: ViewOptions) => void;
-  detail: Detail;
-  onDetail: (detail: Detail) => void;
   /** The schematic zoom, 1 = 100%. */
   zoom: number;
   onZoom: (command: ZoomCommand) => void;
@@ -87,12 +78,6 @@ const SHOW: { key: ShowKey; label: string; icon: ReactNode }[] = [
   { key: 'showRayLabels', label: 'Ray labels', icon: <LabelOutlinedIcon fontSize="small" /> },
   { key: 'showCages', label: 'Cube cages', icon: <CheckBoxOutlineBlankIcon fontSize="small" /> },
   { key: 'onionSkin', label: 'Other layers, faintly', icon: <FilterNoneIcon fontSize="small" /> },
-];
-
-const DETAILS: { value: Detail; label: string; icon: ReactNode }[] = [
-  { value: 'symbols', label: 'Symbols', icon: <CategoryOutlinedIcon fontSize="small" /> },
-  { value: 'cubes', label: 'Cubes', icon: <CheckBoxOutlineBlankIcon fontSize="small" /> },
-  { value: 'solids', label: 'Solids', icon: <ViewInArOutlinedIcon fontSize="small" /> },
 ];
 
 const TOOLS: { value: CanvasTool; label: string; icon: ReactNode }[] = [
@@ -209,10 +194,9 @@ const Sep = () => <Divider orientation="vertical" flexItem sx={{ my: 0.75, mx: 0
  * The main buttons open their options above them.
  */
 export function ViewDock(props: ViewDockProps) {
-  const { view, flyout, onFlyout, tool, onTool, options, onOptions, detail, onDetail, zoom, onZoom, unmounted } = props;
+  const { view, flyout, onFlyout, tool, onTool, options, onOptions, zoom, onZoom, unmounted } = props;
   const toggle = (f: Flyout) => onFlyout(flyout === f ? null : f);
   const schematic = view === '2d';
-  const currentDetail = DETAILS.find((d) => d.value === detail) ?? DETAILS[2];
   const buildable = unmounted.length === 0;
   const empty = props.empty ?? false;
 
@@ -289,18 +273,6 @@ export function ViewDock(props: ViewDockProps) {
           >
             <DockButton label="Views" flyout on={flyout === 'views'} onClick={() => toggle('views')}>
               <ThreeDRotationIcon fontSize="small" />
-            </DockButton>
-          </WithFlyout>
-        )}
-        {!schematic && (
-          <WithFlyout
-            open={flyout === 'detail'}
-            content={DETAILS.map((d) => (
-              <FlyoutRow key={d.value} label={d.label} icon={d.icon} on={detail === d.value} onClick={() => onDetail(d.value)} />
-            ))}
-          >
-            <DockButton label={`3D detail: ${currentDetail.label}`} flyout on={flyout === 'detail'} onClick={() => toggle('detail')}>
-              {currentDetail.icon}
             </DockButton>
           </WithFlyout>
         )}

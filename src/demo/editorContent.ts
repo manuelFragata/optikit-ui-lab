@@ -2,9 +2,7 @@
  * Placeholder design for the editor stories: the BF+Fluor FRAME optical core.
  * Not part of the component set; replace freely.
  */
-import { designedValues, designLens, designMirror } from '../components/editor/holders/designs';
-import type { FragmentSurface } from '../components/editor/holders/optic';
-import type { SketchEntry, SketchGroup } from '../components/editor/panels/SketchPanel';
+import type { SketchGroup } from '../components/editor/panels/SketchPanel';
 import type { Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
 import type { VersionEntryData } from '../components/editor/panels/HistoryPanel';
 import type { ProjectFileData } from '../components/views/file/ProjectFiles';
@@ -141,13 +139,22 @@ export const demoDesignInfo = {
 /** The inputs a newly placed part of each kind starts with. */
 export const demoInputs: Record<SymbolKind, SymbolParam[]> = {
   laser: [
-    { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 700, step: 1 },
+    { label: 'Wavelength', value: 488, unit: 'nm', min: 400, max: 1100, step: 1 },
+    { label: 'Waist diameter', value: 1, unit: 'mm', min: 0.1, max: 10, step: 0.1 },
+    { label: 'Divergence', value: 1, unit: 'mrad', min: 0, max: 20, step: 0.1 },
     { label: 'Power', value: 10, unit: 'mW', min: 0, max: 100, step: 1 },
   ],
-  mirror: [{ label: 'Tilt', value: 45, unit: '°', min: 40, max: 50, step: 0.5 }],
-  dichroic: [{ label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 }],
+  mirror: [
+    // 0: a flat mirror. A positive f focuses (concave), a negative one spreads the light (convex).
+    { label: 'Focal length', value: 0, unit: 'mm', min: -500, max: 500, step: 1 },
+    { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+  ],
+  dichroic: [
+    { label: 'Cut-on wavelength', value: 505, unit: 'nm', min: 400, max: 700, step: 1 },
+    { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+  ],
   lens: [
-    { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
+    { label: 'Focal length', value: 50, unit: 'mm', min: -300, max: 300, step: 1 },
     { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
   ],
   objective: [
@@ -161,67 +168,59 @@ export const demoInputs: Record<SymbolKind, SymbolParam[]> = {
   filter: [
     { label: 'Centre wavelength', value: 525, unit: 'nm', min: 350, max: 1100, step: 1 },
     { label: 'Bandwidth', value: 40, unit: 'nm', min: 2, max: 200, step: 1 },
+    { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
   ],
-  beamsplitter: [{ label: 'Reflectance', value: 50, unit: '%', min: 1, max: 99, step: 1 }],
+  beamsplitter: [
+    { label: 'Reflectance', value: 50, unit: '%', min: 1, max: 99, step: 1 },
+    { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+  ],
   aperture: [{ label: 'Diameter', value: 10, unit: 'mm', min: 0.5, max: 25, step: 0.5 }],
 };
 
-/** An input list with some values replaced: a designed optic's, as its prescription has them. */
+/** An LED: a source of an emitter's size, spreading wide. */
+const LED_INPUTS: SymbolParam[] = [
+  { label: 'Wavelength', value: 470, unit: 'nm', min: 360, max: 940, step: 1 },
+  { label: 'Emitter size', value: 3, unit: 'mm', min: 0.5, max: 10, step: 0.5 },
+  { label: 'Divergence', value: 30, unit: '°', min: 1, max: 120, step: 1 },
+  { label: 'Power', value: 200, unit: 'mW', min: 0, max: 1000, step: 10 },
+];
+
+/** A part's inputs with some values set. */
 const withValues = (inputs: SymbolParam[], values: Readonly<Record<string, number>>) => inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i));
 
-/** A lens or mirror designed here, as a sketch tile: its prescription, and its inputs following from it. */
-function designedEntry(id: string, label: string, kind: 'lens' | 'mirror', spec: string, prescription: FragmentSurface[]): SketchEntry {
-  const inputs = kind === 'lens' ? withValues(demoInputs.lens, designedValues(prescription)) : demoInputs.mirror;
-  return { id, label, kind, spec, mount: 'designed', prescription, inputs };
-}
-
 /**
- * The sketch (the left rail's Sketch panel): real lenses and mirrors designed
- * here, from a form and a focal length and then by every radius and glass;
- * ideal elements where only the specification matters yet; sources and
- * detectors.
+ * The sketch (the left rail's Sketch panel): ideal parts only. Each does
+ * exactly what its numbers say (a lens is a paraxial thin lens of f and Ø),
+ * so layouts can be tried before any real part is chosen. A part is made
+ * real later, on the canvas: from the catalogue, or designed here.
  */
+const entry = (id: string, label: string, kind: SymbolKind, values: Readonly<Record<string, number>> = {}, inputs = demoInputs[kind]) => ({ id, label, kind, inputs: withValues(inputs, values) });
+
 export const demoSketch: SketchGroup[] = [
   {
-    id: 'ideal',
-    label: 'By what they do',
+    id: 'optics',
+    label: 'Optics',
     entries: [
-      { id: 'ideal-lens', label: 'Lens', kind: 'lens', spec: 'f = 50 mm · Ø25' },
-      { id: 'ideal-objective', label: 'Objective', kind: 'objective', spec: '10× · NA 0.25' },
-      { id: 'ideal-mirror', label: 'Mirror', kind: 'mirror', spec: 'Flat · at 45°' },
-      { id: 'ideal-filter', label: 'Pass filter', kind: 'filter', spec: '525 nm · 40 nm wide' },
-      { id: 'ideal-dichroic', label: 'Dichroic', kind: 'dichroic', spec: 'Cut-on 505 nm' },
-      { id: 'ideal-beamsplitter', label: 'Beam splitter', kind: 'beamsplitter', spec: '50 : 50' },
-      { id: 'ideal-aperture', label: 'Aperture', kind: 'aperture', spec: 'Ø10 mm open' },
+      entry('ideal-lens', 'Lens', 'lens'),
+      entry('ideal-lens-negative', 'Negative lens', 'lens', { 'Focal length': -50 }),
+      entry('ideal-mirror', 'Mirror', 'mirror'),
+      entry('ideal-mirror-curved', 'Focusing mirror', 'mirror', { 'Focal length': 100 }),
+      entry('ideal-filter', 'Filter', 'filter'),
+      entry('ideal-dichroic', 'Dichroic', 'dichroic'),
+      entry('ideal-beamsplitter', 'Beam splitter', 'beamsplitter'),
     ],
   },
   {
-    id: 'ends',
-    label: 'Sources and detectors',
+    id: 'sources',
+    label: 'Sources',
     entries: [
-      { id: 'ideal-laser', label: 'Laser', kind: 'laser', spec: 'λ = 488 nm · 10 mW' },
-      {
-        id: 'ideal-led',
-        label: 'LED',
-        kind: 'laser',
-        spec: 'λ = 470 nm · 200 mW',
-        inputs: [
-          { label: 'Wavelength', value: 470, unit: 'nm', min: 360, max: 940, step: 1 },
-          { label: 'Power', value: 200, unit: 'mW', min: 0, max: 1000, step: 10 },
-        ],
-      },
-      { id: 'ideal-camera', label: 'Camera', kind: 'camera', spec: 'An image plane' },
+      entry('ideal-laser', 'Laser', 'laser'),
+      entry('ideal-led', 'LED', 'laser', {}, LED_INPUTS),
     ],
   },
   {
-    id: 'designed',
-    label: 'Glass designed here',
-    entries: [
-      designedEntry('lens-biconvex', 'Biconvex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('biconvex', 50, 25.4)),
-      designedEntry('lens-planoconvex', 'Plano-convex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('plano-convex', 50, 25.4)),
-      designedEntry('lens-achromat', 'Achromat', 'lens', 'Doublet · f = 50 · Ø25.4', designLens('achromat', 50, 25.4)),
-      designedEntry('mirror-flat', 'Flat mirror', 'mirror', 'Ø25.4 · at 45°', designMirror('flat', 0, 25.4)),
-      designedEntry('mirror-concave', 'Concave mirror', 'mirror', 'R = 200 · f = 100 · Ø25.4', designMirror('concave', 200, 25.4)),
-    ],
+    id: 'detectors',
+    label: 'Detectors',
+    entries: [entry('ideal-camera', 'Camera', 'camera')],
   },
 ];

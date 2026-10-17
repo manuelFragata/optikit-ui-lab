@@ -87,7 +87,7 @@ export const Properties: Story = {
       <>
         <PropertiesPanel symbol={symbol} onChange={(patch) => setSymbol({ ...symbol, ...patch })} />
         <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
-          <PropertiesFooter symbolId={symbol.id} total={6} onPrev={() => {}} onNext={() => {}} onDelete={() => {}} />
+          <PropertiesFooter symbol={symbol} total={6} onPrev={() => {}} onNext={() => {}} onDelete={() => {}} onChange={(patch) => setSymbol({ ...symbol, ...patch })} />
         </Box>
       </>
     );

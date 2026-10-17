@@ -11,6 +11,9 @@ import { facing, samplePoint, seatOf, specLine, symbolBounds, withMove, type Mov
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { OpticOutline } from './OpticProfile';
+import { liesAt45 } from './holders/designs';
+import { sketchShape } from './sketchShapes';
+import { SketchLines } from './SketchSvg';
 import type { FragmentSurface } from './holders/optic';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../settings/preferences';
 import { VIEW_LABELS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from './viewOptions';
@@ -608,10 +611,16 @@ export function SchematicCanvas({
                     fill="none"
                   >
                     {(() => {
-                      // Real glass at its true size (1 unit = one cube); a mirror lies at 45°, as its symbol does.
-                      const glass = (s.kind === 'lens' || s.kind === 'mirror') && s.placement.state !== 'ideal' ? opticFor?.(s) : undefined;
+                      // At its true size (1 unit = one cube): an ideal part as the line art of what it does, from its inputs; a real part as its glass, from its prescription. Mirrors, dichroics and splitters lie at 45°, as their symbols do.
+                      if (s.placement.state === 'ideal')
+                        return (
+                          <g transform={`scale(${1 / schematic.unitMm})`}>
+                            <SketchLines shape={sketchShape(s)} strokeWidth={1.5} nonScaling color="var(--mui-palette-primary-main)" />
+                          </g>
+                        );
+                      const glass = opticFor?.(s);
                       return glass ? (
-                        <g transform={`scale(${1 / schematic.unitMm})${s.kind === 'mirror' ? ' rotate(45)' : ''}`}>
+                        <g transform={`scale(${1 / schematic.unitMm})${liesAt45(s.kind) ? ' rotate(45)' : ''}`}>
                           <OpticOutline surfaces={glass} strokeWidth={1.5} nonScaling />
                         </g>
                       ) : (

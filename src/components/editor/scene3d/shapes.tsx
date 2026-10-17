@@ -2,14 +2,16 @@
  * What things look like in 3D. These only draw what they are given (in the
  * document frame: mm, z up); what to draw where is decided in layout3d.ts.
  */
-import { Component, Suspense, useEffect, useMemo, type ReactNode, type Ref } from 'react';
-import { Line, Outlines } from '@react-three/drei';
-import { DoubleSide, Quaternion, Vector3, type Group } from 'three';
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Edges, Line, Outlines } from '@react-three/drei';
+import { Box3, DoubleSide, Quaternion, Shape, ShapeGeometry, Vector3, type Group } from 'three';
 import type { SymbolKind } from '../model';
-import { CUBE_MM, type Floor, type MeshRef, type PlacedRay, type Vec3 } from './layout3d';
+import { CUBE_MM, minimumScale, type Floor, type MeshRef, type PlacedRay, type Vec3 } from './layout3d';
 import { glassGeometries, glassMaterial, useHolderComponents } from './holderMesh';
 import type { FragmentSurface } from '../holders/optic';
 import { COMPONENT_KEY, poseMatrix, useModuleMesh, type MeshComponent } from './meshes';
+import type { SketchCone, SketchLine, SketchShape, SketchSolid } from '../sketchShapes';
 
 const H = CUBE_MM / 2;
 
@@ -137,31 +139,159 @@ export function Glyph({ kind, turns, color, outline, scale = 1 }: { kind: Symbol
 }
 
 /**
- * A lens or mirror as its real glass, where the part sits: a lens across the
- * beam (its axis along +x before the seat turns it), a mirror at 45° as its
- * glyph lies.
+ * An optic as its glass, where the part sits: a lens or a filter across the
+ * beam (its axis along +x before the seat turns it), a mirror, a dichroic or
+ * a splitter at 45° as its glyph lies.
+ * `flat` (2D): zoomed out, never smaller on screen than MIN_ACROSS_PX across
+ * or MIN_ALONG_PX thick: true in shape and place, enlarged about its middle
+ * only where it would vanish.
  */
-export function Glass({ surfaces, mirror, turns, outline }: { surfaces: FragmentSurface[]; mirror: boolean; turns: number; outline: string | null }) {
+export function Glass({
+  surfaces,
+  mirror,
+  at45 = mirror,
+  turns,
+  outline,
+  flat = false,
+}: {
+  surfaces: FragmentSurface[];
+  mirror: boolean;
+  at45?: boolean;
+  turns: number;
+  outline: string | null;
+  flat?: boolean;
+}) {
   const geometries = useMemo(() => glassGeometries(surfaces), [surfaces]);
   useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries]);
+  // Its extent along its axis (x) and across it, mm.
+  const size = useMemo(() => {
+    const box = new Box3();
+    for (const g of geometries) box.union(g.boundingBox ?? (g.computeBoundingBox(), g.boundingBox!));
+    return box.isEmpty() ? null : { across: box.max.y - box.min.y, along: box.max.x - box.min.x, middle: (box.max.x + box.min.x) / 2 };
+  }, [geometries]);
+  const grown = useRef<Group>(null);
+  // Without perspective the zoom is pixels per mm: read each frame, so zooming needs no new render.
+  useFrame(({ camera }) => {
+    const g = grown.current;
+    if (!g || !size) return;
+    const { across, along } = flat ? minimumScale(size, camera.zoom) : { across: 1, along: 1 };
+    g.scale.set(along, across, across);
+    g.position.set(size.middle * (1 - along), 0, 0);
+  });
   return (
-    <group rotation={[0, 0, (turns * Math.PI) / 2 + (mirror ? -Math.PI / 4 : 0)]}>
-      {geometries.map((g, i) => (
-        <mesh key={i} geometry={g} material={glassMaterial(i, mirror)}>
-          <Outline color={outline} />
-        </mesh>
-      ))}
+    <group rotation={[0, 0, (turns * Math.PI) / 2 + (at45 ? -Math.PI / 4 : 0)]}>
+      <group ref={grown}>
+        {geometries.map((g, i) => (
+          <mesh key={i} geometry={g} material={glassMaterial(i, mirror)}>
+            <Outline color={outline} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
 
-/** A translucent cube: the part at "cubes" fidelity, with its glyph inside. */
-export function GlassCube({ color }: { color: string }) {
+/** Where a sketch's lines are drawn: just over the light, which runs at the cube's middle. */
+const SKETCH_Z = 0.3;
+const RING: Vec3[] = Array.from({ length: 49 }, (_, k): Vec3 => [0, Math.cos((k / 48) * 2 * Math.PI), Math.sin((k / 48) * 2 * Math.PI)]);
+
+/** A closed line's fill, as a flat shape in the beam's plane. */
+function Fill({ line }: { line: SketchLine }) {
+  const geometry = useMemo(() => new ShapeGeometry(new Shape(line.points.map(([x, y]) => new Vector3(x, y, 0)) as never)), [line.points]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
-    <mesh>
-      <boxGeometry args={[CUBE_MM - 1, CUBE_MM - 1, CUBE_MM - 1]} />
-      <meshStandardMaterial color={color} transparent opacity={0.16} depthWrite={false} />
+    <mesh geometry={geometry} position={[0, 0, SKETCH_Z - 0.1]}>
+      <meshBasicMaterial color={line.fill} transparent opacity={0.45} depthWrite={false} side={DoubleSide} />
     </mesh>
+  );
+}
+
+/** A body of an ideal part in 3D: see-through, in the sketch colour, its edges drawn. */
+function SketchBody({ solid, color }: { solid: SketchSolid; color: string }) {
+  const material = <meshStandardMaterial color={color} transparent opacity={0.16} roughness={0.7} depthWrite={false} />;
+  if (solid.kind === 'box') {
+    const [a, b] = solid.x;
+    return (
+      <mesh position={[(a + b) / 2, 0, 0]}>
+        <boxGeometry args={[b - a, 2 * solid.half[0], 2 * solid.half[1]]} />
+        {material}
+        <Edges color={color} />
+      </mesh>
+    );
+  }
+  if (solid.kind === 'cylinder') {
+    const [a, b] = solid.x;
+    return (
+      <mesh position={[(a + b) / 2, 0, 0]} rotation={ALONG_X}>
+        <cylinderGeometry args={[solid.r, solid.r, b - a, 32]} />
+        {material}
+        <Edges color={color} threshold={30} />
+      </mesh>
+    );
+  }
+  // A half sphere facing +x, `depth` deep.
+  return (
+    <mesh position={[solid.x, 0, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[1, solid.depth / solid.r, 1]}>
+      <sphereGeometry args={[solid.r, 24, 12, 0, 2 * Math.PI, 0, Math.PI / 2]} />
+      {material}
+    </mesh>
+  );
+}
+
+/** A source's light as it leaves: a glowing cone of its colour, along x. */
+function LightCone({ cone }: { cone: SketchCone }) {
+  return (
+    <mesh position={[cone.x + cone.length / 2, 0, 0]} rotation={ALONG_X}>
+      {/* Along y before the turn: the top (+y, then +x) is the far end. */}
+      <cylinderGeometry args={[cone.r1, cone.r0, cone.length, 32, 1, true]} />
+      <meshBasicMaterial color={cone.color} transparent opacity={0.3} depthWrite={false} side={DoubleSide} />
+    </mesh>
+  );
+}
+
+/**
+ * An ideal part: its line art (sketchShapes.ts), in the plane of the light,
+ * at its true size; in 3D also its aperture, a faint ring across the light,
+ * and the body of a source, a camera or an objective. A source's light
+ * leaves it as a cone of its colour, in 2D and 3D.
+ * Selected, it is drawn bolder and shows its foci. `flat` (2D): never smaller
+ * on screen than a few pixels, as glass.
+ */
+export function Sketch({ shape, turns, color, selected, flat = false }: { shape: SketchShape; turns: number; color: string; selected: boolean; flat?: boolean }) {
+  const grown = useRef<Group>(null);
+  useFrame(({ camera }) => {
+    const g = grown.current;
+    if (!g) return;
+    const k = flat ? minimumScale(shape.size, camera.zoom).across : 1;
+    g.scale.set(k, k, k);
+  });
+  const width = selected ? 2.5 : 1.6;
+  const at = (points: SketchLine['points'], closed?: boolean): Vec3[] => [...points, ...(closed ? [points[0]] : [])].map(([x, y]) => [x, y, SKETCH_Z]);
+  const r = shape.apertureMm;
+  return (
+    <group rotation={[0, 0, (turns * Math.PI) / 2 + (shape.at45 ? -Math.PI / 4 : 0)]}>
+      <group ref={grown}>
+        {shape.lines.map((l, i) => (
+          <group key={i}>
+            {l.fill && <Fill line={l} />}
+            <Line points={at(l.points, l.closed)} color={color} lineWidth={l.faint ? 1 : width} transparent={l.faint} opacity={l.faint ? 0.6 : 1} dashed={l.dashed} dashSize={2} gapSize={1.5} />
+          </group>
+        ))}
+        {shape.cone && <LightCone cone={shape.cone} />}
+        {!flat && shape.solids?.map((s, i) => <SketchBody key={i} solid={s} color={color} />)}
+        {!flat && r > 0 && (
+          <>
+            <Line points={RING.map(([x, y, z]): Vec3 => [x, y * r, z * r])} color={color} lineWidth={1} transparent opacity={0.55} />
+            <mesh rotation={[0, Math.PI / 2, 0]}>
+              <circleGeometry args={[r, 48]} />
+              <meshBasicMaterial color={color} transparent opacity={0.07} depthWrite={false} side={DoubleSide} />
+            </mesh>
+          </>
+        )}
+      </group>
+      {/* The foci, along the light: small crosses. */}
+      {selected && shape.foci.map((f) => <Line key={f} points={[[f - 2, -2, SKETCH_Z], [f + 2, 2, SKETCH_Z], [f, 0, SKETCH_Z], [f - 2, 2, SKETCH_Z], [f + 2, -2, SKETCH_Z]]} color={color} lineWidth={1.5} />)}
+    </group>
   );
 }
 
@@ -262,8 +392,9 @@ export function Solid({ mesh, turns, outline, placeholder, highlight, pickRef }:
  * last run, when it goes into nothing, dashed and faint; and a dashed hint to
  * the part it misses.
  */
-export function Ray({ ray, color, warning }: { ray: PlacedRay; color: string; warning: string }) {
-  const opacity = ray.ghost ? 0.25 : 1;
+/** A light path; `faint`: another path is looked at (Simulate), so this one steps back. */
+export function Ray({ ray, color, warning, faint = false }: { ray: PlacedRay; color: string; warning: string; faint?: boolean }) {
+  const opacity = ray.ghost || faint ? 0.25 : 1;
   const lit = ray.open ? ray.points.slice(0, -1) : ray.points;
   const runOut = ray.open ? ray.points.slice(-2) : null;
   const [a, b] = ray.points;

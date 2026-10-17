@@ -17,7 +17,7 @@ import { GLASS_ND, opticShape } from '../../../components/editor/holders/optic';
 import type { Beam } from './beam';
 
 /** What enters: a collimated beam of a radius, or a point on the axis sending a cone of a numerical aperture. */
-export type Pupil = { kind: 'collimated'; radiusMm: number } | { kind: 'point'; na: number };
+export type Pupil = { kind: 'collimated'; radiusMm: number; /** The edge rays' slope: a source's divergence, half of it. */ spread?: number } | { kind: 'point'; na: number };
 
 /** One ray where it leaves the last part: position on the axis, height, and slope (dy/dz); `null` once stopped. */
 export interface RayOut {
@@ -38,7 +38,7 @@ export interface RealTrace {
 
 /** The pupil of a beam as it starts: a laser's beam, or the sample's cone at the objective's NA. */
 export function pupilOf(beam: Beam, beamMm: number, naOverride?: number): Pupil {
-  if (!beam.fromSample) return { kind: 'collimated', radiusMm: beamMm / 2 };
+  if (!beam.fromSample) return { kind: 'collimated', radiusMm: beamMm / 2, spread: Math.tan((beam.divergenceRad ?? 0) / 2) };
   const objective = beam.elements.find((e) => e.role === 'objective');
   const na = naOverride ?? objective?.symbol?.inputs?.find((i) => i.label === 'Numerical aperture')?.value ?? 0.1;
   return { kind: 'point', na };
@@ -123,7 +123,12 @@ export function realTrace(beam: Beam, pupil: Pupil, n = 41): RealTrace {
     const rho = n === 1 ? 0 : -1 + (2 * k) / (n - 1);
     const start: Ray =
       pupil.kind === 'collimated'
-        ? { z: z0, y: rho * pupil.radiusMm, dz: 1, dy: 0 }
+        ? (() => {
+            // A beam opening from its waist: each ray's slope grows with its height.
+            const slope = rho * (pupil.spread ?? 0);
+            const n = Math.hypot(1, slope);
+            return { z: z0, y: rho * pupil.radiusMm, dz: 1 / n, dy: slope / n };
+          })()
         : (() => {
             // The cone's edge at a slope of the NA: it just fills a stop of 2·NA·f, as the beam table states an objective's aperture.
             const n = Math.hypot(1, rho * pupil.na);

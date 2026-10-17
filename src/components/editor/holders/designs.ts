@@ -201,6 +201,9 @@ export function designedRecord(id: string, kind: SymbolKind, surfaces: FragmentS
   return record;
 }
 
+/** The kinds that lie at 45° in their cube, to turn the light. */
+export const liesAt45 = (kind: SymbolKind) => kind === 'mirror' || kind === 'dichroic' || kind === 'beamsplitter';
+
 /** What optic a part is: its own prescription when designed here, else the catalogue record behind its name. */
 export function recordOf(s: Pick<SchematicSymbol, 'id' | 'kind' | 'placement' | 'prescription'>, catalogue: (name: string) => CatalogRecord | undefined): CatalogRecord | undefined {
   if (s.prescription) return designedRecord(s.id, s.kind, s.prescription);

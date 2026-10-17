@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Schematic, SchematicSymbol } from '../model';
 import type { Light, LightPath } from '../../../ports/light';
-import { boundsOf, cubeCenter, layout3d, toThree, type View3D } from './layout3d';
+import { boundsOf, cubeCenter, layout3d, minimumScale, toThree, type View3D } from './layout3d';
 
 const part = (id: string, patch: Partial<SchematicSymbol> = {}): SchematicSymbol => ({
   id,
@@ -21,7 +21,6 @@ const design = (symbols: SchematicSymbol[]): Schematic => ({ symbols, groups: []
 const view = (patch: Partial<View3D> = {}): View3D => ({
   layer: 1,
   otherLayers: true,
-  fidelity: 'solids',
   cages: false,
   rays: true,
   partLabels: true,
@@ -50,27 +49,32 @@ describe('frames', () => {
 });
 
 describe('parts', () => {
-  it('follow the fidelity on the current layer', () => {
-    const d = design([part('A')]);
-    expect(layout3d(d, view({ fidelity: 'symbols' })).parts[0].look).toBe('symbol');
-    expect(layout3d(d, view({ fidelity: 'cubes' })).parts[0].look).toBe('cube');
-    expect(layout3d(d, view({ fidelity: 'solids' }), () => mesh).parts[0].look).toBe('solid');
+  it('in a cube are their module’s meshes', () => {
+    expect(layout3d(design([part('A')]), view(), () => mesh).parts[0].look).toBe('solid');
   });
 
-  it('show a plain box at solids when the module has no mesh', () => {
+  it('show a plain box when the module has no mesh', () => {
     expect(layout3d(design([part('A')]), view()).parts[0].look).toBe('placeholder');
   });
 
-  it('keep an unmounted optic a glyph in a dashed cube, even at solids', () => {
+  it('draw a real part not in a cube as its optic, from its prescription, in a dashed cube', () => {
     const loose = part('A', { placement: { state: 'unmounted', part: 'AC254', source: 'Thorlabs' } });
-    expect(layout3d(design([loose]), view(), () => mesh).parts[0]).toMatchObject({ look: 'symbol', mounted: false, cage: true, mesh: undefined });
+    const glass = [{ geometry: { radius: 50 }, thickness: 4, semi_aperture: 12.7, material_post: 'N-BK7' }, { geometry: { radius: -50 }, semi_aperture: 12.7 }];
+    expect(layout3d(design([loose]), view(), undefined, light(), () => glass).parts[0]).toMatchObject({ look: 'optic', mounted: false, cage: true, glass });
   });
 
-  it('draw an ideal part as its symbol alone: no cube, at any fidelity', () => {
-    const ideal = part('A', { placement: { state: 'ideal' } });
-    for (const fidelity of ['symbols', 'cubes', 'solids'] as const) {
-      expect(layout3d(design([ideal]), view({ fidelity, cages: true }), () => mesh).parts[0]).toMatchObject({ look: 'symbol', cage: false, mesh: undefined });
-    }
+  it('draw an ideal part as the line art of what it does, at the size its inputs give: no cube, no mesh, no glass', () => {
+    const ideal = part('A', {
+      kind: 'lens',
+      placement: { state: 'ideal' },
+      inputs: [
+        { label: 'Focal length', value: 50, unit: 'mm', min: 10, max: 300, step: 1 },
+        { label: 'Diameter', value: 25, unit: 'mm', min: 6, max: 50, step: 0.5 },
+      ],
+    });
+    const p = layout3d(design([ideal]), view({ cages: true }), () => mesh).parts[0];
+    expect(p).toMatchObject({ look: 'sketch', cage: false, mesh: undefined, glass: undefined });
+    expect(p.sketch).toMatchObject({ apertureMm: 12.5, foci: [-50, 50] });
   });
 
   it('on the other layers are ghosts, or left out', () => {
@@ -158,5 +162,16 @@ describe('floor, anchor and bounds', () => {
 
   it('wrap no parts in no box', () => {
     expect(boundsOf([])).toBeNull();
+  });
+});
+
+describe('the least size of an optic in 2D', () => {
+  it('enlarges a Ø25 lens, 5 mm thick, to 12 px across and 3 px thick when zoomed out, and leaves it true zoomed in', () => {
+    expect(minimumScale({ across: 25, along: 5 }, 0.1)).toEqual({ across: 12 / 2.5, along: 3 / 0.5 });
+    expect(minimumScale({ across: 25, along: 5 }, 1)).toEqual({ across: 1, along: 1 });
+  });
+
+  it('leaves a face with no thickness as it is along its axis', () => {
+    expect(minimumScale({ across: 25, along: 0 }, 0.1).along).toBe(1);
   });
 });

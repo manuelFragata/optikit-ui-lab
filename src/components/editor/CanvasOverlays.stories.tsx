@@ -10,7 +10,7 @@ import { LayerPreview } from './LayerPreview';
 import type { SchematicSymbol } from './model';
 import { SelectionActions } from './SelectionActions';
 import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView } from './viewOptions';
-import { ViewDock, type Detail, type Flyout } from './ViewDock';
+import { ViewDock, type Flyout } from './ViewDock';
 
 // The pieces that float over the View tab's canvas, each on its own.
 const meta = {
@@ -46,7 +46,6 @@ function Dock({ view }: { view: EditorView }) {
   const [flyout, setFlyout] = useState<Flyout | null>(null);
   const [tool, setTool] = useState<CanvasTool>('select');
   const [options, setOptions] = useState(DEFAULT_VIEW_OPTIONS);
-  const [detail, setDetail] = useState<Detail>('symbols');
   return (
     // Room above for the option lists, which open upwards.
     <Box sx={{ pt: 52 }}>
@@ -63,8 +62,6 @@ function Dock({ view }: { view: EditorView }) {
         onTool={setTool}
         options={options}
         onOptions={setOptions}
-        detail={detail}
-        onDetail={setDetail}
         zoom={1}
         onZoom={() => {}}
         onCamera={() => {}}
@@ -79,7 +76,7 @@ function Dock({ view }: { view: EditorView }) {
 /** The dock at the bottom of the canvas, in 2D: add, undo, tools, what to show, zoom, and whether it is buildable. */
 export const Dock2D: Story = { name: 'Dock, 2D', render: () => <Dock view="2d" /> };
 
-/** In 3D the dock adds the level of detail and the camera views. */
+/** In 3D the dock adds the camera views. */
 export const Dock3D: Story = { name: 'Dock, 3D', render: () => <Dock view="3d" /> };
 
 /** Quick add: search first, mounted (in a cube) or not; pick one, or drag it out onto the canvas. */

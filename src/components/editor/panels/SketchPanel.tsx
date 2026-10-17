@@ -1,30 +1,24 @@
 /**
- * The sketch: optics by what they do, not by what they are yet. An ideal
- * lens of a focal length, a source of a wavelength, a detector. Placed like
- * any part (a click, then a click on the canvas; or dragged out), they trace
- * as ideal elements; each is later snapped to a catalogue part, realized as a
- * module, or given a holder (see model.ts, the placement states).
+ * The sketch: ideal parts only. Each does exactly what its numbers say (a
+ * lens is a paraxial thin lens of f and Ø, a mirror an ideal mirror of f), so
+ * layouts can be tried before any real part is chosen. Placed like any part
+ * (a click, then a click on the canvas; or dragged out). Each is made real
+ * later, on the canvas: from the catalogue or designed here, then mounted
+ * (see model.ts, STEPS).
  */
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import { dragPart } from '../dragPart';
-import type { FragmentSurface } from '../holders/optic';
-import type { SymbolKind, SymbolParam } from '../model';
-import { OpticProfileSvg } from '../OpticProfile';
-import { SymbolGlyph } from '../SymbolGlyph';
+import { specLine, STEPS, type SymbolKind, type SymbolParam } from '../model';
+import { SketchPicture } from '../SketchSvg';
 
 export interface SketchEntry {
   id: string;
   label: string;
   kind: SymbolKind;
-  /** What it starts as, in a line ("f = 50 mm · Ø 25 mm"). */
-  spec: string;
-  /** Its inputs as placed, when not the kind's own. */
-  inputs?: SymbolParam[];
-  /** `designed`: a real lens or mirror, by its prescription. Otherwise an ideal element. */
-  mount?: 'ideal' | 'designed';
-  prescription?: FragmentSurface[];
+  /** Its inputs as placed. */
+  inputs: SymbolParam[];
 }
 
 export interface SketchGroup {
@@ -41,9 +35,6 @@ export interface SketchPanelProps {
   onDragStart?: (entryId: string) => void;
   onDragEnd?: () => void;
 }
-
-/** Where each glyph sits, in its own units (a laser reaches left of its anchor). */
-const VIEW_BOX: Partial<Record<SymbolKind, string>> = { laser: '-2.6 -1.4 3 2.8' };
 
 function Tile({ entry, active, onPick, onDragStart, onDragEnd }: { entry: SketchEntry; active: boolean } & Pick<SketchPanelProps, 'onPick' | 'onDragStart' | 'onDragEnd'>) {
   return (
@@ -65,24 +56,15 @@ function Tile({ entry, active, onPick, onDragStart, onDragEnd }: { entry: Sketch
         userSelect: 'none',
         textAlign: 'left',
         '&:hover': { borderColor: 'primary.main' },
-        '&:hover svg': { color: 'primary.main' },
       })}
     >
-      {/* A designed optic shows its real cross-section; an ideal one its symbol. */}
-      {entry.prescription ? (
-        <OpticProfileSvg surfaces={entry.prescription} sx={{ width: '100%', height: 44 }} />
-      ) : (
-        <Box component="svg" viewBox={VIEW_BOX[entry.kind] ?? '-1.4 -1.4 2.8 2.8'} sx={{ width: '100%', height: 44, color: 'text.secondary' }} aria-hidden>
-          <g stroke="currentColor" strokeWidth={0.07} fill="none" strokeDasharray={entry.kind === 'lens' ? '0.12 0.1' : '0'}>
-            <SymbolGlyph kind={entry.kind} />
-          </g>
-        </Box>
-      )}
+      {/* As the canvas draws it, at one scale for every tile: a wider lens looks wider. */}
+      <SketchPicture part={entry} mmAcross={entry.kind === 'laser' || entry.kind === 'camera' ? 44 : 34} sx={{ width: '100%', height: 44 }} />
       <Typography variant="body2" noWrap>
         {entry.label}
       </Typography>
-      <Typography variant="meta" color="text.meta" noWrap component="div">
-        {entry.spec}
+      <Typography variant="meta" color="text.meta" component="div">
+        {specLine(entry)}
       </Typography>
     </ButtonBase>
   );
@@ -91,15 +73,26 @@ function Tile({ entry, active, onPick, onDragStart, onDragEnd }: { entry: Sketch
 export function SketchPanel({ groups, activeEntryId, onPick, onDragStart, onDragEnd }: SketchPanelProps) {
   return (
     <Box sx={{ py: 1.5 }}>
-      <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.5, m: 0, pb: 1 }}>
-        Optics by what they do, where only that matters yet. Place them where the light goes, then choose a real part for each in Choose parts. Glass you shape yourself is last.
+      <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.5, m: 0 }}>
+        Ideal parts: each does exactly what its numbers say. Place them where the light goes and try layouts.
+      </Typography>
+      {/* The way every part goes, so the sketch is seen as its first step. */}
+      <Box component="ol" sx={{ px: 1.5, m: 0, mt: 1, listStyle: 'none', display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        {STEPS.map((s, i) => (
+          <Typography key={s.step} component="li" variant="caption" color={i === 0 ? 'primary.main' : 'text.secondary'} sx={{ fontWeight: i === 0 ? 600 : 400 }}>
+            {`${i + 1} ${s.label}${i < STEPS.length - 1 ? ' →' : ''}`}
+          </Typography>
+        ))}
+      </Box>
+      <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.5, m: 0, mt: 0.5 }}>
+        Later, select a part to make it real (from the catalogue, or design your own) and then mount it.
       </Typography>
       {groups.map((g) => (
         <Box key={g.id} component="section" aria-label={g.label} sx={{ px: 1.5, pt: 1 }}>
           <Typography variant="overline" color="text.secondary" component="h3" sx={{ display: 'block', lineHeight: 1.8, m: 0 }}>
             {g.label}
           </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
             {g.entries.map((e) => (
               <Tile key={e.id} entry={e} active={e.id === activeEntryId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />
             ))}

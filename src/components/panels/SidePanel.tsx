@@ -197,7 +197,7 @@ export function SidePanel({
               borderColor: 'divider',
             }}
           >
-            <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
+            <Typography variant="subtitle2" component="div" noWrap sx={{ flex: 1, minWidth: 0 }}>
               {active.title ?? active.label}
             </Typography>
             <Tooltip title={pinned ? 'Unpin panel' : 'Pin panel'}>

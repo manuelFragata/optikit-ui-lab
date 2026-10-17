@@ -33,7 +33,7 @@ export function EditorStatusBar({ design, selected, selectedCount, unmounted, vi
   const parts = design.symbols.length;
   const ideal = design.symbols.filter((s) => s.placement.state === 'ideal').length;
   const loose = unmounted - ideal;
-  const open = [ideal > 0 && `${ideal} ideal`, loose > 0 && `${loose} not mounted yet`].filter(Boolean).join(' · ');
+  const open = [ideal > 0 && `${ideal} ideal`, loose > 0 && `${loose} real, not mounted`].filter(Boolean).join(' · ');
   return (
     <StatusBar
       tone={parts === 0 ? 'neutral' : unmounted > 0 ? 'warning' : 'success'}

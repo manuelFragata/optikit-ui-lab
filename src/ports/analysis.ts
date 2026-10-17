@@ -28,8 +28,8 @@ export type AnalysisId = 'spot' | 'fan' | 'focus' | 'fill' | 'transmission';
 
 /** How the light is sent in and read, as the person sets it in Simulate. */
 export interface SimulateSettings {
-  /** A laser's beam Ø. */
-  beamMm: number;
+  /** The source's beam Ø; `null`: each source's own (a laser's waist, an LED's emitter). */
+  beamMm: number | null;
   /** The sample's cone NA; `null`: the objective's own. */
   na: number | null;
   /** Rays across the pupil (one meridian fan). */
@@ -75,8 +75,8 @@ export interface Place {
   /** The part it is at, 'sample', or 'end'. */
   part: string;
   ray: LightRay;
-  /** How the light starts: a laser's parallel beam, or the sample's cone. */
-  start: { kind: 'collimated' } | { kind: 'point'; na: number };
+  /** How the light starts: a source's beam (its Ø, as asked or the source's own, and its full divergence, rad), or the sample's cone. */
+  start: { kind: 'collimated'; beamMm: number; divergenceRad: number } | { kind: 'point'; na: number };
   /** The source's wavelength, when it states one. */
   wavelengthNm: number | null;
   numbers: PlaceNumbers;

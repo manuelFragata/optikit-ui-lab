@@ -153,7 +153,7 @@ export function SimulatePane({ design, light, trace: traced, selectedId, onSelec
   const [targetKey, setTargetKey] = useState<string | null>(null);
   const [shown, setShown] = useState<AnalysisId | null>(null);
   const [shiftMm, setShiftMm] = useState<Record<string, number>>({});
-  const [beamMm, setBeamMm] = useState(DEFAULT_SETTINGS.beamMm);
+  const [beamMm, setBeamMm] = useState<number | null>(DEFAULT_SETTINGS.beamMm);
   const [na, setNa] = useState<number | null>(DEFAULT_SETTINGS.na);
   const [rays, setRays] = useState(DEFAULT_SETTINGS.rays);
   const [wavelength, setWavelength] = useState<number | null>(DEFAULT_SETTINGS.nm);
@@ -338,7 +338,7 @@ export function SimulatePane({ design, light, trace: traced, selectedId, onSelec
           )}
           {(spec.rays || of === 'fill') &&
             (place.start.kind === 'collimated' ? (
-              <NumberInput label="Beam Ø" value={beamMm} onChange={(v) => v > 0 && setBeamMm(v)} min={0.1} step={0.5} precision={1} unit="mm" size="small" sx={{ width: 120 }} />
+              <NumberInput label="Beam Ø" value={beamMm ?? place.start.beamMm} onChange={(v) => v > 0 && setBeamMm(v)} min={0.1} step={0.5} precision={1} unit="mm" size="small" sx={{ width: 120 }} />
             ) : (
               <NumberInput label="Cone NA" value={na ?? place.start.na} onChange={(v) => v > 0 && v < 1 && setNa(v)} min={0.01} max={0.95} step={0.01} precision={2} size="small" sx={{ width: 110 }} />
             ))}

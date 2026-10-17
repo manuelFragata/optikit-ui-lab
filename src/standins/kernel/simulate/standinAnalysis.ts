@@ -16,7 +16,7 @@ import type { Library } from '../../../ports/library';
 import type { Light } from '../../../ports/light';
 import type { Schematic } from '../../../components/editor/model';
 import { spectrum } from './analysis';
-import { beamOf, DEFAULT_BEAM_MM, targetsOf, type Beam, type Target } from './beam';
+import { beamOf, DEFAULT_BEAM_MM, startDiameter, targetsOf, type Beam, type Target } from './beam';
 import { MERIT_RAYS, measure, OBJECTIVES, planeZ, search, toDesign, variablesOf, withValues } from './optimize';
 import { results, startRay, trace } from './paraxial';
 import { airyRadius, bestFocus, heightsAt, pupilOf, realTrace, rmsAngle, rmsAt, rmsThroughFocus, spotAt, type Pupil, type RealTrace } from './realtrace';
@@ -213,7 +213,8 @@ function runInWorker(ask: RunAsk, onStep: (best: OptimizeRun) => void): Optimize
 export function standinAnalysis(library: Pick<Library, 'record'>): Analysis {
   const targets = (design: Schematic, light: Light) => targetsIn(design, light, library.record);
   const read = (t: Target, { settings }: SimulateAsk) => ({
-    pupil: pupilOf(t.beam, settings.beamMm, settings.na ?? undefined),
+    pupil: pupilOf(t.beam, startDiameter(t.beam, settings.beamMm), settings.na ?? undefined),
+    beamMm: startDiameter(t.beam, settings.beamMm),
     plane: { part: t.part, offsetMm: settings.shiftMm[t.key] ?? 0 },
     nm: settings.nm ?? t.beam.wavelengthNm,
   });
@@ -221,15 +222,15 @@ export function standinAnalysis(library: Pick<Library, 'record'>): Analysis {
   return {
     places: (ask) =>
       targets(ask.design, ask.light).map((t): Place => {
-        const { pupil, plane, nm } = read(t, ask);
+        const { pupil, plane, nm, beamMm } = read(t, ask);
         return {
           key: t.key,
           label: t.label,
           part: t.part,
           ray: t.beam.ray,
-          start: pupil.kind === 'collimated' ? { kind: 'collimated' } : { kind: 'point', na: pupil.na },
+          start: pupil.kind === 'collimated' ? { kind: 'collimated', beamMm, divergenceRad: t.beam.divergenceRad } : { kind: 'point', na: pupil.na },
           wavelengthNm: t.beam.wavelengthNm,
-          numbers: numbersAt(t, pupil, ask.settings.beamMm, plane, nm, ask.settings.rays),
+          numbers: numbersAt(t, pupil, beamMm, plane, nm, ask.settings.rays),
           assumed: t.beam.elements.flatMap((e) => (e.assumed.length ? [{ id: e.id, label: e.label, assumed: e.assumed, apertureAssumed: e.apertureAssumed }] : [])),
         };
       }),
@@ -239,7 +240,8 @@ export function standinAnalysis(library: Pick<Library, 'record'>): Analysis {
       const { pupil, plane, nm } = read(t, ask);
       const beam = t.beam;
       if (ask.of === 'fill') {
-        const r = results(beam, trace(beam, startRay(beam, ask.settings.beamMm)), ask.settings.beamMm);
+        const d = startDiameter(beam, ask.settings.beamMm);
+        const r = results(beam, trace(beam, startRay(beam, d)), d);
         return { of: 'fill', rows: beam.elements.flatMap((e, i) => (e.apertureMm ? [{ id: e.id, label: e.label, fill: r.elements[i].beamMm / e.apertureMm, selectable: Boolean(e.symbol) }] : [])) };
       }
       if (ask.of === 'transmission') return { of: 'transmission', curve: spectrum(beam), nm };

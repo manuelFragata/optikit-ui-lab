@@ -35,7 +35,8 @@ const pin = (pins: Pins, key: string) => (el: HTMLElement | null) => {
  * camera. The elements are moved directly, in the same frame as the scene is
  * drawn, so they keep up with the camera; through React state they would
  * trail it by a frame, and jitter. Also shares the projection through
- * `project` (for box selection).
+ * `project` (for box selection). Names that would cover one another are
+ * hidden, all but the first (see `declutter`).
  */
 export function Projector({ project, points, pins }: { project: RefObject<Project | null>; points: Record<string, Vec3>; pins: Pins }) {
   const { camera, size, invalidate } = useThree();
@@ -49,13 +50,53 @@ export function Projector({ project, points, pins }: { project: RefObject<Projec
     invalidate();
   });
   useFrame(() => {
+    const shown: Shown[] = [];
     for (const [key, el] of pins) {
       const at = points[key] && toScreen(points[key]);
-      el.style.visibility = at && !at.behind ? 'visible' : 'hidden';
+      const visible = Boolean(at && !at.behind);
+      el.style.visibility = visible ? 'visible' : 'hidden';
       if (at) el.style.transform = `translate(${Math.round(at.x)}px, ${Math.round(at.y)}px)`;
+      if (at && visible && el.dataset.priority) shown.push({ el, x: at.x, y: at.y });
     }
+    declutter(shown);
   });
   return null;
+}
+
+interface Shown {
+  el: HTMLElement;
+  x: number;
+  y: number;
+}
+
+/** A name's priority: one that must show (the layer, the selection, the part under the pointer, the rays) never gives way. */
+const MUST_SHOW = 2;
+/** Room kept between two names, px. */
+const NAME_GAP = 2;
+
+/**
+ * Zoomed out, names pile up over one another and over the parts. Each that
+ * would cover one already shown is hidden: those that must show first, then
+ * the rest in their order. The hidden ones come back when there is room
+ * again, or on hover.
+ */
+function declutter(shown: Shown[]) {
+  const kept: { l: number; t: number; r: number; b: number }[] = [];
+  const priority = (s: Shown) => Number(s.el.dataset.priority);
+  for (const s of [...shown].sort((a, b) => priority(b) - priority(a))) {
+    const name = s.el.firstElementChild as HTMLElement | null;
+    if (!name) continue;
+    const w = name.offsetWidth;
+    const h = name.offsetHeight;
+    const top = s.el.dataset.below ? s.y + 6 : s.y - h;
+    const box = { l: s.x - w / 2, t: top, r: s.x + w / 2, b: top + h };
+    const covers = kept.some((k) => box.l < k.r + NAME_GAP && box.r > k.l - NAME_GAP && box.t < k.b + NAME_GAP && box.b > k.t - NAME_GAP);
+    if (covers && priority(s) < MUST_SHOW) {
+      s.el.style.visibility = 'hidden';
+      continue;
+    }
+    kept.push(box);
+  }
 }
 
 /** Where a pinned element sits until its first frame places it: top left, hidden. */
@@ -73,10 +114,17 @@ const toneColor = (l: PlacedLabel, rays: RayColors) =>
 /** Name sizes in px: the same on screen at any zoom. */
 const LABEL_PX: Record<Size, number> = { small: 10, medium: 12, large: 15 };
 
-/** The names, each pinned to its point on screen. */
-export function Labels({ labels, pins, rays, size }: { labels: PlacedLabel[]; pins: Pins; rays: RayColors; size: Size }) {
+/** The names, each pinned to its point on screen; `hovered`: the part under the pointer, whose name always shows. */
+export function Labels({ labels, pins, rays, size, hovered = null }: { labels: PlacedLabel[]; pins: Pins; rays: RayColors; size: Size; hovered?: string | null }) {
   return labels.map((l) => (
-    <Box key={l.key} ref={pin(pins, l.key)} sx={{ ...pinnedSx, zIndex: 1 }}>
+    // The pin lets the pointer through: it would catch clicks meant for the part under it.
+    <Box
+      key={l.key}
+      ref={pin(pins, l.key)}
+      data-priority={l.tone === 'part' && l.key !== hovered ? 0 : MUST_SHOW}
+      data-below={l.below ? '1' : undefined}
+      sx={{ ...pinnedSx, zIndex: l.key === hovered ? 2 : 1, pointerEvents: 'none' }}
+    >
       <Box
         sx={{
           transform: l.below ? 'translate(-50%, 6px)' : 'translate(-50%, -100%)',
@@ -159,8 +207,8 @@ export function Marquee({ rect }: { rect: Rect }) {
   );
 }
 
-/** The hint at the top of the canvas. */
-export function Hint({ children, place }: { children: ReactNode; place?: HintPlace }) {
+/** The hint at the top of the canvas, with the view's icon. */
+export function Hint({ children, place, icon }: { children: ReactNode; place?: HintPlace; icon?: ReactNode }) {
   return (
     <Paper
       variant="outlined"
@@ -182,7 +230,7 @@ export function Hint({ children, place }: { children: ReactNode; place?: HintPla
         zIndex: 3,
       }}
     >
-      <ThreeDRotationIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+      {icon ?? <ThreeDRotationIcon fontSize="small" sx={{ color: 'text.secondary' }} />}
       <Typography variant="body2">{children}</Typography>
     </Paper>
   );

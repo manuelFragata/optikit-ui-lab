@@ -11,6 +11,7 @@
  * Simulate tab can show it: an objective's focal length from its
  * magnification on a 180 mm tube lens; a mirror or plate an inch across.
  */
+import { divergenceRad, sourceDiameterMm } from '../../../components/editor/sketchShapes';
 import { focalLength } from '../../../components/editor/holders/designs';
 import { opticFacts, type CatalogRecord, type FragmentSurface } from '../../../components/editor/holders/optic';
 import type { LightPath, Point } from '../../../ports/light';
@@ -65,8 +66,15 @@ export interface Beam {
   wavelengthNm: number | null;
   /** The source's power, mW. */
   powerMw: number | null;
+  /** The source's beam Ø where it leaves it (a laser's waist, an LED's emitter), mm; `null`: not given. */
+  sourceBeamMm: number | null;
+  /** The source's full divergence angle, rad (0: parallel). */
+  divergenceRad: number;
   fromSample: boolean;
 }
+
+/** The beam Ø to start with: the one asked for, else the source's own, else DEFAULT_BEAM_MM. */
+export const startDiameter = (beam: Pick<Beam, 'sourceBeamMm'>, asked: number | null) => asked ?? beam.sourceBeamMm ?? DEFAULT_BEAM_MM;
 
 const inputOf = (s: SchematicSymbol | undefined, label: string) => s?.inputs?.find((i) => i.label === label)?.value;
 const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
@@ -119,7 +127,8 @@ function element(id: string, atMm: number, s: SchematicSymbol | undefined, axis:
       };
     }
     case 'mirror': {
-      const curved = record && record.fragmentSurfaces[0]?.is_reflective ? focalLength(record.fragmentSurfaces) : null;
+      // A real mirror's f from its face; an ideal one's from its input (0: flat).
+      const curved = record && record.fragmentSurfaces[0]?.is_reflective ? focalLength(record.fragmentSurfaces) : !record ? inputOf(s, 'Focal length') || null : null;
       return { ...common, role: 'mirror', focalMm: curved, apertureMm: across ?? INCH_MM, assumed: across === undefined ? ['one inch across'] : [], apertureAssumed: across === undefined };
     }
     case 'aperture': {
@@ -201,6 +210,8 @@ export function beamOf(design: Schematic, path: LightPath, recordFor: (s: Schema
     fromSample,
     wavelengthNm: fromSample ? (inputOf(dichroic, 'Emission band') ?? null) : (inputOf(source, 'Wavelength') ?? null),
     powerMw: fromSample ? null : (inputOf(source, 'Power') ?? null),
+    sourceBeamMm: fromSample || !source ? null : sourceDiameterMm(source),
+    divergenceRad: fromSample || !source ? 0 : divergenceRad(source),
   };
 }
 
