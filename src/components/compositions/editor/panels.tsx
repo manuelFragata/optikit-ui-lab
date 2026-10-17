@@ -18,7 +18,10 @@ import TuneIcon from '@mui/icons-material/Tune';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { demoDesignInfo, demoSketch } from '../../../demo/editorContent';
 import type { PaletteGroup } from '../../../ports/library';
+import type { LibraryStatus } from '../../../ports/library';
+import type { Request } from '../../../ports/request';
 import type { Bom } from '../../../ports/service';
+import { Failed, Waiting } from '../../primitives/RequestState';
 import { bomCsv, bomFileName } from '../../editor/bomCsv';
 import type { ModuleOption, Schematic, SchematicSymbol } from '../../editor/model';
 import { BomPanel } from '../../editor/panels/BomPanel';
@@ -32,9 +35,9 @@ import type { SidePanelItem } from '../../panels/SidePanel';
 import { download } from '../../primitives/download';
 
 /** A button pinned under a panel's content. */
-const footerButton = (label: string, icon: ReactNode, onClick?: () => void) => (
+const footerButton = (label: string, icon: ReactNode, onClick?: () => void, disabled = false) => (
   <Box sx={{ p: 1.5 }}>
-    <Button variant="outlined" startIcon={icon} onClick={onClick}>
+    <Button variant="outlined" startIcon={icon} onClick={onClick} disabled={disabled}>
       {label}
     </Button>
   </Box>
@@ -46,8 +49,11 @@ export interface LeftPanelsProps {
   name: string;
   /** What the library offers to place, by box or vendor. */
   palette: readonly PaletteGroup[];
-  /** The design's bill of materials. */
-  bom: Bom;
+  /** Where the library's loading is: the palette waits for it. */
+  libraryStatus: LibraryStatus;
+  onReloadLibrary: () => void;
+  /** The design's bill of materials, as the service answers it. */
+  bom: Request<Bom>;
   selectedId: string | null;
   selectedIds: string[];
   onSelect: (id: string) => void;
@@ -61,7 +67,7 @@ export interface LeftPanelsProps {
   onDragEnd: () => void;
 }
 
-export function leftPanels({ design, name, palette, bom, selectedId, selectedIds, onSelect, onSelectParts, placingId, onPick, onDragStart, onDragEnd }: LeftPanelsProps): SidePanelItem[] {
+export function leftPanels({ design, name, palette, libraryStatus, onReloadLibrary, bom, selectedId, selectedIds, onSelect, onSelectParts, placingId, onPick, onDragStart, onDragEnd }: LeftPanelsProps): SidePanelItem[] {
   return [
     {
       id: 'sketch',
@@ -74,7 +80,14 @@ export function leftPanels({ design, name, palette, bom, selectedId, selectedIds
       id: 'palette',
       label: 'Add parts',
       icon: <ViewInArOutlinedIcon />,
-      content: <SymbolPalettePanel groups={palette} activeEntryId={placingId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />,
+      content:
+        libraryStatus.state === 'ready' ? (
+          <SymbolPalettePanel groups={palette} activeEntryId={placingId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />
+        ) : libraryStatus.state === 'error' ? (
+          <Failed message={libraryStatus.error} onRetry={onReloadLibrary} sx={{ m: 2 }} />
+        ) : (
+          <Waiting label="Loading the parts library" rows={6} height={36} sx={{ p: 2 }} />
+        ),
       footer: footerButton('Import optic…', <AddIcon />),
     },
     {
@@ -94,7 +107,7 @@ export function leftPanels({ design, name, palette, bom, selectedId, selectedIds
       label: 'Bill of materials',
       icon: <ReceiptLongOutlinedIcon />,
       content: <BomPanel bom={bom} selectedIds={selectedIds} onSelectParts={onSelectParts} />,
-      footer: footerButton('Download CSV', <DownloadIcon />, () => download(bomFileName(name), bomCsv(bom), 'text/csv')),
+      footer: footerButton('Download CSV', <DownloadIcon />, () => bom.data && download(bomFileName(name), bomCsv(bom.data), 'text/csv'), !bom.data),
     },
   ];
 }

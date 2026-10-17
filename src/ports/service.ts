@@ -4,6 +4,10 @@
  * (`ServiceProvider`). In the lab that is the stand-in (src/standins/service);
  * in the app it is optikit-core's endpoints. docs/INTEGRATION.md maps each
  * call to its endpoint.
+ *
+ * Every call is a request: it takes time and can fail. Views ask through
+ * `useRequest` (./request.ts), which gives them the waiting and the failing
+ * to draw.
  */
 import { createContext, useContext } from 'react';
 import type { CatalogRecord } from '../components/editor/holders/optic';
@@ -78,15 +82,19 @@ export interface Bom {
 
 export interface Service {
   /** What an ideal part could become, best first (POST /v1/fit/existing for the modules; GET /v1/catalog/index for the parts). */
-  choicesFor: (s: SchematicSymbol) => Choice[];
+  choicesFor: (s: SchematicSymbol) => Promise<Choice[]>;
   /** The catalogue parts near a specification, for the close-up (GET /v1/catalog/index). */
-  snapCandidates: (spec: IdealSpec) => SnapCandidate[];
+  snapCandidates: (spec: IdealSpec) => Promise<SnapCandidate[]>;
   /** What to buy to build the design (POST /v1/export/parts). */
-  bom: (design: Schematic) => Bom;
+  bom: (design: Schematic) => Promise<Bom>;
 }
 
 /** No service: nothing to choose from, nothing to buy. */
-export const NO_SERVICE: Service = { choicesFor: () => [], snapCandidates: () => [], bom: (d) => ({ lines: [], parts: d.symbols.length, total: 0, unpriced: 0 }) };
+export const NO_SERVICE: Service = {
+  choicesFor: async () => [],
+  snapCandidates: async () => [],
+  bom: async (d) => ({ lines: [], parts: d.symbols.length, total: 0, unpriced: 0 }),
+};
 
 const Context = createContext<Service>(NO_SERVICE);
 

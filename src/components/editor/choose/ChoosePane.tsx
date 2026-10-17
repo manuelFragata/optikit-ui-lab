@@ -18,8 +18,10 @@ import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { Failed, Waiting } from '../../primitives/RequestState';
 import { TagChip, type TagTone } from '../../primitives/TagChip';
 import type { Light } from '../../../ports/light';
+import { useRequest } from '../../../ports/request';
 import type { Choice } from '../../../ports/service';
 import { sketched, specLine, type Schematic, type SchematicSymbol } from '../model';
 import { inLightOrder, statusOf, type ChoiceStatus } from './order';
@@ -27,8 +29,8 @@ import { inLightOrder, statusOf, type ChoiceStatus } from './order';
 export interface ChoosePaneProps {
   design: Schematic;
   light: Light;
-  /** What an ideal part could become, best first (the service's). */
-  choicesFor: (s: SchematicSymbol) => Choice[];
+  /** What an ideal part could become, best first: the service's answer. */
+  choicesFor: (s: SchematicSymbol) => Promise<Choice[]>;
   /** The part selected on the canvas: the one being chosen for. */
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -103,7 +105,9 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
   const parts = useMemo(() => inLightOrder(design, light), [design, light]);
   const sketchedLeft = parts.filter((s) => statusOf(s) === 'ideal').length;
   const current = parts.find((s) => s.id === selectedId) ?? parts.find((s) => statusOf(s) === 'ideal') ?? parts[0];
-  const choices = useMemo(() => (current ? choicesFor(current) : []), [current, choicesFor]);
+  // Only a sketched part is asked about; the answer is for that part alone.
+  const request = useRequest(current && statusOf(current) === 'ideal' ? current : null, choicesFor);
+  const choices = request.data ?? [];
   const [all, setAll] = useState(false);
   const listed = all ? choices : choices.slice(0, SHOWN);
   const root = useRef<HTMLDivElement>(null);
@@ -135,7 +139,8 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const n = Number(e.key);
-    const take = e.key === 'Enter' ? choices[0] : n >= 1 && n <= 9 ? listed[n - 1] : undefined;
+    const ready = request.status === 'ready';
+    const take = !ready ? undefined : e.key === 'Enter' ? choices[0] : n >= 1 && n <= 9 ? listed[n - 1] : undefined;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') go(e.key === 'ArrowDown' ? 1 : -1);
     else if (take) pick(take);
     else if (e.key !== 'Enter' && !(n >= 1 && n <= 9)) return;
@@ -220,7 +225,11 @@ export function ChoosePane({ design, light, choicesFor, selectedId, onSelect, on
           )}
 
           {status === 'ideal' &&
-            (choices.length === 0 ? (
+            (request.status === 'error' ? (
+              <Failed message={request.error ?? ''} onRetry={request.retry} />
+            ) : request.status === 'loading' ? (
+              request.slow && <Waiting label="Getting the choices" rows={3} height={84} />
+            ) : choices.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 Nothing in the library or the catalogue is of this kind yet.
               </Typography>

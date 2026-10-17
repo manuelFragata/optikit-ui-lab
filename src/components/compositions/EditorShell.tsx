@@ -23,6 +23,7 @@ import { useTheme, type Theme } from '@mui/material/styles';
 import { demoInputs, demoSchematic, demoSketch } from '../../demo/editorContent';
 import { useLibrary, type PaletteGroup } from '../../ports/library';
 import { snappedValues } from '../editor/holders/optic';
+import { useRequest } from '../../ports/request';
 import { useService } from '../../ports/service';
 import { STORE_MESHES } from '../../demo/assemblies';
 import { demoUser } from '../../demo/user';
@@ -238,7 +239,8 @@ export function EditorShell({
   const recordForPart = useCallback((s: SchematicSymbol) => recordOf(s, library.record), [library]);
   /** A lens or mirror's real glass. One function per library, so the views' layouts keep. */
   const glassOf = useCallback((s: SchematicSymbol) => recordOf(s, library.record)?.fragmentSurfaces, [library]);
-  const bom = useMemo(() => service.bom(design), [service, design]);
+  // What to buy, from the service: the last answer stays while a newer one comes.
+  const bom = useRequest(design, service.bom, { keep: true });
   // The design's sources' wavelengths, for the close-up's Optical side.
   const wavelengths = [...new Set(design.symbols.flatMap((s) => (s.kind === 'laser' ? (s.inputs ?? []).filter((i) => i.label === 'Wavelength').map((i) => i.value) : [])))].sort((a, b) => a - b);
   // Every part not in a cube yet: the ideal ones (sketched) and the unmounted ones (no holder).
@@ -502,6 +504,8 @@ export function EditorShell({
             design,
             name: projectName,
             palette: library.palette,
+            libraryStatus: library.status,
+            onReloadLibrary: library.reload,
             bom,
             selectedId,
             selectedIds: ids,

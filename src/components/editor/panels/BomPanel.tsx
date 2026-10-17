@@ -4,12 +4,15 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListSubheader from '@mui/material/ListSubheader';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { Failed, Refreshing, Waiting } from '../../primitives/RequestState';
 import { TagChip } from '../../primitives/TagChip';
 import { formatEur as eur } from '../../primitives/format';
+import type { Request } from '../../../ports/request';
 import type { Bom, BomLine } from '../../../ports/service';
 
 export interface BomPanelProps {
-  bom: Bom;
+  /** The service's answer: the last one stays while a newer one comes. */
+  bom: Request<Bom>;
   selectedIds: string[];
   /** A line clicked: select its parts on the canvas. */
   onSelectParts: (ids: string[]) => void;
@@ -49,7 +52,15 @@ function Line({ line, selected, onSelect }: { line: BomLine; selected: boolean; 
  * first, then the optics that still need a holder. A line with no price
  * says so and stays out of the total. Click a line to select its parts.
  */
-export function BomPanel({ bom, selectedIds, onSelectParts }: BomPanelProps) {
+export function BomPanel({ bom: request, selectedIds, onSelectParts }: BomPanelProps) {
+  const bom = request.data;
+  if (!bom) {
+    return (
+      <Box sx={{ p: 2 }}>
+        {request.status === 'error' ? <Failed message={request.error ?? ''} onRetry={request.retry} /> : request.slow && <Waiting label="Getting the parts list" rows={4} />}
+      </Box>
+    );
+  }
   const modules = bom.lines.filter((l) => l.kind === 'module');
   const optics = bom.lines.filter((l) => l.kind === 'optic');
   const subheader = { bgcolor: 'background.paper', lineHeight: 2.5, typography: 'overline', color: 'text.secondary', px: 2 } as const;
@@ -57,7 +68,9 @@ export function BomPanel({ bom, selectedIds, onSelectParts }: BomPanelProps) {
   const lines = (ls: BomLine[]) => ls.map((l) => <Line key={l.name} line={l} selected={isSelected(l)} onSelect={() => onSelectParts(l.partIds)} />);
 
   return (
-    <Box sx={{ py: 1 }}>
+    <Box sx={{ py: 1, position: 'relative' }}>
+      <Refreshing on={request.slow} />
+      {request.status === 'error' && <Failed message={request.error ?? ''} onRetry={request.retry} sx={{ mx: 2, mb: 1 }} />}
       <Box sx={{ px: 2, py: 1 }}>
         <Typography variant="headline" component="p">
           {eur(bom.total)}

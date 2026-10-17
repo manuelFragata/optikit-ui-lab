@@ -46,6 +46,25 @@ The views and the app (`src/components/`, `src/app/`) get the stand-ins only thr
 | `snapCandidates(spec)` | `standins/service/snap.ts` | `GET /v1/catalog/index`; the holder fit from `GET /v1/generators` |
 | `bom(design)` | `standins/service/bom.ts` | `POST /v1/export/parts` |
 
+## Waiting and failing
+
+The real calls take time and can fail. The ports are already shaped for that:
+
+- **Service:** every call returns a `Promise`. Views ask through `useRequest` (`src/ports/request.ts`). It drops answers to older questions. It can keep the last answer while a new one comes (`keep`, used for the BOM). It sets `slow` only after 180 ms, so a fast answer does not flash.
+- **Library:** the index is loaded once. `Library.status` is `loading`, `ready` or `error`, and `reload()` loads it again. While it loads, the fields are empty.
+- **Views:** `Waiting`, `Refreshing` and `Failed` (`src/components/primitives/RequestState.tsx`) show these states the same way everywhere: the BOM panel, Choose parts, the close-up's catalogue list, the Add parts palette and the Commercial tab.
+
+In the lab, the stand-ins answer over a stand-in network (`src/standins/network.ts`). Set it in the address, before the `#`:
+
+| Address | Effect |
+| --- | --- |
+| (none) | Answers after about 250 ms; the library after about 500 ms |
+| `?latency=2500` | Slow answers, to see the waiting states |
+| `?fail=1` | Every request fails, to see the error states and Try again |
+| `?latency=0` | Answers at once (as Storybook does) |
+
+**Not async yet:** the light (`LightFor`). oc-wasm traces in a worker, so the app needs the last trace while a new one runs. This is the next step.
+
 ## Not behind a port yet
 
 These views still import a stand-in directly, because the real call has a different shape. ESLint lists them as exceptions (`STANDIN_DIRECT`).

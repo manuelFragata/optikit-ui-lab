@@ -11,7 +11,10 @@ import { demoPeople, demoShareLink } from '../demo/fileContent';
 import { bomCsv, bomFileName } from '../components/editor/bomCsv';
 import { DESIGN_FILE_EXTENSION, designFileText, readDesignFile } from '../components/editor/designFile';
 import { useLightFor } from '../ports/light';
+import { errorText, useRequest } from '../ports/request';
 import { useService } from '../ports/service';
+import { PageContainer } from '../components/compositions/PageContainer';
+import { Failed, Waiting } from '../components/primitives/RequestState';
 import type { Schematic } from '../components/editor/model';
 import { download } from '../components/primitives/download';
 import { formatEur } from '../components/primitives/format';
@@ -73,7 +76,11 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
       onDelete={() => onNotice('In the prototype, designs are not deleted.')}
       onExport={(format) => {
         if (format === 'archive') download(`${name}${DESIGN_FILE_EXTENSION}`, designFileText(schematic), 'application/json');
-        if (format === 'bom') download(bomFileName(name), bomCsv(service.bom(schematic)), 'text/csv');
+        if (format === 'bom')
+          service.bom(schematic).then(
+            (bom) => download(bomFileName(name), bomCsv(bom), 'text/csv'),
+            (e: unknown) => onNotice(errorText(e)),
+          );
         if (format === 'link') {
           navigator.clipboard?.writeText(demoShareLink(id)).catch(() => {});
           onNotice('3D link copied.');
@@ -92,7 +99,15 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
 
 export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {
   const lightFor = useLightFor();
-  const bom = useService().bom(schematic);
+  const request = useRequest(schematic, useService().bom, { keep: true });
+  const bom = request.data;
+  if (!bom) {
+    return (
+      <PageContainer sx={{ pt: 3, pb: 8, maxWidth: 720 }}>
+        {request.status === 'error' ? <Failed message={request.error ?? ''} onRetry={request.retry} /> : request.slow && <Waiting label="Getting the quote's parts list" rows={6} height={52} />}
+      </PageContainer>
+    );
+  }
   return (
     <CommercialView
       designName={name}

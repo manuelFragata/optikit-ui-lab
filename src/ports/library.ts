@@ -4,6 +4,10 @@
  * the lab that is the stand-in (src/standins/library); in the app it is the
  * service's library and catalogue endpoints. docs/INTEGRATION.md maps each
  * field to its endpoint.
+ *
+ * The library comes as one index, loaded once when the app starts (and again
+ * on `reload`); its fields answer at once after that. `status` says where the
+ * loading is, so the views can show it: while `loading` the fields are empty.
  */
 import { createContext, useContext } from 'react';
 import type { CatalogRecord } from '../components/editor/holders/optic';
@@ -31,7 +35,12 @@ export interface PaletteGroup {
   entries: PaletteEntry[];
 }
 
+export type LibraryStatus = { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: string };
+
 export interface Library {
+  status: LibraryStatus;
+  /** Load the index again (after an error). */
+  reload: () => void;
   /** Every optics record a part can be: the library's records and the vendor catalogue's (GET /v1/library/index, GET /v1/catalog/index). */
   catalogue: readonly CatalogRecord[];
   /** The record behind a part number (GET /v1/library/index; a catalogue row through POST /v1/catalog/import). */
@@ -47,7 +56,7 @@ export interface Library {
 }
 
 /** No library: nothing to place, nothing to match. */
-export const EMPTY_LIBRARY: Library = { catalogue: [], record: () => undefined, modulesFor: () => [], palette: [], prices: {}, meshFor: () => undefined };
+export const EMPTY_LIBRARY: Library = { status: { state: 'ready' }, reload: () => {}, catalogue: [], record: () => undefined, modulesFor: () => [], palette: [], prices: {}, meshFor: () => undefined };
 
 const Context = createContext<Library>(EMPTY_LIBRARY);
 

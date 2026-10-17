@@ -63,8 +63,21 @@ export const BillOfMaterials: Story = {
   name: 'Bill of materials',
   render: function Render() {
     const [ids, setIds] = useState<string[]>([]);
-    return <BomPanel bom={buildBom(demoSchematic, demoPrices)} selectedIds={ids} onSelectParts={setIds} />;
+    const bom = { status: 'ready' as const, data: buildBom(demoSchematic, demoPrices), slow: false, error: null, retry: () => {} };
+    return <BomPanel bom={bom} selectedIds={ids} onSelectParts={setIds} />;
   },
+};
+
+export const BillOfMaterialsWaiting: Story = {
+  name: 'Bill of materials · waiting',
+  render: () => <BomPanel bom={{ status: 'loading', data: undefined, slow: true, error: null, retry: () => {} }} selectedIds={[]} onSelectParts={() => {}} />,
+};
+
+export const BillOfMaterialsFailed: Story = {
+  name: 'Bill of materials · failed',
+  render: () => (
+    <BomPanel bom={{ status: 'error', data: undefined, slow: false, error: 'Could not get the parts list: the service did not answer.', retry: () => {} }} selectedIds={[]} onSelectParts={() => {}} />
+  ),
 };
 
 export const Properties: Story = {

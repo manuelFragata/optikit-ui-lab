@@ -13,7 +13,9 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
+import { Failed, Waiting } from '../../primitives/RequestState';
 import { TagChip } from '../../primitives/TagChip';
+import type { Request } from '../../../ports/request';
 import type { SnapCandidate } from '../../../ports/service';
 import type { ModuleOption } from '../model';
 import { designLens, LENS_FORMS } from '../holders/designs';
@@ -28,6 +30,8 @@ export interface SnapPanelProps {
   /** The specification, in a line. */
   spec: string;
   candidates: SnapCandidate[];
+  /** Where the service's answer is: the list waits for it, or says it failed. */
+  request?: Pick<Request<unknown>, 'status' | 'slow' | 'error' | 'retry'>;
   /** The candidate shown in the close-up (hovered, else picked), by record id. */
   shown: string | null;
   onShow: (recordId: string | null) => void;
@@ -60,7 +64,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 
 const fmt = (n: number) => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
 
-export function SnapPanel({ label, spec, candidates, shown, onShow, picked, onPick, onSnap, modules, inputs, onRealize, onDesign }: SnapPanelProps) {
+export function SnapPanel({ label, spec, candidates, request, shown, onShow, picked, onPick, onSnap, modules, inputs, onRealize, onDesign }: SnapPanelProps) {
   const [all, setAll] = useState(false);
   const listed = all ? candidates : candidates.slice(0, 5);
   const chosen = candidates.find((c) => c.record.id === picked) ?? candidates[0];
@@ -81,7 +85,11 @@ export function SnapPanel({ label, spec, candidates, shown, onShow, picked, onPi
         </Box>
 
         <Section title="From the catalogue" hint={candidates.length ? 'Nearest the specification first. Hover one to see it.' : undefined}>
-          {candidates.length === 0 ? (
+          {request?.status === 'error' ? (
+            <Failed message={request.error ?? ''} onRetry={request.retry} />
+          ) : request?.status === 'loading' ? (
+            request.slow && <Waiting label="Getting the catalogue parts" rows={3} height={56} />
+          ) : candidates.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               The demo catalogue has nothing of this kind (it holds lenses). Realize it as a module below.
             </Typography>

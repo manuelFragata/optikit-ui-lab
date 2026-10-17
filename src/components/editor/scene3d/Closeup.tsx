@@ -38,6 +38,7 @@ import { Box3, DoubleSide, MeshStandardMaterial, Plane, Quaternion, Sphere, Vect
 import { holderPart, specLine, type HolderSpec, type ModuleOption, type SchematicSymbol } from '../model';
 import { cartridgeDefaults, planCartridge, type BeamAxis, type CartridgeParams } from '../../../standins/service/cartridge';
 import { roadsFor, type Road } from '../../../standins/service/generators';
+import { useRequest } from '../../../ports/request';
 import type { IdealSpec, SnapCandidate } from '../../../ports/service';
 import { factsFromInputs, opticFacts, opticShape, type CatalogRecord, type FragmentSurface, type OpticShape } from '../holders/optic';
 import { useSceneColors, type SceneColors } from './colors';
@@ -51,6 +52,8 @@ import { ComponentMesh, CubeEdges, Glyph, MeshBoundary } from './shapes';
 import { surfaceInfo, withCoating } from '../../../standins/kernel/coatings';
 import { OpticalView } from '../optics/OpticalView';
 import { OpticsPanel } from '../optics/OpticsPanel';
+
+const NO_CANDIDATES = async (): Promise<SnapCandidate[]> => [];
 
 export interface CloseupProps {
   /** The part to look at; `null` until one is picked. */
@@ -68,7 +71,7 @@ export interface CloseupProps {
   /** A holder frozen for the part, or a frozen one changed. Without it, parts with no holder are only looked at. */
   onHolder?: (spec: HolderSpec) => void;
   /** The catalogue parts an ideal part could snap to, best first (the service's). */
-  candidatesFor?: (spec: IdealSpec) => SnapCandidate[];
+  candidatesFor?: (spec: IdealSpec) => Promise<SnapCandidate[]>;
   /** An ideal part snapped to a catalogue part. Without it, ideal parts are only looked at. */
   onSnap?: (candidate: SnapCandidate) => void;
   /** The modules the part could be realized as, and realizing it as one. */
@@ -129,7 +132,13 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   // An ideal part: which real part it could be. The one hovered in the list is shown, else the one picked, else the best.
   const ideal = part?.placement.state === 'ideal';
   const inputs = Object.fromEntries((part?.inputs ?? []).map((i) => [i.label, i.value]));
-  const candidates = ideal && part && candidatesFor ? candidatesFor({ kind: part.kind, focalMm: inputs['Focal length'], diameterMm: inputs.Diameter }) : [];
+  // The specification asked about, kept while its values stay: the service is asked again only when they change.
+  const kind = part?.kind;
+  const focalMm = inputs['Focal length'];
+  const diameterMm = inputs.Diameter;
+  const spec = useMemo<IdealSpec | null>(() => (ideal && kind ? { kind, focalMm, diameterMm } : null), [ideal, kind, focalMm, diameterMm]);
+  const candidatesRequest = useRequest(candidatesFor ? spec : null, candidatesFor ?? NO_CANDIDATES);
+  const candidates = candidatesRequest.data ?? [];
   const [snapShown, setSnapShown] = useState<string | null>(null);
   const [snapPicked, setSnapPicked] = useState<{ part: string; id: string } | null>(null);
   const picked = part && snapPicked?.part === part.id ? snapPicked.id : null;
@@ -325,6 +334,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
             label={part.label}
             spec={specLine(part)}
             candidates={candidates}
+            request={candidatesRequest}
             shown={snapShown}
             onShow={setSnapShown}
             picked={chosen?.record.id ?? null}
