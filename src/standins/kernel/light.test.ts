@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Schematic, SchematicSymbol, Seat, SymbolKind } from '../components/editor/model';
-import { traceRay } from './demoLight';
+import type { Schematic, SchematicSymbol, Seat, SymbolKind } from '../../components/editor/model';
+import { traceRay } from './light';
 
 const part = (id: string, kind: SymbolKind, x: number, y: number, seat: Seat = 0, patch: Partial<SchematicSymbol> = {}): SchematicSymbol => ({
   id,
@@ -76,5 +76,30 @@ describe('the demo light', () => {
   it('passes under parts on other layers', () => {
     const beam = traceRay(ray(['L']), [laser(), part('C', 'camera', 3, 0, 0, { z: 2 })])!;
     expect(beam.path.open).toBe(true);
+  });
+  it('sends light on at a beam splitter the way the path names next: turned, or through', () => {
+    const parts = [laser(), part('B', 'beamsplitter', 4, 0), part('C', 'camera', 4, 5), part('K', 'camera', 9, 0)];
+    expect(traceRay(ray(['L', 'B', 'C']), parts)!.reached).toEqual(['L', 'B', 'C']);
+    expect(traceRay(ray(['L', 'B', 'K']), parts)!.reached).toEqual(['L', 'B', 'K']);
+  });
+
+  it('passes the source’s light through a filter inside its band, and stops it outside', () => {
+    const filter = (centre: number) =>
+      part('F', 'filter', 3, 0, 0, {
+        inputs: [
+          { label: 'Centre wavelength', value: centre, unit: 'nm', min: 350, max: 1100, step: 1 },
+          { label: 'Bandwidth', value: 40, unit: 'nm', min: 2, max: 200, step: 1 },
+        ],
+      });
+    const through = traceRay(ray(['L', 'F', 'C']), [laser(), filter(500), part('C', 'camera', 6, 0)])!;
+    expect(through.miss).toBeNull();
+    const stopped = traceRay(ray(['L', 'F', 'C']), [laser(), filter(600), part('C', 'camera', 6, 0)])!;
+    expect(stopped.reached).toEqual(['L', 'F']);
+    expect(stopped.miss?.label).toBe('C');
+  });
+
+  it('turns a sketched part as its seat says, with no cube', () => {
+    const sketched = part('M', 'mirror', 4, 0, 0, { placement: { state: 'ideal', seat: 1 } });
+    expect(traceRay(ray(['L', 'M']), [laser(), sketched])!.path.points[2]).toEqual({ x: 4, y: -5 });
   });
 });

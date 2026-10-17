@@ -5,7 +5,7 @@
 import { designedValues, designLens, designMirror } from '../components/editor/holders/designs';
 import type { FragmentSurface } from '../components/editor/holders/optic';
 import type { SketchEntry, SketchGroup } from '../components/editor/panels/SketchPanel';
-import type { ModuleOption, Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
+import type { Schematic, SymbolKind, SymbolParam } from '../components/editor/model';
 import type { VersionEntryData } from '../components/editor/panels/HistoryPanel';
 import type { ProjectFileData } from '../components/views/file/ProjectFiles';
 
@@ -111,61 +111,6 @@ export const demoSchematic: Schematic = {
   ],
 };
 
-export interface PaletteEntry {
-  id: string;
-  label: string;
-  /** The symbol it is drawn as once placed. */
-  kind: SymbolKind;
-}
-
-export interface PaletteGroup {
-  id: string;
-  label: string;
-  /** Total parts in the library, even when only some are listed. */
-  count: number;
-  mount: 'mounted' | 'unmounted';
-  entries: PaletteEntry[];
-}
-
-export const demoPalette: PaletteGroup[] = [
-  {
-    id: 'core',
-    label: 'openUC2 Core Box',
-    count: 6,
-    mount: 'mounted',
-    entries: [
-      { id: 'bs', label: 'Beam splitter cube', kind: 'dichroic' },
-      { id: 'mirror', label: 'Mirror cube 45°', kind: 'mirror' },
-      { id: 'lens50', label: 'Lens holder, f = 50', kind: 'lens' },
-      { id: 'rms', label: 'RMS objective insert', kind: 'objective' },
-      { id: 'xyz', label: 'xyz-stage', kind: 'objective' },
-      { id: 'cam', label: 'IMX477 camera', kind: 'camera' },
-    ],
-  },
-  {
-    id: 'fluor',
-    label: 'openUC2 Fluor Box',
-    count: 3,
-    mount: 'mounted',
-    entries: [
-      { id: 'dichroic', label: 'Dichroic holder', kind: 'dichroic' },
-      { id: 'emfilter', label: 'Emission filter slot', kind: 'lens' },
-      { id: 'laser488', label: 'Laser 488 module', kind: 'laser' },
-    ],
-  },
-  {
-    id: 'thorlabs',
-    label: 'Thorlabs parts',
-    count: 62,
-    mount: 'unmounted',
-    entries: [
-      { id: 'ac254', label: 'AC254-050-A achromat', kind: 'lens' },
-      { id: 'dmlp505', label: 'DMLP505 dichroic', kind: 'dichroic' },
-      { id: 'md498', label: 'MD498 filter set', kind: 'lens' },
-    ],
-  },
-];
-
 export const demoHistory: VersionEntryData[] = [
   { version: '0.4.2', hash: 'a41f9c0', message: 'Move the emission filter into the Fluor Box group', when: '6 days ago', author: 'manu', changes: ['Dichroic + filters: moved into Fluor Box'] },
   { hash: '8dc01b2', message: 'Swap DMLP490 for DMLP505', when: '9 days ago', author: 'manu', changes: ['Dichroic + filters: cut-on 490 → 505 nm'] },
@@ -217,22 +162,12 @@ export const demoInputs: Record<SymbolKind, SymbolParam[]> = {
     { label: 'Exposure', value: 20, unit: 'ms', min: 1, max: 500, step: 1 },
     { label: 'Gain', value: 1, unit: '×', min: 1, max: 16, step: 0.5 },
   ],
-};
-
-/** Existing modules a part of each kind can be realized as (swapped for). */
-export const demoModules: Record<SymbolKind, ModuleOption[]> = {
-  laser: [
-    { module: 'Laser 488 module', source: 'openUC2 Fluor Box', version: '1.1.0', fixes: { Wavelength: 488 } },
-    { module: 'Laser cube 520 nm', source: 'openUC2 Q Box', fixes: { Wavelength: 520 } },
+  filter: [
+    { label: 'Centre wavelength', value: 525, unit: 'nm', min: 350, max: 1100, step: 1 },
+    { label: 'Bandwidth', value: 40, unit: 'nm', min: 2, max: 200, step: 1 },
   ],
-  mirror: [{ module: 'Mirror cube 45°', source: 'openUC2 Core Box', version: '2.0.1' }, { module: 'Kinematic mirror cube', source: 'openUC2 Q Box' }],
-  dichroic: [{ module: 'Dichroic holder', source: 'openUC2 Fluor Box', version: '1.2.0' }],
-  lens: [
-    { module: 'Lens holder, f = 50', source: 'openUC2 Core Box', version: '1.4.0', fixes: { 'Focal length': 50 } },
-    { module: 'Lens holder, f = 100', source: 'openUC2 Core Box', version: '1.4.0', fixes: { 'Focal length': 100 } },
-  ],
-  objective: [{ module: 'RMS objective insert', source: 'openUC2 Core Box', version: '2.3.0' }],
-  camera: [{ module: 'IMX477 camera', source: 'openUC2 Core Box', version: '1.0.4' }],
+  beamsplitter: [{ label: 'Reflectance', value: 50, unit: '%', min: 1, max: 99, step: 1 }],
+  aperture: [{ label: 'Diameter', value: 10, unit: 'mm', min: 0.5, max: 25, step: 0.5 }],
 };
 
 /** An input list with some values replaced: a designed optic's, as its prescription has them. */
@@ -252,34 +187,21 @@ function designedEntry(id: string, label: string, kind: 'lens' | 'mirror', spec:
  */
 export const demoSketch: SketchGroup[] = [
   {
-    id: 'lenses',
-    label: 'Lenses',
+    id: 'ideal',
+    label: 'By what they do',
     entries: [
-      designedEntry('lens-biconvex', 'Biconvex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('biconvex', 50, 25.4)),
-      designedEntry('lens-planoconvex', 'Plano-convex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('plano-convex', 50, 25.4)),
-      designedEntry('lens-achromat', 'Achromat', 'lens', 'Doublet · f = 50 · Ø25.4', designLens('achromat', 50, 25.4)),
-      { id: 'ideal-lens', label: 'Ideal lens', kind: 'lens', spec: 'f = 50 mm · no glass yet' },
-    ],
-  },
-  {
-    id: 'mirrors',
-    label: 'Mirrors',
-    entries: [
-      designedEntry('mirror-flat', 'Flat mirror', 'mirror', 'Ø25.4 · at 45°', designMirror('flat', 0, 25.4)),
-      designedEntry('mirror-concave', 'Concave mirror', 'mirror', 'R = 200 · f = 100 · Ø25.4', designMirror('concave', 200, 25.4)),
-    ],
-  },
-  {
-    id: 'optics',
-    label: 'Other optics',
-    entries: [
-      { id: 'ideal-dichroic', label: 'Dichroic', kind: 'dichroic', spec: 'Cut-on 505 nm' },
+      { id: 'ideal-lens', label: 'Lens', kind: 'lens', spec: 'f = 50 mm · Ø25' },
       { id: 'ideal-objective', label: 'Objective', kind: 'objective', spec: '10× · NA 0.25' },
+      { id: 'ideal-mirror', label: 'Mirror', kind: 'mirror', spec: 'Flat · at 45°' },
+      { id: 'ideal-filter', label: 'Pass filter', kind: 'filter', spec: '525 nm · 40 nm wide' },
+      { id: 'ideal-dichroic', label: 'Dichroic', kind: 'dichroic', spec: 'Cut-on 505 nm' },
+      { id: 'ideal-beamsplitter', label: 'Beam splitter', kind: 'beamsplitter', spec: '50 : 50' },
+      { id: 'ideal-aperture', label: 'Aperture', kind: 'aperture', spec: 'Ø10 mm open' },
     ],
   },
   {
-    id: 'sources',
-    label: 'Sources',
+    id: 'ends',
+    label: 'Sources and detectors',
     entries: [
       { id: 'ideal-laser', label: 'Laser', kind: 'laser', spec: 'λ = 488 nm · 10 mW' },
       {
@@ -292,11 +214,18 @@ export const demoSketch: SketchGroup[] = [
           { label: 'Power', value: 200, unit: 'mW', min: 0, max: 1000, step: 10 },
         ],
       },
+      { id: 'ideal-camera', label: 'Camera', kind: 'camera', spec: 'An image plane' },
     ],
   },
   {
-    id: 'detectors',
-    label: 'Detectors',
-    entries: [{ id: 'ideal-camera', label: 'Camera', kind: 'camera', spec: 'An image plane' }],
+    id: 'designed',
+    label: 'Glass designed here',
+    entries: [
+      designedEntry('lens-biconvex', 'Biconvex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('biconvex', 50, 25.4)),
+      designedEntry('lens-planoconvex', 'Plano-convex lens', 'lens', 'N-BK7 · f = 50 · Ø25.4', designLens('plano-convex', 50, 25.4)),
+      designedEntry('lens-achromat', 'Achromat', 'lens', 'Doublet · f = 50 · Ø25.4', designLens('achromat', 50, 25.4)),
+      designedEntry('mirror-flat', 'Flat mirror', 'mirror', 'Ø25.4 · at 45°', designMirror('flat', 0, 25.4)),
+      designedEntry('mirror-concave', 'Concave mirror', 'mirror', 'R = 200 · f = 100 · Ø25.4', designMirror('concave', 200, 25.4)),
+    ],
   },
 ];

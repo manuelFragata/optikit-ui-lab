@@ -1,8 +1,8 @@
 /** Small designs for the simulate tests: parts in a straight line along +x, and one light path through them. */
-import { catalogRecord } from '../../../demo/catalogParts';
-import { recordOf } from '../holders/designs';
-import type { LightPath } from '../light';
-import type { Placement, Schematic, SchematicSymbol, SymbolKind } from '../model';
+import { catalogRecord } from '../../library/catalog';
+import { recordOf } from '../../../components/editor/holders/designs';
+import type { LightPath } from '../../../ports/light';
+import type { Placement, Schematic, SchematicSymbol, SymbolKind } from '../../../components/editor/model';
 
 export const part = (
   id: string,

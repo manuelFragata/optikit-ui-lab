@@ -29,8 +29,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { PillSwitch } from '../../primitives/PillSwitch';
 import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
-import type { BeamAxis, CartridgeParams, CartridgePlan, Check } from '../holders/cartridge';
-import type { Road } from '../holders/generators';
+import type { BeamAxis, CartridgeParams, CartridgePlan, Check } from '../../../standins/service/cartridge';
+import type { Road } from '../../../standins/service/generators';
 import type { CatalogRecord, OpticFacts } from '../holders/optic';
 
 /** What is being designed: the road, its parameters, and the beam the checks assume. */

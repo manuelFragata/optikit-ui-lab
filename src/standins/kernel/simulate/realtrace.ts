@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the kernel: in the app real rays, spots and fans come from
+ * oc-wasm (`analysisRays`, `traceWorld3D`, detector hits and maps).
+ *
  * Real rays along a beam, on axis: each ray traced exactly through every
  * spherical surface of a part with a prescription (Snell's law at the true
  * intersection, so spherical aberration shows), through ideal parts as a
@@ -10,7 +13,7 @@
  * focus, and the exit angles. The lab's stand-in for the optics engine:
  * on axis only, one wavelength, no diffraction. Pure.
  */
-import { GLASS_ND, opticShape } from '../holders/optic';
+import { GLASS_ND, opticShape } from '../../../components/editor/holders/optic';
 import type { Beam } from './beam';
 
 /** What enters: a collimated beam of a radius, or a point on the axis sending a cone of a numerical aperture. */

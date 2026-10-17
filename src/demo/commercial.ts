@@ -3,10 +3,10 @@
  * Costs and lead times come from the shop (Odoo), the customer from the
  * CRM, and the checks from optikit-core and the optics engine. Made up here.
  */
-import type { Bom } from '../components/editor/bom';
-import type { Light } from '../components/editor/light';
+import type { Bom } from '../ports/service';
+import type { Light } from '../ports/light';
 import { holderMismatch, type Schematic } from '../components/editor/model';
-import { demoModules } from './editorContent';
+import { demoModules } from '../standins/library/modules';
 import type { QuoteCheck, SupplyList } from '../components/views/commercial/quote';
 
 /** What each module or optic costs us, and how long it takes to get. The Laser 488 module has no price (see prices.ts), but a cost. */

@@ -5,7 +5,7 @@
  * its own. Run, see the proposal against the beam as it is (the beam drawn
  * over it, the spots side by side), and apply it: an edit like any other.
  *
- * The lab's own optimizer (editor/simulate/optimize) stands in for Optiland's.
+ * The lab's own optimizer (standins/kernel/simulate/optimize) stands in for Optiland's.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
@@ -22,12 +22,12 @@ import { BeamLayout } from '../../analysis/BeamLayout';
 import { SpotDiagram } from '../../analysis/Plots';
 import { NumberInput } from '../../primitives/NumberInput';
 import type { CatalogRecord } from '../holders/optic';
-import type { Light } from '../light';
+import type { Light } from '../../../ports/light';
 import type { Schematic, SchematicSymbol } from '../model';
-import { beamOf, DEFAULT_BEAM_MM, targetsOf, type Beam, type Target } from '../simulate/beam';
-import { MERIT_RAYS, measure, OBJECTIVES, planeZ, run, toDesign, variablesOf, withValues, type Objective, type Plane, type Run, type Variable } from '../simulate/optimize';
-import { results, startRay, trace } from '../simulate/paraxial';
-import { pupilOf, realTrace, rmsAt, spotAt } from '../simulate/realtrace';
+import { beamOf, DEFAULT_BEAM_MM, targetsOf, type Beam, type Target } from '../../../standins/kernel/simulate/beam';
+import { MERIT_RAYS, measure, OBJECTIVES, planeZ, run, toDesign, variablesOf, withValues, type Objective, type Plane, type Run, type Variable } from '../../../standins/kernel/simulate/optimize';
+import { results, startRay, trace } from '../../../standins/kernel/simulate/paraxial';
+import { pupilOf, realTrace, rmsAt, spotAt } from '../../../standins/kernel/simulate/realtrace';
 
 export interface OptimizePaneProps {
   design: Schematic;

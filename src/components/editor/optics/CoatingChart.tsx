@@ -4,7 +4,8 @@
  * marked on it with what the surface sends back at each.
  */
 import Box from '@mui/material/Box';
-import { coating, nmColor, surfaceReflectance, type SurfaceInfo } from './coatings';
+import { coating, surfaceReflectance, type SurfaceInfo } from '../../../standins/kernel/coatings';
+import { nmColor } from './nmColor';
 
 const W = 300;
 const H = 156;

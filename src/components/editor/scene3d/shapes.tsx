@@ -88,6 +88,33 @@ export function Glyph({ kind, turns, color, outline, scale = 1 }: { kind: Symbol
         </mesh>
       </>
     ),
+    filter: (
+      <mesh rotation={ALONG_X}>
+        <cylinderGeometry args={[13, 13, 2.5, 32]} />
+        {glass}
+        <Outline color={outline} />
+      </mesh>
+    ),
+    beamsplitter: (
+      <>
+        <mesh>
+          <boxGeometry args={[24, 24, 24]} />
+          <meshStandardMaterial color={color} roughness={0.15} transparent opacity={0.35} />
+          <Outline color={outline} />
+        </mesh>
+        <mesh rotation={[0, 0, -Math.PI / 4]}>
+          <boxGeometry args={[0.8, 33, 24]} />
+          {glass}
+        </mesh>
+      </>
+    ),
+    aperture: (
+      <mesh rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[11, 4, 12, 40]} />
+        {solid}
+        <Outline color={outline} />
+      </mesh>
+    ),
     camera: (
       <>
         <mesh position={[-3, 0, 0]}>
@@ -272,7 +299,19 @@ export function LayerFloor({ floor, color }: { floor: Floor; color: string }) {
         <planeGeometry args={[x1 - x0, y1 - y0]} />
         <meshBasicMaterial color={color} transparent opacity={0.07} depthWrite={false} side={DoubleSide} />
       </mesh>
-      <Line points={[[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z], [x0, y0, z]]} color={color} lineWidth={1} transparent opacity={0.45} />
+      <Line
+        points={[
+          [x0, y0, z],
+          [x1, y0, z],
+          [x1, y1, z],
+          [x0, y1, z],
+          [x0, y0, z],
+        ]}
+        color={color}
+        lineWidth={1}
+        transparent
+        opacity={0.45}
+      />
     </group>
   );
 }

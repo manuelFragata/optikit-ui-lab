@@ -3,8 +3,7 @@ import type { Decorator, Preview } from '@storybook/react-vite';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, useColorScheme } from '@mui/material/styles';
 import { createAppTheme, type DensityName } from '../src/theme';
-import { LightProvider } from '../src/components/editor/light';
-import { demoLight } from '../src/demo/demoLight';
+import { StandinsProvider } from '../src/standins/StandinsProvider';
 
 type Scheme = 'light' | 'dark';
 
@@ -21,8 +20,8 @@ function ThemeWrapper({ scheme, density, children }: { scheme: Scheme; density: 
     <ThemeProvider theme={theme} defaultMode={scheme} storageManager={null} disableTransitionOnChange>
       <CssBaseline enableColorScheme />
       <SchemeSync scheme={scheme} />
-      {/* The demo light, as in the app. */}
-      <LightProvider value={demoLight}>{children}</LightProvider>
+      {/* The light, the library and the service: the lab's stand-ins, as in the app. */}
+      <StandinsProvider>{children}</StandinsProvider>
     </ThemeProvider>
   );
 }

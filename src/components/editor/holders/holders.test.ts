@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { catalogList, catalogParts } from '../../../demo/catalogParts';
+import { catalogList, catalogParts } from '../../../standins/library/catalog';
 import { snapped, sketched, specLine } from '../model';
-import { snapCandidates, snappedValues } from './snap';
-import { cartridgeDefaults, cavityRadius, jointFor, layout, notchedSide, planCartridge, type CartridgeParams } from './cartridge';
-import { GENERATORS, holdRefusal, roadsFor } from './generators';
-import { factsFromInputs, opticFacts, opticShape, paraxialEfl } from './optic';
+import { snapCandidates } from '../../../standins/service/snap';
+import { cartridgeDefaults, cavityRadius, jointFor, layout, notchedSide, planCartridge, type CartridgeParams } from '../../../standins/service/cartridge';
+import { GENERATORS, holdRefusal, roadsFor } from '../../../standins/service/generators';
+import { factsFromInputs, opticFacts, opticShape, paraxialEfl, snappedValues } from './optic';
 
 const ac254 = catalogParts['AC254-050-A'];
 const shape = opticShape(ac254)!;

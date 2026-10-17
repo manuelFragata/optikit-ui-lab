@@ -11,6 +11,10 @@ The editor follows the part model of the UI-V4 brief (optikit-v2, `DOCS/editor/U
 
 The prototype links the pages together: Home, then Log in / Sign up (any details sign you in as the demo user Manu), then the Editor and the Account settings. Routes live in the URL hash (`#/`, `#/editor/<id>`, `#/account`, `#/login`, `#/signup`), so links and the back button work, and the session is remembered in the browser. The code is in `src/app/`, and the same app is the **Pages → Prototype** story.
 
+## UI and stand-ins
+
+The lab has no service, kernel or library of its own. The views get light, parts and service answers through small interfaces in `src/ports/`. The lab's stand-ins for them are in `src/standins/` (`kernel/`, `service/`, `library/`), and `src/standins/StandinsProvider.tsx` connects them in one place. ESLint stops a view from importing a stand-in directly. [docs/INTEGRATION.md](docs/INTEGRATION.md) tells what replaces each stand-in in the real app (optikit-app-v1), and which lab data is not in the real format.
+
 ## Run it
 
 ```bash

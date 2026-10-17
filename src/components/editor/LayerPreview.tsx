@@ -12,7 +12,7 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { floatingCardSx } from '../panels/floatingCard';
-import { useLightFor, type Light } from './light';
+import { useLightFor, type Light } from '../../ports/light';
 import { samplePoint, type Schematic } from './model';
 
 export interface LayerPreviewProps {

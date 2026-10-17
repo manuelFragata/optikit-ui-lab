@@ -196,6 +196,8 @@ export interface BenchColors {
     mirror: string;
     dichroic: string;
     splitter: string;
+    filter: string;
+    aperture: string;
     sample: string;
     detector: string;
     spacer: string;
@@ -217,6 +219,8 @@ const v2Glyphs = {
   mirror: '#B8C4CC',
   dichroic: '#2EC4A5',
   splitter: '#9B7FD4', // v2's beamsplitter
+  filter: '#F2A33C',
+  aperture: '#C9A96E',
   sample: '#7CC142',
   detector: '#546878',
   spacer: '#8A8F98',

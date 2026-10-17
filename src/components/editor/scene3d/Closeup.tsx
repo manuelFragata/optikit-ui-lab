@@ -36,9 +36,9 @@ import { CameraControls, Line } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Box3, DoubleSide, MeshStandardMaterial, Plane, Quaternion, Sphere, Vector3, type Group } from 'three';
 import { holderPart, specLine, type HolderSpec, type ModuleOption, type SchematicSymbol } from '../model';
-import { cartridgeDefaults, planCartridge, type BeamAxis, type CartridgeParams } from '../holders/cartridge';
-import { roadsFor, type Road } from '../holders/generators';
-import { snapCandidates, type SnapCandidate } from '../holders/snap';
+import { cartridgeDefaults, planCartridge, type BeamAxis, type CartridgeParams } from '../../../standins/service/cartridge';
+import { roadsFor, type Road } from '../../../standins/service/generators';
+import type { IdealSpec, SnapCandidate } from '../../../ports/service';
 import { factsFromInputs, opticFacts, opticShape, type CatalogRecord, type FragmentSurface, type OpticShape } from '../holders/optic';
 import { useSceneColors, type SceneColors } from './colors';
 import { ROLE_LABEL, SOURCE_LABEL, type ComponentRole } from './components';
@@ -48,7 +48,7 @@ import { cartridgeComponents, disposeComponents, lensComponent } from './holderM
 import { SnapPanel } from './SnapPanel';
 import { HolderDesigner, PREVIEWED_ROAD, type HolderDraft } from './HolderDesigner';
 import { ComponentMesh, CubeEdges, Glyph, MeshBoundary } from './shapes';
-import { surfaceInfo, withCoating } from '../optics/coatings';
+import { surfaceInfo, withCoating } from '../../../standins/kernel/coatings';
 import { OpticalView } from '../optics/OpticalView';
 import { OpticsPanel } from '../optics/OpticsPanel';
 
@@ -67,8 +67,8 @@ export interface CloseupProps {
   cubeMesh?: string;
   /** A holder frozen for the part, or a frozen one changed. Without it, parts with no holder are only looked at. */
   onHolder?: (spec: HolderSpec) => void;
-  /** The catalogue an ideal part snaps to (in the app: the library). */
-  catalogue?: readonly CatalogRecord[];
+  /** The catalogue parts an ideal part could snap to, best first (the service's). */
+  candidatesFor?: (spec: IdealSpec) => SnapCandidate[];
   /** An ideal part snapped to a catalogue part. Without it, ideal parts are only looked at. */
   onSnap?: (candidate: SnapCandidate) => void;
   /** The modules the part could be realized as, and realizing it as one. */
@@ -101,7 +101,7 @@ function initialDraft(saved: HolderSpec | undefined, component: string, roads: R
   return { road: open.includes(PREVIEWED_ROAD) ? PREVIEWED_ROAD : (open[0] ?? PREVIEWED_ROAD), params: cartridgeDefaults(component), beamMm: DEFAULT_BEAM_MM };
 }
 
-export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, catalogue = [], onSnap, modules = [], onRealize, onDesign, wavelengths = [], onPrescription }: CloseupProps) {
+export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMesh, onHolder, candidatesFor, onSnap, modules = [], onRealize, onDesign, wavelengths = [], onPrescription }: CloseupProps) {
   const colors = useSceneColors();
   const [hover, setHover] = useState<string | null>(null);
   const [xray, setXray] = useState(false);
@@ -129,7 +129,7 @@ export function Closeup({ part, mesh, focus, onFocus, onClose, opticFor, cubeMes
   // An ideal part: which real part it could be. The one hovered in the list is shown, else the one picked, else the best.
   const ideal = part?.placement.state === 'ideal';
   const inputs = Object.fromEntries((part?.inputs ?? []).map((i) => [i.label, i.value]));
-  const candidates = ideal && part ? snapCandidates({ kind: part.kind, focalMm: inputs['Focal length'], diameterMm: inputs.Diameter }, catalogue) : [];
+  const candidates = ideal && part && candidatesFor ? candidatesFor({ kind: part.kind, focalMm: inputs['Focal length'], diameterMm: inputs.Diameter }) : [];
   const [snapShown, setSnapShown] = useState<string | null>(null);
   const [snapPicked, setSnapPicked] = useState<{ part: string; id: string } | null>(null);
   const picked = part && snapPicked?.part === part.id ? snapPicked.id : null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LightPath } from '../light';
+import type { LightPath } from '../../../ports/light';
 import { beamOf, targetsOf } from './beam';
 import { results, startRay, trace } from './paraxial';
 import { lookup, part, straight } from './testDesigns';

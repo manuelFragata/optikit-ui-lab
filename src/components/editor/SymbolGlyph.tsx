@@ -40,6 +40,25 @@ export function SymbolGlyph({ kind }: { kind: SymbolKind }) {
           <path d="M0 -1.2 V-0.95 M0 0.95 V1.2" strokeDasharray="3 2" />
         </>
       );
+    case 'filter':
+      // A thin plate across the beam, hatched: it passes a band.
+      return (
+        <>
+          <rect x={-0.12} y={-0.8} width={0.24} height={1.6} />
+          <path d="M-0.12 -0.4 L0.12 -0.6 M-0.12 0 L0.12 -0.2 M-0.12 0.4 L0.12 0.2 M-0.12 0.8 L0.12 0.6" />
+        </>
+      );
+    case 'beamsplitter':
+      // A cube with its splitting face, "/" as a mirror's.
+      return (
+        <>
+          <rect x={-0.6} y={-0.6} width={1.2} height={1.2} />
+          <path d="M-0.6 0.6 L0.6 -0.6" />
+        </>
+      );
+    case 'aperture':
+      // Two blades across the beam, open in the middle.
+      return <path d="M0 -1.1 V-0.35 M0 0.35 V1.1 M-0.2 -0.35 H0.2 M-0.2 0.35 H0.2" />;
     case 'camera':
       // Sensor body left, lens mount towards the anchor.
       return (

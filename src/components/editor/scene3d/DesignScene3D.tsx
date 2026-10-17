@@ -17,7 +17,7 @@ import { GizmoHelper, GizmoViewport, Grid } from '@react-three/drei';
 import { DEFAULT_PREFERENCES, type Preferences } from '../../../settings/preferences';
 import type { CanvasTool, HintPlace, ViewOptions } from '../viewOptions';
 import { withMove, type Move, type Schematic, type SchematicSymbol } from '../model';
-import { useLightFor } from '../light';
+import { useLightFor } from '../../../ports/light';
 import { Camera, type CameraCommand } from './Camera';
 import { useSceneColors } from './colors';
 import { CUBE_MM, GRID_MM, layout3d, type Fidelity, type GlassFor, type MeshRef, type MoveAxis, type PlacedPart, type Vec3 } from './layout3d';

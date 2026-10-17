@@ -4,7 +4,7 @@
  * library. The Laser 488 module is left out on purpose: a line with no
  * price shows as unpriced.
  */
-import type { PriceList } from '../components/editor/bom';
+import type { PriceList } from '../../ports/library';
 
 export const demoPrices: PriceList = {
   'Laser cube 520 nm': 189,

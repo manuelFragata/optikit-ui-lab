@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { demoChecks, demoCustomer, demoLabourRate, demoSupply } from '../../demo/commercial';
-import { demoLight } from '../../demo/demoLight';
+import { demoLight } from '../../standins/kernel/light';
 import { demoSchematic } from '../../demo/editorContent';
-import { demoPrices } from '../../demo/prices';
-import { buildBom } from '../editor/bom';
+import { demoPrices } from '../../standins/library/prices';
+import { buildBom } from '../../standins/service/bom';
 import { CommercialView } from './CommercialView';
 
 const bom = buildBom(demoSchematic, demoPrices);

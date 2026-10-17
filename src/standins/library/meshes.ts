@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the library: in the app a module's mesh comes from the
+ * library index (`assets.glb`, `mesh_pose_grid`) and /v1/library/assets/.
+ *
  * Which mesh each module has, for the editor's 3D view. In optikit-v2 this
  * comes from the library index (`glbUrl`, `meshPoseGrid`); here it is a small
  * table over the openUC2 store's GLBs. Modules not listed have no mesh and
@@ -7,12 +10,12 @@
  * `axes`: where the module's local z and x point at seat 0, for a part whose
  * light runs along +x (the editor's default), as in the landing assemblies.
  */
-import type { MeshRef } from '../components/editor/scene3d/layout3d';
-import type { SchematicSymbol } from '../components/editor/model';
-import { STORE_MESHES as M } from './assemblies';
-import { catalogRecord } from './catalogParts';
-import { recordOf } from '../components/editor/holders/designs';
-import type { CartridgeParams } from '../components/editor/holders/cartridge';
+import type { MeshRef } from '../../components/editor/scene3d/layout3d';
+import type { SchematicSymbol } from '../../components/editor/model';
+import { STORE_MESHES as M } from '../../demo/assemblies';
+import { catalogRecord } from './catalog';
+import { recordOf } from '../../components/editor/holders/designs';
+import type { CartridgeParams } from '../service/cartridge';
 
 const alongX = { z: '+x', x: '+y' } as const;
 
@@ -23,6 +26,7 @@ export const moduleMeshes: Record<string, MeshRef> = {
   'Kinematic mirror cube': { url: M.mirror, axes: { z: '-z', x: '-x' } },
   'Dichroic holder': { url: M.dichroic488, axes: { z: '+z', x: '+y' } },
   'Beam splitter cube': { url: M.dichroic532, axes: { z: '+z', x: '+y' } },
+  'Beam splitter cube 50:50': { url: M.dichroic532, axes: { z: '+z', x: '+y' } },
   'Lens holder, f = 50': { url: M.lens50, axes: alongX },
   'Lens holder, f = 100': { url: M.lens100, axes: alongX },
   'RMS objective insert': { url: M.rms, axes: alongX },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Schematic, SchematicSymbol } from '../model';
-import type { Light, LightPath } from '../light';
+import type { Light, LightPath } from '../../../ports/light';
 import { boundsOf, cubeCenter, layout3d, toThree, type View3D } from './layout3d';
 
 const part = (id: string, patch: Partial<SchematicSymbol> = {}): SchematicSymbol => ({

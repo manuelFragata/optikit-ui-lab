@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the kernel: in the app paraxial numbers come from Optiland
+ * (the service) or oc-wasm's surface table (`surfaceTableJSON`).
+ *
  * A first-order (paraxial) trace along a beam: the marginal ray, y its height
  * and u its angle, through every part in order. Ideal parts are thin lenses;
  * a part with a prescription is traced surface by surface (n₂u₂ = n₁u₁ −
@@ -11,8 +14,8 @@
  * The lab's stand-in for the optics engine, and labelled so: on axis only,
  * no aberrations, no diffraction. Pure.
  */
-import { GLASS_ND, opticShape } from '../holders/optic';
-import { surfaceInfo, throughput } from '../optics/coatings';
+import { GLASS_ND, opticShape } from '../../../components/editor/holders/optic';
+import { surfaceInfo, throughput } from '../coatings';
 import type { Beam } from './beam';
 
 export interface RayState {

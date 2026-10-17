@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the optimizer: in the app it is Optiland's, on the service
+ * (WP-93, WP-151), or oc-wasm's singlet fit (`fitSingletFace`).
+ *
  * The optimizer: an objective (what to make small, or what to hit), the
  * variables a beam's parts offer (what each part lets change: where a free
  * lens sits, a designed lens's radii and thicknesses, an ideal lens's focal
@@ -9,10 +12,10 @@
  * Optiland does this in the product; this is the lab's stand-in, a bounded
  * coordinate search, with merits from the real-ray and paraxial traces.
  */
-import { CARTRIDGE } from '../holders/cartridge';
-import { designedValues, focalLength } from '../holders/designs';
-import type { FragmentSurface } from '../holders/optic';
-import type { Schematic, SchematicSymbol } from '../model';
+import { CARTRIDGE } from '../../service/cartridge';
+import { designedValues, focalLength } from '../../../components/editor/holders/designs';
+import type { FragmentSurface } from '../../../components/editor/holders/optic';
+import type { Schematic, SchematicSymbol } from '../../../components/editor/model';
 import type { Beam, BeamElement } from './beam';
 import { results, startRay, trace } from './paraxial';
 import { realTrace, rmsAngle, rmsAt, heightsAt, type Pupil } from './realtrace';

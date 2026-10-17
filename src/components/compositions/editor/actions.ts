@@ -56,6 +56,8 @@ export interface EditorActions {
   /** Split the canvas, with the selected part up close beside it; again: close it. */
   toggleCloseup: () => void;
   toggleOptimize: () => void;
+  /** Split the canvas with Choose parts beside it: real parts for the sketched ones; again: close it. */
+  toggleChoose: () => void;
   openPalette: () => void;
   openSettings: () => void;
 

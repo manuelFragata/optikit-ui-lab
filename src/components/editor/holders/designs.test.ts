@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GENERATORS, holdRefusal } from './generators';
+import { GENERATORS, holdRefusal } from '../../../standins/service/generators';
 import { designChecks, designedRecord, designedValues, designLens, designMirror, focalLength, LENS_FORMS, mirrorForm, withFocalLength } from './designs';
 import { opticFacts, opticShape } from './optic';
 

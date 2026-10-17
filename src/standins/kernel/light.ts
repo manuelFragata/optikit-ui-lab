@@ -10,35 +10,47 @@
  * - a mirror turns it, as its seat sets the plate ("/" or "\");
  * - a dichroic turns the source's light shorter than its cut-on, and lets
  *   the rest through (the emission, always);
- * - lenses and objectives let it through;
+ * - a beam splitter sends it on the way the path names next: turned, or
+ *   through;
+ * - a filter lets the source's light through inside its band (the
+ *   emission, always), and stops the rest;
+ * - lenses, objectives and apertures let it through;
  * - a camera or another source stops it;
  * - with nothing in its way, it runs out.
  *
  * Where the light misses the next part a path names, that is a miss.
  */
-import type { Light, LightFor, LightMiss, Point } from '../components/editor/light';
-import { facing, samplePoint, type SchematicRay, type SchematicSymbol } from '../components/editor/model';
+import type { Light, LightFor, LightMiss, Point } from '../../ports/light';
+import { facing, samplePoint, seatOf, type SchematicRay, type SchematicSymbol } from '../../components/editor/model';
 
 /** How far off its centre a part still catches the light, grid units (a 1" optic in a 50 mm cube). */
 const APERTURE = 0.25;
 /** How far the light runs on with nothing in its way, grid units. */
 const RUN_OUT = 5;
 
-const seatOf = (s: SchematicSymbol) => (s.placement.state === 'in-cube' ? s.placement.seat : 0);
 const inputOf = (s: SchematicSymbol, label: string) => s.inputs?.find((i) => i.label === label)?.value;
 
 /** A 45° plate turns light by its seat: "/" at seats 0 and 2, "\" at 1 and 3 (as the views draw it). */
-const reflect = (s: SchematicSymbol, d: Point): Point => (seatOf(s) % 2 === 0 ? { x: d.y, y: d.x } : { x: -d.y, y: -d.x });
+const reflect = (s: SchematicSymbol, d: Point): Point => (seatOf(s.placement) % 2 === 0 ? { x: d.y, y: d.x } : { x: -d.y, y: -d.x });
 
 /** The light on its way: the source's (with its wavelength), or the emission from the sample. */
 type Beam = { emission: boolean; wavelength?: number };
 
-/** What a part does to light arriving along `d`: the way it goes on, or null where it stops. */
-function after(s: SchematicSymbol, d: Point, light: Beam): Point | null {
+/** What a part does to light arriving along `d`: the way it goes on, or null where it stops. `turnsTo`: the path goes on the turned way. */
+function after(s: SchematicSymbol, d: Point, light: Beam, turnsTo: (d: Point) => boolean): Point | null {
   switch (s.kind) {
     case 'lens':
     case 'objective':
+    case 'aperture':
       return d;
+    case 'beamsplitter':
+      return turnsTo(reflect(s, d)) ? reflect(s, d) : d;
+    case 'filter': {
+      const centre = inputOf(s, 'Centre wavelength');
+      const width = inputOf(s, 'Bandwidth') ?? 0;
+      const inside = light.emission || centre === undefined || light.wavelength === undefined || Math.abs(light.wavelength - centre) <= width / 2;
+      return inside ? d : null;
+    }
     case 'mirror':
       return reflect(s, d);
     case 'dichroic': {
@@ -108,7 +120,13 @@ export function traceRay(ray: SchematicRay, symbols: SchematicSymbol[]): { path:
     at = d.x !== 0 ? { x: next.x, y: at.y } : { x: at.x, y: next.y };
     points.push(at);
     reached.push(next.id);
-    const on = next.part ? after(next.part, d, light) : endsAtSample ? null : d;
+    // The part the path names next, if it lies ahead the turned way.
+    const wanted = ray.path[ray.path.indexOf(next.id) + 1];
+    const turnsTo = (dir: Point) => {
+      const t = things.find((x) => x.id === wanted);
+      return Boolean(t && nextAhead([t], at, dir));
+    };
+    const on = next.part ? after(next.part, d, light, turnsTo) : endsAtSample ? null : d;
     if (!on) break;
     d = on;
   }

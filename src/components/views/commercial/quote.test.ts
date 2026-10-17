@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Bom } from '../../editor/bom';
+import type { Bom } from '../../../ports/service';
 import { buildQuote } from './quote';
 
 const bom: Bom = {

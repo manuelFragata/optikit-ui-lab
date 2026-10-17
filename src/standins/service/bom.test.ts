@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bomCsv, buildBom } from './bom';
-import type { Placement, Schematic, SchematicSymbol } from './model';
+import { bomCsv } from '../../components/editor/bomCsv';
+import { buildBom } from './bom';
+import type { Placement, Schematic, SchematicSymbol } from '../../components/editor/model';
 
 const part = (id: string, placement: Placement): SchematicSymbol => ({ id, label: id, kind: 'lens', type: 'lens', x: 0, y: 0, z: 1, placement, notes: '' });
 const cube = (module: string): Placement => ({ state: 'in-cube', module, source: 'Core Box', seat: 0 });

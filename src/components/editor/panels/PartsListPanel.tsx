@@ -5,7 +5,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { TagChip } from '../../primitives/TagChip';
-import { specLine, type SchematicSymbol } from '../model';
+import { seatOf, specLine, type SchematicSymbol } from '../model';
 
 export interface PartsListPanelProps {
   symbols: SchematicSymbol[];
@@ -24,9 +24,9 @@ function Row({ s, selected, onSelect }: { s: SchematicSymbol; selected: boolean;
         <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
           {s.label}
         </Typography>
-        {p.state === 'in-cube' && p.seat > 0 && (
+        {seatOf(p) > 0 && (
           <Typography variant="meta" color="text.meta">
-            {p.seat * 90}°
+            {seatOf(p) * 90}°
           </Typography>
         )}
       </Stack>

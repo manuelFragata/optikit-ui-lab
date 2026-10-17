@@ -4,7 +4,7 @@
  * whatever reaches it) and its settings; the plot fills the page. The system
  * itself is drawn in View, not here.
  *
- * In the lab the numbers come from its own traces (editor/simulate): real
+ * In the lab the numbers come from its own traces (standins/kernel/simulate): real
  * rays on axis through the real prescriptions, paraxial where that is
  * enough. The product traces with the optics engine; the page stays.
  */
@@ -18,13 +18,13 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { ApertureFill, RayFan, RmsFocusPlot, SpectrumPlot, SpotDiagram } from '../analysis/Plots';
 import type { CatalogRecord } from '../editor/holders/optic';
-import type { Light } from '../editor/light';
+import type { Light } from '../../ports/light';
 import type { Schematic, SchematicSymbol } from '../editor/model';
-import { spectrum } from '../editor/simulate/analysis';
-import { beamOf, DEFAULT_BEAM_MM, targetsOf } from '../editor/simulate/beam';
-import { planeZ, type Plane } from '../editor/simulate/optimize';
-import { results, startRay, trace } from '../editor/simulate/paraxial';
-import { bestFocus, heightsAt, pupilOf, realTrace, rmsAt, rmsThroughFocus, spotAt } from '../editor/simulate/realtrace';
+import { spectrum } from '../../standins/kernel/simulate/analysis';
+import { beamOf, DEFAULT_BEAM_MM, targetsOf } from '../../standins/kernel/simulate/beam';
+import { planeZ, type Plane } from '../../standins/kernel/simulate/optimize';
+import { results, startRay, trace } from '../../standins/kernel/simulate/paraxial';
+import { bestFocus, heightsAt, pupilOf, realTrace, rmsAt, rmsThroughFocus, spotAt } from '../../standins/kernel/simulate/realtrace';
 import { PageContainer } from '../compositions/PageContainer';
 import { NumberInput } from '../primitives/NumberInput';
 import { Pill } from '../primitives/Pill';

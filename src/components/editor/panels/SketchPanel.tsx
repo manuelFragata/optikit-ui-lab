@@ -92,7 +92,7 @@ export function SketchPanel({ groups, activeEntryId, onPick, onDragStart, onDrag
   return (
     <Box sx={{ py: 1.5 }}>
       <Typography variant="caption" color="text.secondary" component="p" sx={{ px: 1.5, m: 0, pb: 1 }}>
-        Real lenses and mirrors you shape here, and ideal elements where only what they do matters yet. Place them, then give each a holder or a catalogue part.
+        Optics by what they do, where only that matters yet. Place them where the light goes, then choose a real part for each in Choose parts. Glass you shape yourself is last.
       </Typography>
       {groups.map((g) => (
         <Box key={g.id} component="section" aria-label={g.label} sx={{ px: 1.5, pt: 1 }}>

@@ -31,7 +31,7 @@ import { SliderField } from '../../primitives/SliderField';
 import { TagChip } from '../../primitives/TagChip';
 import { Vec3Field } from '../../primitives/Vec3Field';
 import { ShapeSection } from './ShapeSection';
-import { frozen, holderMismatch, isLocked, realize, sketched, specLine, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
+import { frozen, holderMismatch, isLocked, realize, seatOf, sketched, specLine, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from '../model';
 
 export type { ModuleOption };
 
@@ -42,7 +42,7 @@ export interface PropertiesPanelProps {
   realizeOptions?: ModuleOption[];
   /** Freeze opens the holder designer (the close-up) instead of freezing on the spot. */
   onFreeze?: () => void;
-  /** Snap: choose a catalogue part for an ideal one (in the close-up). */
+  /** Choose a real part for an ideal one: a catalogue part, in its cube when a module holds it (Choose parts, beside the canvas). */
   onSnap?: () => void;
 }
 
@@ -124,28 +124,26 @@ function PlacementSection({ symbol, realizeOptions = [], onChange, onFreeze, onS
         </Box>
       )}
 
-      {p.state === 'in-cube' && (
-        <Box>
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
-            Seat
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            fullWidth
-            size="small"
-            value={p.seat}
-            disabled={isLocked(symbol, 'turn')}
-            onChange={(_, seat: Seat | null) => seat !== null && onChange({ placement: { ...p, seat } })}
-            aria-label="Seat, in quarter turns"
-          >
-            {SEATS.map((seat) => (
-              <ToggleButton key={seat} value={seat} aria-label={`${seat * 90} degrees`}>
-                {seat * 90}°
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
-      )}
+      <Box>
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+          {p.state === 'in-cube' ? 'Seat' : 'Turned'}
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          fullWidth
+          size="small"
+          value={seatOf(p)}
+          disabled={isLocked(symbol, 'turn')}
+          onChange={(_, seat: Seat | null) => seat !== null && onChange({ placement: { ...p, seat } })}
+          aria-label="Seat, in quarter turns"
+        >
+          {SEATS.map((seat) => (
+            <ToggleButton key={seat} value={seat} aria-label={`${seat * 90} degrees`}>
+              {seat * 90}°
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
 
       <Stack direction="row" spacing={1}>
         {ideal ? (
@@ -153,7 +151,7 @@ function PlacementSection({ symbol, realizeOptions = [], onChange, onFreeze, onS
             {onSnap && (
               <Tooltip title="Choose a catalogue part for it, up close">
                 <Button variant="contained" size="small" startIcon={<TravelExploreIcon fontSize="small" />} onClick={onSnap}>
-                  Snap to a part…
+                  Choose a part…
                 </Button>
               </Tooltip>
             )}
@@ -191,7 +189,7 @@ function PlacementSection({ symbol, realizeOptions = [], onChange, onFreeze, onS
       )}
       {ideal ? (
         <Typography variant="caption" color="text.secondary">
-          An ideal part traces as an ideal optic of its specification. Snap it to a catalogue part, or realize it as a module, before the design can be built.
+          An ideal part traces as an ideal optic of its specification. Choose a real part for it before the design can be built.
         </Typography>
       ) : (
         !mounted && (

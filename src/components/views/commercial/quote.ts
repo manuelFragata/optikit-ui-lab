@@ -5,7 +5,7 @@
  * shop (Odoo); a missing number is never guessed, it stays out of the sums
  * and the line says so.
  */
-import type { Bom, BomLine } from '../../editor/bom';
+import type { Bom, BomLine } from '../../../ports/service';
 
 /** What a module or optic costs us, EUR each, and how long it takes to get, working days. */
 export interface Supply {

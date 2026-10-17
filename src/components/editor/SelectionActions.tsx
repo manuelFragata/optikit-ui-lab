@@ -20,7 +20,7 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import TuneIcon from '@mui/icons-material/Tune';
 import { floatingCardSx } from '../panels/floatingCard';
-import { frozen, isLocked, realize, shifted, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from './model';
+import { frozen, isLocked, realize, seatOf, shifted, unbound, type Lock, type ModuleOption, type SchematicSymbol, type Seat } from './model';
 
 export interface SelectionActionsProps {
   /** The selected parts: one, or several. */
@@ -66,7 +66,7 @@ export function SelectionActions({ parts, realizeOptions, onUpdate, onProperties
   const allLocked = parts.every((s) => LOCKS.every((l) => isLocked(s, l)));
 
   const turn = () =>
-    onUpdate((s) => (s.placement.state === 'in-cube' && !isLocked(s, 'turn') ? { placement: { ...s.placement, seat: ((s.placement.seat + 1) % 4) as Seat } } : {}));
+    onUpdate((s) => (!isLocked(s, 'turn') ? { placement: { ...s.placement, seat: ((seatOf(s.placement) + 1) % 4) as Seat } } : {}));
 
   return (
     <Stack

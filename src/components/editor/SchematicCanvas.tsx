@@ -6,8 +6,8 @@ import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { useLightFor, type Light, type Point } from './light';
-import { facing, samplePoint, specLine, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
+import { useLightFor, type Light, type Point } from '../../ports/light';
+import { facing, samplePoint, seatOf, specLine, symbolBounds, withMove, type Move, type Schematic, type SchematicSymbol, type SymbolKind } from './model';
 import { layerShow, layerShowOfAny, type LayerShow } from './layers';
 import { SymbolGlyph } from './SymbolGlyph';
 import { OpticOutline } from './OpticProfile';
@@ -598,7 +598,7 @@ export function SchematicCanvas({
                   {/* Turned in its cube by its seat, a quarter at a time. */}
                   <g
                     className="glyph"
-                    transform={`translate(${s.x} ${-s.y}) rotate(${s.placement.state === 'in-cube' ? s.placement.seat * 90 : 0})`}
+                    transform={`translate(${s.x} ${-s.y}) rotate(${seatOf(s.placement) * 90})`}
                     stroke="currentColor"
                     strokeWidth={1.5}
                     fill="none"

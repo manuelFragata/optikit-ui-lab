@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Box from '@mui/material/Box';
-import { demoDesignInfo, demoHistory, demoPalette, demoSchematic } from '../../../demo/editorContent';
-import { demoPrices } from '../../../demo/prices';
-import { buildBom } from '../bom';
+import { demoDesignInfo, demoHistory, demoSchematic } from '../../../demo/editorContent';
+import { demoPalette } from '../../../standins/library/modules';
+import { demoPrices } from '../../../standins/library/prices';
+import { buildBom } from '../../../standins/service/bom';
 import type { SchematicSymbol } from '../model';
 import { BomPanel } from './BomPanel';
 import { DesignInfoPanel } from './DesignInfoPanel';

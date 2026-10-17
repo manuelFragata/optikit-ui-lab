@@ -4,43 +4,14 @@
  * the specification, at least as wide; a narrower one would clip what the
  * sketch lets through. Each says how far it is from the specification, and
  * whether a cube holder can take it, since that is the next step. Pure.
+ *
+ * STAND-IN for the service: in the app the catalogue search is
+ * GET /v1/catalog/index and the holders' fit is GET /v1/generators.
  */
-import type { SymbolKind } from '../model';
+import { CATEGORY_OF } from '../../components/editor/model';
 import { GENERATORS, holdRefusal } from './generators';
-import { opticFacts, type CatalogRecord } from './optic';
-
-/** The record category an ideal part of each kind snaps to. */
-export const CATEGORY_OF: Record<SymbolKind, string> = {
-  lens: 'lens',
-  mirror: 'mirror',
-  dichroic: 'dichroic',
-  objective: 'objective',
-  laser: 'source',
-  camera: 'detector',
-};
-
-/** What an ideal part asks for (from its inputs). */
-export interface IdealSpec {
-  kind: SymbolKind;
-  focalMm?: number;
-  diameterMm?: number;
-}
-
-export interface SnapCandidate {
-  record: CatalogRecord;
-  /** Lower is better; 0 is exactly the specification. */
-  score: number;
-  /** The record's focal length, and how far it is from the specification (relative, signed). */
-  eflMm?: number;
-  focalError?: number;
-  diameterMm: number;
-  /** As specified: the focal length within 2 %, and at least as wide. */
-  matches: boolean;
-  /** Why it falls short of the specification, in words. */
-  notes: string[];
-  /** The holders that can take it into a cube (their labels), best first; empty when none. */
-  holders: string[];
-}
+import { opticFacts, type CatalogRecord } from '../../components/editor/holders/optic';
+import type { IdealSpec, SnapCandidate } from '../../ports/service';
 
 /** A lens narrower than asked loses this much, plus its shortfall. */
 const NARROW_PENALTY = 0.5;
@@ -74,13 +45,4 @@ export function snapCandidates(spec: IdealSpec, records: readonly CatalogRecord[
       return { record, score, eflMm: record.eflMm, focalError, diameterMm: facts.acrossMm, matches: notes.length === 0, notes, holders };
     })
     .sort((a, b) => a.score - b.score || a.diameterMm - b.diameterMm);
-}
-
-/** The values a snapped part takes for its inputs: what the record really is. */
-export function snappedValues(record: CatalogRecord): Record<string, number> {
-  const facts = opticFacts(record);
-  return {
-    ...(record.eflMm !== undefined && { 'Focal length': record.eflMm }),
-    ...(!facts.rectangular && { Diameter: Math.round(facts.acrossMm * 10) / 10 }),
-  };
 }

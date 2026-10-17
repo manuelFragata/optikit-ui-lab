@@ -6,8 +6,8 @@
  * it. A part can be hovered and picked, as in the beam table.
  */
 import Box from '@mui/material/Box';
-import type { Beam, BeamElement } from '../editor/simulate/beam';
-import type { BeamResult, Trace } from '../editor/simulate/paraxial';
+import type { Beam, BeamElement } from '../../standins/kernel/simulate/beam';
+import type { BeamResult, Trace } from '../../standins/kernel/simulate/paraxial';
 
 const W = 1000;
 const H = 250;
@@ -76,6 +76,10 @@ function Part({ e, x, y, half, clipped, picked, onSelect }: { e: BeamElement; x:
       break;
     case 'plate':
       mark = <rect x={x - 2} y={top} width={4} height={bottom - top} fill="none" stroke={stroke} strokeWidth={w} />;
+      break;
+    case 'stop':
+      // The blades, from the opening outwards.
+      mark = <path d={`M${x} ${top - 14} V${top} M${x} ${bottom} V${bottom + 14} M${x - 5} ${top} H${x + 5} M${x - 5} ${bottom} H${x + 5}`} fill="none" stroke={stroke} strokeWidth={w} />;
       break;
     case 'detector':
       mark = <rect x={x} y={y(6)} width={6} height={y(-6) - y(6)} fill={stroke} />;

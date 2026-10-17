@@ -16,9 +16,10 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import TuneIcon from '@mui/icons-material/Tune';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
-import { demoDesignInfo, demoPalette, demoSketch } from '../../../demo/editorContent';
-import { demoPrices } from '../../../demo/prices';
-import { bomCsv, bomFileName, buildBom } from '../../editor/bom';
+import { demoDesignInfo, demoSketch } from '../../../demo/editorContent';
+import type { PaletteGroup } from '../../../ports/library';
+import type { Bom } from '../../../ports/service';
+import { bomCsv, bomFileName } from '../../editor/bomCsv';
 import type { ModuleOption, Schematic, SchematicSymbol } from '../../editor/model';
 import { BomPanel } from '../../editor/panels/BomPanel';
 import { DesignInfoPanel } from '../../editor/panels/DesignInfoPanel';
@@ -43,6 +44,10 @@ export interface LeftPanelsProps {
   design: Schematic;
   /** The design's name, for the files it downloads. */
   name: string;
+  /** What the library offers to place, by box or vendor. */
+  palette: readonly PaletteGroup[];
+  /** The design's bill of materials. */
+  bom: Bom;
   selectedId: string | null;
   selectedIds: string[];
   onSelect: (id: string) => void;
@@ -56,8 +61,7 @@ export interface LeftPanelsProps {
   onDragEnd: () => void;
 }
 
-export function leftPanels({ design, name, selectedId, selectedIds, onSelect, onSelectParts, placingId, onPick, onDragStart, onDragEnd }: LeftPanelsProps): SidePanelItem[] {
-  const bom = buildBom(design, demoPrices);
+export function leftPanels({ design, name, palette, bom, selectedId, selectedIds, onSelect, onSelectParts, placingId, onPick, onDragStart, onDragEnd }: LeftPanelsProps): SidePanelItem[] {
   return [
     {
       id: 'sketch',
@@ -70,7 +74,7 @@ export function leftPanels({ design, name, selectedId, selectedIds, onSelect, on
       id: 'palette',
       label: 'Add parts',
       icon: <ViewInArOutlinedIcon />,
-      content: <SymbolPalettePanel groups={demoPalette} activeEntryId={placingId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />,
+      content: <SymbolPalettePanel groups={palette} activeEntryId={placingId} onPick={onPick} onDragStart={onDragStart} onDragEnd={onDragEnd} />,
       footer: footerButton('Import optic…', <AddIcon />),
     },
     {
@@ -109,7 +113,7 @@ export interface RightPanelsProps {
   unmounted: number;
   /** Freeze opens the holder designer. */
   onFreeze?: () => void;
-  /** Snap opens the catalogue choice for an ideal part. */
+  /** Opens Choose parts, for an ideal part. */
   onSnap?: () => void;
 }
 

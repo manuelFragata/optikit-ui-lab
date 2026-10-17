@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { designLens, focalLength } from '../holders/designs';
+import { designLens, focalLength } from '../../../components/editor/holders/designs';
 import { beamOf } from './beam';
 import { measure, planeZ, run, toDesign, variablesOf, withValues, type Objective } from './optimize';
 import { results, startRay, trace } from './paraxial';

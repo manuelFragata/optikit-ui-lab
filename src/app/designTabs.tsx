@@ -4,15 +4,16 @@
  * (accounts, versions, the shop); the views themselves stay as they are.
  * A project made in this visit has no demo history: it shows its own.
  */
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ProjectSummary } from '../api/types';
 import { demoChecks, demoCustomer, demoLabourRate, demoSupply } from '../demo/commercial';
 import { demoDesignInfo, demoFiles, demoHistory } from '../demo/editorContent';
 import { demoPeople, demoShareLink } from '../demo/fileContent';
-import { demoPrices } from '../demo/prices';
-import { bomCsv, bomFileName, buildBom } from '../components/editor/bom';
+import { bomCsv, bomFileName } from '../components/editor/bomCsv';
 import { DESIGN_FILE_EXTENSION, designFileText, readDesignFile } from '../components/editor/designFile';
-import { useLightFor } from '../components/editor/light';
+import { useLibrary } from '../ports/library';
+import { useLightFor } from '../ports/light';
+import { useService } from '../ports/service';
 import type { Schematic } from '../components/editor/model';
 import { download } from '../components/primitives/download';
 import { formatEur } from '../components/primitives/format';
@@ -20,7 +21,6 @@ import { CommercialView } from '../components/views/CommercialView';
 import { FileView } from '../components/views/FileView';
 import { SimulateView } from '../components/views/SimulateView';
 import { recordOf } from '../components/editor/holders/designs';
-import { catalogRecord } from '../demo/catalogParts';
 import type { SchematicSymbol } from '../components/editor/model';
 
 interface DesignTabProps {
@@ -56,6 +56,7 @@ function newProjectFile(project: ProjectSummary, name: string, schematic: Schema
 
 export function FileTab({ id, name, version, schematic, project, onNotice, onAddProject, ...actions }: FileTabProps) {
   const own = project && newProjectFile(project, name, schematic);
+  const service = useService();
   return (
     <FileView
       name={name}
@@ -77,7 +78,7 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
       onDelete={() => onNotice('In the prototype, designs are not deleted.')}
       onExport={(format) => {
         if (format === 'archive') download(`${name}${DESIGN_FILE_EXTENSION}`, designFileText(schematic), 'application/json');
-        if (format === 'bom') download(bomFileName(name), bomCsv(buildBom(schematic, demoPrices)), 'text/csv');
+        if (format === 'bom') download(bomFileName(name), bomCsv(service.bom(schematic)), 'text/csv');
         if (format === 'link') {
           navigator.clipboard?.writeText(demoShareLink(id)).catch(() => {});
           onNotice('3D link copied.');
@@ -96,7 +97,7 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
 
 export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {
   const lightFor = useLightFor();
-  const bom = buildBom(schematic, demoPrices);
+  const bom = useService().bom(schematic);
   return (
     <CommercialView
       designName={name}
@@ -113,13 +114,13 @@ export function CommercialTab({ name, version, schematic, project, onNotice }: D
   );
 }
 
-/** A part's optic: designed here, or the demo catalogue's record behind its name. */
-const recordForPart = (s: SchematicSymbol) => recordOf(s, catalogRecord);
-
 /** Simulate: plots and analyses of the beam through the design, from the app's light source. */
 export function SimulateTab({ name, schematic, onNotice }: DesignTabProps) {
   const lightFor = useLightFor();
   const light = useMemo(() => lightFor(schematic), [lightFor, schematic]);
+  // A part's optic: designed here, or the library's record behind its name.
+  const library = useLibrary();
+  const recordForPart = useCallback((s: SchematicSymbol) => recordOf(s, library.record), [library]);
   return (
     <SimulateView
       designName={name}

@@ -6,9 +6,9 @@
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { nmColor } from '../editor/optics/coatings';
-import type { Beam } from '../editor/simulate/beam';
-import type { BeamResult } from '../editor/simulate/paraxial';
+import { nmColor } from '../editor/optics/nmColor';
+import type { Beam } from '../../standins/kernel/simulate/beam';
+import type { BeamResult } from '../../standins/kernel/simulate/paraxial';
 
 const W = 480;
 const H = 210;

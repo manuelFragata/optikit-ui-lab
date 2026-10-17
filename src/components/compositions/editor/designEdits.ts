@@ -4,7 +4,7 @@
  * each call is one undo step. Tested in designEdits.test.ts.
  */
 import type { PartEntry } from '../../editor/AddPartSearch';
-import { DESIGNED_HERE, frozen, isLocked, realize, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
+import { DESIGNED_HERE, frozen, seatOf, isLocked, realize, shifted, type ModuleOption, type Schematic, type SchematicSymbol, type Seat, type SymbolKind, type SymbolParam } from '../../editor/model';
 
 type Patch = (part: SchematicSymbol) => Partial<SchematicSymbol>;
 
@@ -31,7 +31,7 @@ export const moveParts = (design: Schematic, ids: string[], by: { x?: number; y?
 /** A quarter turn for each part that is in a cube and may turn. */
 export const turnParts = (design: Schematic, ids: string[]): Schematic =>
   updateParts(design, ids, (s) =>
-    s.placement.state === 'in-cube' && !isLocked(s, 'turn') ? { placement: { ...s.placement, seat: ((s.placement.seat + 1) % 4) as Seat } } : {},
+    !isLocked(s, 'turn') ? { placement: { ...s.placement, seat: ((seatOf(s.placement) + 1) % 4) as Seat } } : {},
   );
 
 /**

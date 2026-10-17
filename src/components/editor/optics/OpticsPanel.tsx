@@ -18,7 +18,8 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { focalLength } from '../holders/designs';
 import type { CatalogRecord } from '../holders/optic';
-import { COATINGS, coating, coatingChecks, nmColor, surfaceReflectance, throughput, type CoatingId, type SurfaceInfo } from './coatings';
+import { COATINGS, coating, coatingChecks, surfaceReflectance, throughput, type CoatingId, type SurfaceInfo } from '../../../standins/kernel/coatings';
+import { nmColor } from './nmColor';
 import { CoatingChart } from './CoatingChart';
 
 export interface OpticsPanelProps {

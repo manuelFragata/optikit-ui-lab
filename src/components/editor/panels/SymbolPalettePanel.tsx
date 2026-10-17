@@ -28,7 +28,7 @@ const SECTIONS = [
 ] as const;
 
 export interface SymbolPalettePanelProps {
-  groups: PaletteGroupData[];
+  groups: readonly PaletteGroupData[];
   /** Highlighted entry, e.g. the module of the selected part. */
   activeEntryId?: string;
   onPick?: (entryId: string) => void;

@@ -34,6 +34,6 @@ export function useSceneColors(): SceneColors {
     warning: c.warning.main,
     placeholder: c.canvas.group,
     rays: c.rays,
-    glyphs: { laser: g.source, mirror: g.mirror, dichroic: g.dichroic, lens: g.lens, objective: g.objective, camera: g.detector },
+    glyphs: { laser: g.source, mirror: g.mirror, dichroic: g.dichroic, lens: g.lens, objective: g.objective, camera: g.detector, filter: g.filter, beamsplitter: g.splitter, aperture: g.aperture },
   };
 }

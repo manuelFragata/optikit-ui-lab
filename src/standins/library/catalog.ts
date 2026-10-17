@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the library: in the app these records come from the service
+ * (GET /v1/library/index, GET /v1/catalog/index, POST /v1/catalog/import).
+ *
  * Catalogue optics as optikit-v2's library records carry them: the category,
  * how it comes (bare glass, or already mounted), the stated focal length and
  * the surface stack in Optiland's dict form (`optics.fragment.surfaces`). A
@@ -9,7 +12,7 @@
  * Prescriptions are Thorlabs' published ones; a test traces each and checks
  * that it focuses where the record says (holders.test.ts).
  */
-import type { CatalogRecord, FragmentSurface } from '../components/editor/holders/optic';
+import type { CatalogRecord, FragmentSurface, SurfaceResponse } from '../../components/editor/holders/optic';
 
 const thorlabs = (mpn: string, category: string, eflMm: number | undefined, fragmentSurfaces: FragmentSurface[], clearApertureMm?: number): CatalogRecord => ({
   id: `thorlabs.${category}.${mpn.toLowerCase()}`,
@@ -20,6 +23,17 @@ const thorlabs = (mpn: string, category: string, eflMm: number | undefined, frag
   clearApertureMm,
   fragmentSurfaces,
 });
+
+/** A flat round plate of glass, its first surface coated as `response` says: a filter or a plate beam splitter. */
+const plate = (t: number, semi: number, response: SurfaceResponse): FragmentSurface[] => [
+  { geometry: { radius: 'inf' }, thickness: t, semi_aperture: semi, material_post: 'N-BK7', response },
+  { geometry: { radius: 'inf' }, semi_aperture: semi },
+];
+
+/** A bandpass filter's coating: it passes centre ± width/2 (nm), and absorbs the rest. */
+const bandpass = (centreNm: number, widthNm: number): SurfaceResponse => ({ kind: 'absorptive', 'transmit-bands-um': [[(centreNm - widthNm / 2) / 1000, (centreNm + widthNm / 2) / 1000]] });
+/** A beam splitter's coating: it reflects this fraction at every wavelength. */
+const splitter = (reflected: number): SurfaceResponse => ({ kind: 'sampler', 'transmit-ratio': reflected });
 
 /** An achromatic doublet: crown, then flint, cemented. */
 const doublet = (r1: number, t1: number, crown: string, r2: number, t2: number, flint: string, r3: number, semi: number): FragmentSurface[] => [
@@ -46,9 +60,23 @@ const parts: CatalogRecord[] = [
   thorlabs('LA1433-A', 'lens', 150, planoConvex(77.3, 3.0, 12.7), 22.9),
   // Longpass dichroic, 25 × 36 mm, 1 mm thick: a flat plate, for the other roads.
   thorlabs('DMLP505', 'dichroic', undefined, [
-    { geometry: { radius: 'inf' }, thickness: 1.0, semi_aperture: 12.5, aperture: { type: 'rectangular', x_min: -12.5, x_max: 12.5, y_min: -18, y_max: 18 } },
+    {
+      geometry: { radius: 'inf' },
+      thickness: 1.0,
+      semi_aperture: 12.5,
+      aperture: { type: 'rectangular', x_min: -12.5, x_max: 12.5, y_min: -18, y_max: 18 },
+      // It turns the light below 505 nm, and lets the rest through.
+      response: { kind: 'dichroic', 'reflect-bands-um': [[null, 0.505]] },
+    },
     { geometry: { radius: 'inf' }, semi_aperture: 12.5, aperture: { type: 'rectangular', x_min: -12.5, x_max: 12.5, y_min: -18, y_max: 18 } },
   ]),
+  // Bandpass filters, Ø25 mm, mounted in a ring: a centre wavelength and a full width at half maximum.
+  thorlabs('FBH488-10', 'filter', undefined, plate(6.3, 12.5, bandpass(488, 10)), 21),
+  thorlabs('FBH520-40', 'filter', undefined, plate(6.3, 12.5, bandpass(520, 40)), 21),
+  thorlabs('FBH550-40', 'filter', undefined, plate(6.3, 12.5, bandpass(550, 40)), 21),
+  // 50:50 beam splitters for 400–700 nm: a 25.4 mm cube, and a Ø25.4 mm plate.
+  thorlabs('BS013', 'beamsplitter', undefined, plate(25.4, 12.7, splitter(0.5)), 20.3),
+  thorlabs('BSW10R', 'beamsplitter', undefined, plate(5, 12.7, splitter(0.5)), 22.9),
 ];
 
 /** The demo catalogue, by part number. */

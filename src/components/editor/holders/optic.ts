@@ -15,8 +15,30 @@ export interface FragmentSurface {
   material_post?: string;
   /** A mirror's face: the light turns back here (Optiland's `is_reflective`). */
   is_reflective?: boolean;
-  /** Its coating, for an optic designed here (a lab id, optics/coatings.ts); a catalogue part's are the vendor's. */
+  /** Its coating, for an optic designed here (a lab id, standins/kernel/coatings.ts); a catalogue part's are the vendor's. */
   coating?: string;
+  /** What the coated surface passes and turns, by wavelength (optikit-core `schema/response.py`, WP-74), as the record writes it. */
+  response?: SurfaceResponse;
+}
+
+/** A wavelength band, µm; `null` on either side is open-ended. */
+export type BandUm = [number | null, number | null];
+
+/**
+ * A surface's spectral response, as a library record writes it on the
+ * surface (optikit-core `SurfaceResponse`, dashed keys). Wavelength gating
+ * only: what it passes and turns, not how much it loses.
+ */
+export interface SurfaceResponse {
+  kind: 'mirror' | 'sampler' | 'polarizing' | 'dichroic' | 'absorptive';
+  /** The bands it reflects; the rest goes through. */
+  'reflect-bands-um'?: BandUm[] | null;
+  /** The bands an absorptive filter passes. */
+  'transmit-bands-um'?: BandUm[] | null;
+  /** A sampler's (beam splitter's) reflected fraction, 0–1, despite the name. */
+  'transmit-ratio'?: number | null;
+  /** A polarizing splitter's reflect axis, degrees: declared, not traced. */
+  'polarization-deg'?: number | null;
 }
 
 /** A catalogue optic as optikit-v2's library records carry it (`ComponentRecord`, the parts holders read). */
@@ -67,6 +89,15 @@ export function opticFacts(record: Pick<CatalogRecord, 'category' | 'mount' | 'f
   }
   const thickness = surfaces.slice(0, -1).reduce((sum, s) => sum + (s.thickness ?? 0), 0);
   return { category: record.category, mount: record.mount, acrossMm: across, thicknessMm: thickness || SUBSTRATE_MM, curved, rectangular, hasFragment: surfaces.length > 0 };
+}
+
+/** The values a snapped part takes for its inputs: what the record really is. */
+export function snappedValues(record: CatalogRecord): Record<string, number> {
+  const facts = opticFacts(record);
+  return {
+    ...(record.eflMm !== undefined && { 'Focal length': record.eflMm }),
+    ...(!facts.rectangular && { Diameter: Math.round(facts.acrossMm * 10) / 10 }),
+  };
 }
 
 /** A part with no record: what its inputs say (a diameter), as bare glass with no prescription. */

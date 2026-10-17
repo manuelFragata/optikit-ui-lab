@@ -7,7 +7,7 @@ import Typography from '@mui/material/Typography';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import type { Bom } from '../editor/bom';
+import type { Bom } from '../../ports/service';
 import { formatEur as eur, formatPercent as percent } from '../primitives/format';
 import { PageContainer } from '../compositions/PageContainer';
 import { PillButton } from '../landing/PillButton';

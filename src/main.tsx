@@ -3,10 +3,9 @@ import { createRoot } from 'react-dom/client';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { App } from './App';
-import { LightProvider } from './components/editor/light';
-import { demoLight } from './demo/demoLight';
 import { usePreferences } from './settings/preferences';
 import { PreferencesProvider } from './settings/PreferencesProvider';
+import { StandinsProvider } from './standins/StandinsProvider';
 import { AppSettings } from './settings/SettingsDialog';
 import { createAppTheme } from './theme';
 
@@ -25,13 +24,13 @@ function Themed({ children }: { children: ReactNode }) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PreferencesProvider>
-      {/* Where the light goes: the demo stand-in, until the optics engine (oc-wasm) replaces it here. */}
-      <LightProvider value={demoLight}>
+      {/* The light, the library and the service: the lab's stand-ins, until the real ones replace them here. */}
+      <StandinsProvider>
         <Themed>
           <App />
           <AppSettings />
         </Themed>
-      </LightProvider>
+      </StandinsProvider>
     </PreferencesProvider>
   </StrictMode>,
 );

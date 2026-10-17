@@ -12,26 +12,27 @@
  * - panels.tsx         what the left and right panels hold;
  * - EditorHeader.tsx, EditorStatusBar.tsx, SearchButton.tsx.
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
+import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
 import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import { useTheme, type Theme } from '@mui/material/styles';
-import { demoInputs, demoModules, demoPalette, demoSchematic, demoSketch } from '../../demo/editorContent';
+import { demoInputs, demoSchematic, demoSketch } from '../../demo/editorContent';
+import { useLibrary, type PaletteGroup } from '../../ports/library';
+import { snappedValues } from '../editor/holders/optic';
+import { useService } from '../../ports/service';
 import { STORE_MESHES } from '../../demo/assemblies';
-import { catalogList, catalogRecord } from '../../demo/catalogParts';
-import { meshForPart } from '../../demo/meshes';
 import { demoUser } from '../../demo/user';
 import { usePreferences } from '../../settings/preferences';
-import { useLightFor } from '../editor/light';
+import { useLightFor } from '../../ports/light';
 import { AddPartSearch, type PartEntry } from '../editor/AddPartSearch';
 import { CanvasToolbar } from '../editor/CanvasToolbar';
 import { DEFAULT_VIEW_OPTIONS, type CanvasTool, type EditorView, type HintPlace, type ViewOptions } from '../editor/viewOptions';
 import { CommandPalette } from '../editor/CommandPalette';
 import { LayerPreview } from '../editor/LayerPreview';
 import { designed, frozen, realize, snapped, type Move, type Schematic, type SchematicSymbol } from '../editor/model';
-import { snappedValues } from '../editor/holders/snap';
 import { designedValues, recordOf } from '../editor/holders/designs';
 import { SchematicCanvas, type Camera } from '../editor/SchematicCanvas';
 import type { CameraCommand, CameraMove } from '../editor/scene3d/Camera';
@@ -60,23 +61,19 @@ export type { LeftPanelId, RightPanelId };
 const DesignScene3D = lazy(() => import('../editor/scene3d/DesignScene3D').then((m) => ({ default: m.DesignScene3D })));
 const Closeup = lazy(() => import('../editor/scene3d/Closeup').then((m) => ({ default: m.Closeup })));
 const OptimizePane = lazy(() => import('../editor/optimize/OptimizePane').then((m) => ({ default: m.OptimizePane })));
+const ChoosePane = lazy(() => import('../editor/choose/ChoosePane').then((m) => ({ default: m.ChoosePane })));
 
-/** A lens or mirror's real glass: designed here, or its catalogue record's. One function, so the views' layouts keep. */
-const glassOf = (s: SchematicSymbol) => recordOf(s, catalogRecord)?.fragmentSurfaces;
-/** A part's optic: designed here, or the demo catalogue's record behind its name. */
-const recordForPart = (s: SchematicSymbol) => recordOf(s, catalogRecord);
+/** The sketch's entries, as parts to place. */
+const SKETCH: PartEntry[] = demoSketch.flatMap((g) =>
+  g.entries.map((e) => {
+    const mount = e.mount ?? ('ideal' as const);
+    const label = mount === 'ideal' && !/^Ideal /.test(e.label) ? `Ideal ${e.label.toLowerCase()}` : e.label;
+    return { id: e.id, kind: e.kind, inputs: e.inputs, prescription: e.prescription, label, mount, source: 'Sketch' };
+  }),
+);
 
-/** Every part the library offers, in one list for the Add search and the command palette. */
-const LIBRARY: PartEntry[] = [
-  ...demoSketch.flatMap((g) =>
-    g.entries.map((e) => {
-      const mount = e.mount ?? ('ideal' as const);
-      const label = mount === 'ideal' && !/^Ideal /.test(e.label) ? `Ideal ${e.label.toLowerCase()}` : e.label;
-      return { id: e.id, kind: e.kind, inputs: e.inputs, prescription: e.prescription, label, mount, source: 'Sketch' };
-    }),
-  ),
-  ...demoPalette.flatMap((g) => g.entries.map((e) => ({ ...e, mount: g.mount, source: g.label }))),
-];
+/** Every part there is to place, in one list for the Add search and the command palette: the sketch's, then the library's. */
+const partsOf = (palette: readonly PaletteGroup[]): PartEntry[] => [...SKETCH, ...palette.flatMap((g) => g.entries.map((e) => ({ ...e, mount: g.mount, source: g.label })))];
 
 const HINTS: Record<CanvasTool, string> = {
   select: 'Click a part to select it, double-click for its properties · A to add one · Ctrl K for everything',
@@ -211,14 +208,24 @@ export function EditorShell({
   const [front, setFront] = useState<'dock' | 'layers'>('dock');
   const [paletteOpen, setPaletteOpen] = useState(false);
   // The close-up: the canvas split, the selected part beside it; the component picked in it, for that part.
-  // What the split's second pane holds: the close-up, Optimize, or nothing (the canvas alone).
-  const [pane, setPane] = useState<'closeup' | 'optimize' | null>(null);
+  // What the split's second pane holds: the close-up, Optimize, Choose parts, or nothing (the canvas alone).
+  const [pane, setPane] = useState<'closeup' | 'optimize' | 'choose' | null>(null);
   const closeup = pane === 'closeup';
   const setCloseup = (on: boolean) => setPane(on ? 'closeup' : null);
   const [split, setSplit] = useState(0.55);
   const [closeupFocus, setCloseupFocus] = useState<{ partId: string; key: string | null } | null>(null);
 
   const { selected } = selection;
+  // The parts library and the service, as the app provides them.
+  const library = useLibrary();
+  const service = useService();
+  const { modulesFor } = library;
+  const LIBRARY = useMemo(() => partsOf(library.palette), [library.palette]);
+  /** A part's optic: designed here, or the library's record behind its name. */
+  const recordForPart = useCallback((s: SchematicSymbol) => recordOf(s, library.record), [library]);
+  /** A lens or mirror's real glass. One function per library, so the views' layouts keep. */
+  const glassOf = useCallback((s: SchematicSymbol) => recordOf(s, library.record)?.fragmentSurfaces, [library]);
+  const bom = useMemo(() => service.bom(design), [service, design]);
   // The design's sources' wavelengths, for the close-up's Optical side.
   const wavelengths = [...new Set(design.symbols.flatMap((s) => (s.kind === 'laser' ? (s.inputs ?? []).filter((i) => i.label === 'Wavelength').map((i) => i.value) : [])))].sort((a, b) => a - b);
   // Every part not in a cube yet: the ideal ones (sketched) and the unmounted ones (no holder).
@@ -262,6 +269,13 @@ export function EditorShell({
     if (pane !== 'optimize') setSplit((f) => Math.min(f, 0.45));
     setPane(pane === 'optimize' ? null : 'optimize');
   };
+  /** Choose parts takes the same place: from the sketch to real parts, one after the other. */
+  const toggleChoose = () => {
+    if (pane !== 'choose' && rightState === 'expanded') setRightState('collapsed');
+    if (pane !== 'choose') setSplit((f) => Math.min(f, 0.5));
+    setPane(pane === 'choose' ? null : 'choose');
+  };
+  const openChoose = () => pane !== 'choose' && toggleChoose();
   /** Freeze: the holder is designed in the close-up, on the selected part. */
   const designHolder = () => {
     if (rightState === 'expanded') setRightState('collapsed');
@@ -338,7 +352,7 @@ export function EditorShell({
     nudgeSelection: (x, y) => edit((d) => moveParts(d, ids, { x, y })),
     layerSelection: (dz) => edit((d) => moveParts(d, ids, { z: dz })),
     mountAll: () => {
-      edit((d) => mountAll(d, (kind) => demoModules[kind]));
+      edit((d) => mountAll(d, modulesFor));
       setFlyout(null);
     },
 
@@ -364,6 +378,7 @@ export function EditorShell({
     openRight,
     toggleCloseup,
     toggleOptimize,
+    toggleChoose,
     openPalette: () => setPaletteOpen(true),
     openSettings: () => setSettingsOpen(true),
 
@@ -403,7 +418,7 @@ export function EditorShell({
   const selectionActions = selected && (
     <SelectionActions
       parts={selection.parts}
-      realizeOptions={demoModules[selected.kind]}
+      realizeOptions={modulesFor(selected.kind)}
       onUpdate={(patch) => edit((d) => updateParts(d, ids, patch))}
       onProperties={actions.openProperties}
       onDuplicate={actions.duplicateSelection}
@@ -462,6 +477,8 @@ export function EditorShell({
           items={leftPanels({
             design,
             name: projectName,
+            palette: library.palette,
+            bom,
             selectedId,
             selectedIds: ids,
             onSelect: actions.selectPart,
@@ -497,7 +514,7 @@ export function EditorShell({
                     tool={tool}
                     snap={options.snapToGrid}
                     onMove={applyMove}
-                    meshFor={meshForPart}
+                    meshFor={library.meshFor}
                     glassFor={glassOf}
                     onSelect={onCanvasSelect}
                     onSelectMany={onCanvasSelectMany}
@@ -608,7 +625,23 @@ export function EditorShell({
             </Box>
           }
           second={
-            pane === 'optimize' ? (
+            pane === 'choose' ? (
+              <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
+                <ChoosePane
+                  design={design}
+                  light={light}
+                  choicesFor={service.choicesFor}
+                  selectedId={selected?.id ?? null}
+                  onSelect={actions.selectPart}
+                  onChoose={(id, patch) => edit((d) => updateParts(d, [id], () => patch))}
+                  onDesignHolder={(id) => {
+                    select([id]);
+                    designHolder();
+                  }}
+                  onClose={() => setPane(null)}
+                />
+              </Suspense>
+            ) : pane === 'optimize' ? (
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
                 <OptimizePane design={design} light={light} recordFor={recordForPart} onApply={(next) => edit(() => next)} onSelect={actions.selectPart} onClose={() => setPane(null)} />
               </Suspense>
@@ -617,16 +650,16 @@ export function EditorShell({
               <Suspense fallback={<Box sx={{ flex: 1, bgcolor: 'canvas.ground' }} />}>
                 <Closeup
                   part={selected}
-                  mesh={selected ? meshForPart(selected) : undefined}
+                  mesh={selected ? library.meshFor(selected) : undefined}
                   focus={selected && closeupFocus?.partId === selected.id ? closeupFocus.key : null}
                   onFocus={(key) => selected && setCloseupFocus({ partId: selected.id, key })}
                   onClose={() => setCloseup(false)}
                   opticFor={recordForPart}
                   cubeMesh={STORE_MESHES.empty}
                   onHolder={(spec) => selected && edit((d) => updateParts(d, [selected.id], (s) => ({ placement: frozen(s.placement, spec) })))}
-                  catalogue={catalogList}
+                  candidatesFor={service.snapCandidates}
                   onSnap={({ record }) => selected && edit((d) => updateParts(d, [selected.id], (s) => snapped(s, record.vendor?.mpn ?? record.id, `${record.vendor?.name ?? 'Catalogue'} parts`, snappedValues(record))))}
-                  modules={selected ? demoModules[selected.kind] : []}
+                  modules={selected ? modulesFor(selected.kind) : []}
                   onRealize={(option) => selected && edit((d) => updateParts(d, [selected.id], (s) => realize(s, option)))}
                   onDesign={(prescription) => selected && edit((d) => updateParts(d, [selected.id], (s) => designed(s, prescription, designedValues(prescription))))}
                   wavelengths={wavelengths}
@@ -647,20 +680,27 @@ export function EditorShell({
           onActiveChange={(id) => setRightPanel(id as RightPanelId)}
           railToggles={[
             { id: 'closeup', label: closeup ? 'Close the close-up' : 'Close-up: split the canvas to look at a part', icon: <CenterFocusStrongOutlinedIcon />, on: closeup, onToggle: toggleCloseup },
+            {
+              id: 'choose',
+              label: pane === 'choose' ? 'Close Choose parts' : 'Choose parts: from the sketch to real parts',
+              icon: <ChecklistOutlinedIcon />,
+              on: pane === 'choose',
+              onToggle: toggleChoose,
+            },
             { id: 'optimize', label: pane === 'optimize' ? 'Close Optimize' : 'Optimize: split the canvas', icon: <AutoFixHighOutlinedIcon />, on: pane === 'optimize', onToggle: toggleOptimize },
           ]}
           items={rightPanels({
             design,
             selected,
             selectedParts: selection.parts,
-            realizeOptions: selected ? demoModules[selected.kind] : [],
+            realizeOptions: selected ? modulesFor(selected.kind) : [],
             onChange: (patch: Partial<SchematicSymbol>) => selected && edit((d) => updateParts(d, [selected.id], () => patch)),
             onSelect: actions.selectPart,
             onStep: step,
             onDelete: actions.deleteSelection,
             unmounted: unmounted.length,
             onFreeze: designHolder,
-            onSnap: designHolder,
+            onSnap: openChoose,
           })}
         />
       </Box>

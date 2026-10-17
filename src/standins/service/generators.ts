@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the service: in the app the generators and their `holds`
+ * blocks come from GET /v1/generators.
+ *
  * Which generator can hold an optic (optikit-v2 WP-258). Every holder
  * generator in optikit-v2 declares a `holds` block in its `params.json`; the
  * service serves them (`GET /v1/generators`) and the wizard offers only the
@@ -7,7 +10,7 @@
  * is `frontend/src/model/holderFit.ts`, so the lab answers as the app does.
  * In the app the table comes from the service, not from here.
  */
-import type { OpticFacts } from './optic';
+import type { OpticFacts } from '../../components/editor/holders/optic';
 
 export interface GeneratorHolds {
   /** The shape of the holding problem; `any` is the boolean holder. */

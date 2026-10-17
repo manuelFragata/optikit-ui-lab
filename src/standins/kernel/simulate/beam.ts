@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the kernel: in the app the beam is oc-wasm's trace of the
+ * Scene3 from POST /v1/scene3 (segments, `firstDetectorResultJSON`).
+ *
  * The beam table: one of the design's light paths as the parts it meets, in
  * ray order, unfolded onto one axis (mm along the light from where it
  * starts), each with what it does to the light and the optics it does it
@@ -8,10 +11,10 @@
  * Simulate tab can show it: an objective's focal length from its
  * magnification on a 180 mm tube lens; a mirror or plate an inch across.
  */
-import { focalLength } from '../holders/designs';
-import { opticFacts, type CatalogRecord, type FragmentSurface } from '../holders/optic';
-import type { LightPath, Point } from '../light';
-import { isLocked, type Placement, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
+import { focalLength } from '../../../components/editor/holders/designs';
+import { opticFacts, type CatalogRecord, type FragmentSurface } from '../../../components/editor/holders/optic';
+import type { LightPath, Point } from '../../../ports/light';
+import { isLocked, type Placement, type Schematic, type SchematicSymbol, type SymbolKind } from '../../../components/editor/model';
 
 /** The tube lens an objective's magnification is stated for (Nikon, Leica, Mitutoyo, openUC2's FRAME). */
 export const TUBE_LENS_MM = 180;
@@ -20,7 +23,7 @@ export const INCH_MM = 25.4;
 /** A laser's beam Ø when nothing says otherwise: a typical diode module's. */
 export const DEFAULT_BEAM_MM = 2;
 
-export type BeamRole = 'source' | 'sample' | 'lens' | 'objective' | 'mirror' | 'plate' | 'detector' | 'other';
+export type BeamRole = 'source' | 'sample' | 'lens' | 'objective' | 'mirror' | 'plate' | 'stop' | 'detector' | 'other';
 
 export interface BeamElement {
   id: string;
@@ -116,7 +119,13 @@ function element(id: string, atMm: number, s: SchematicSymbol | undefined, axis:
       const curved = record && record.fragmentSurfaces[0]?.is_reflective ? focalLength(record.fragmentSurfaces) : null;
       return { ...common, role: 'mirror', focalMm: curved, apertureMm: across ?? INCH_MM, assumed: across === undefined ? ['one inch across'] : [] };
     }
+    case 'aperture': {
+      const open = inputOf(s, 'Diameter');
+      return { ...common, role: 'stop', focalMm: null, apertureMm: open ?? across ?? INCH_MM, assumed: open === undefined && across === undefined ? ['one inch open'] : [] };
+    }
     case 'dichroic':
+    case 'filter':
+    case 'beamsplitter':
       return { ...common, role: 'plate', focalMm: null, apertureMm: across ?? INCH_MM, assumed: ['a thin plate', ...(across === undefined ? ['one inch across'] : [])] };
     default:
       return { ...common, role: 'other', focalMm: null, apertureMm: null };

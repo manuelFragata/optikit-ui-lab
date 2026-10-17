@@ -1,7 +1,7 @@
 /**
  * A lens cartridge as meshes, for the close-up: the same components the
  * module meshes have (meshes.ts), so hovering, picking, X-ray, isolate and
- * section work on it as on any module. A preview from holders/cartridge.ts's
+ * section work on it as on any module. A preview from standins/service/cartridge.ts's
  * numbers: the halves are the cylinder minus the cavity, built as thin
  * slices (the cavity follows the lens, and may sit off the axis, so it is
  * not one turned profile); the lens is turned from its prescription. The real
@@ -14,7 +14,7 @@ import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Box3, CylinderGeometry, DoubleSide, ExtrudeGeometry, LatheGeometry, Matrix4, MeshStandardMaterial, Path, Shape, Vector2 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { FragmentSurface } from '../holders/optic';
-import { CARTRIDGE, cartridgeDefaults, cavityRadius, layout, type BeamAxis, type CartridgeParams } from '../holders/cartridge';
+import { CARTRIDGE, cartridgeDefaults, cavityRadius, layout, type BeamAxis, type CartridgeParams } from '../../../standins/service/cartridge';
 import { opticShape, type CatalogRecord, type OpticShape } from '../holders/optic';
 import type { ComponentInfo, ComponentRole, ComponentSource } from './components';
 import type { HolderMeshRef } from './layout3d';

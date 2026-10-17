@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { TagChip } from '../../primitives/TagChip';
-import type { SnapCandidate } from '../holders/snap';
+import type { SnapCandidate } from '../../../ports/service';
 import type { ModuleOption } from '../model';
 import { designLens, LENS_FORMS } from '../holders/designs';
 import type { FragmentSurface } from '../holders/optic';

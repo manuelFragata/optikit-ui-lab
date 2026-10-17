@@ -7,11 +7,11 @@
  * millimetres, z up. The scene turns it into three.js's y-up frame with one
  * −90° turn about x, i.e. three = [x, z, −y] (see `toThree`).
  */
-import type { CartridgeParams } from '../holders/cartridge';
+import type { CartridgeParams } from '../../../standins/service/cartridge';
 import type { CatalogRecord, FragmentSurface } from '../holders/optic';
-import type { Light, LightPath, Point } from '../light';
+import type { Light, LightPath, Point } from '../../../ports/light';
 import { layerShow } from '../layers';
-import { isLocked, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
+import { isLocked, seatOf, type RayColorKey, type Schematic, type SchematicSymbol, type SymbolKind } from '../model';
 
 /* ------------------------------------------------------------------ */
 /* Grid and frames                                                     */
@@ -183,7 +183,7 @@ function placePart(s: SchematicSymbol, view: View3D, meshFor: (s: SchematicSymbo
     label: s.label,
     kind: s.kind,
     center: cubeCenter(s),
-    turns: s.placement.state === 'in-cube' ? -s.placement.seat : 0,
+    turns: -seatOf(s.placement),
     layer: s.z,
     look,
     mounted,

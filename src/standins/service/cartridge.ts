@@ -1,4 +1,7 @@
 /**
+ * STAND-IN for the service: in the app the dry run is POST /v1/generate/plan
+ * and the holder's meshes come from POST /v1/generate.
+ *
  * The V4 lens cartridge (optikit-v2 `generators/lens_cartridge_v4.py`, on
  * openuc2-cadquery's `uc2v4.lens_cartridge`): two printed halves around the
  * lens, seated in two molded master inserts that stand in the cube's notches.
@@ -14,7 +17,7 @@
  * Frame: the optical axis is z, the origin the cube centre (the generator's
  * frame). `part_position_mm.x` is sideways across the beam, `.y` up.
  */
-import type { OpticShape } from './optic';
+import type { OpticShape } from '../../components/editor/holders/optic';
 
 export type BeamAxis = '+x' | '-x' | '+y' | '-y';
 

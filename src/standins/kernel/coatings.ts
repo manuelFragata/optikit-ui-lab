@@ -1,4 +1,8 @@
 /**
+ * STAND-IN for the kernel: in the app a surface's reflectance comes from
+ * oc-wasm (`surfaceRtF64`, `surfaceCoatingJSON`, thin-film stacks by the
+ * transfer matrix) once the service writes coatings into Scene3 v3.
+ *
  * Coatings on an optic's surfaces, and how much each surface reflects at a
  * wavelength. Bare glass and a single MgF₂ layer are computed (Fresnel, and
  * the thin-film formula at normal incidence); the vendors' broadband AR and
@@ -10,7 +14,7 @@
  * -C); a part designed here carries its own, on its prescription's surfaces
  * (`FragmentSurface.coating`, a lab id, not Optiland's coating dict).
  */
-import { GLASS_ND, type CatalogRecord, type FragmentSurface } from '../holders/optic';
+import { GLASS_ND, type CatalogRecord, type FragmentSurface } from '../../components/editor/holders/optic';
 
 export type CoatingId = 'uncoated' | 'mgf2' | 'ar-a' | 'ar-b' | 'ar-c' | 'al-protected' | 'ag-protected' | 'au-protected' | 'dielectric-e02' | 'dielectric-e03';
 
@@ -246,20 +250,3 @@ export function coatingChecks(infos: SurfaceInfo[], wavelengths: number[]): Coat
 /** The surfaces with a coating set: `coating` on surface `index`, the rest as they were. */
 export const withCoating = (surfaces: FragmentSurface[], index: number, id: CoatingId): FragmentSurface[] => surfaces.map((s, i) => (i === index ? { ...s, coating: id } : s));
 
-/** The colour of a visible wavelength (approximate), grey outside 380–750 nm. */
-export function nmColor(nm: number): string {
-  const stops: [number, string][] = [
-    [380, '#7a3cc7'],
-    [440, '#3b4fe0'],
-    [490, '#14a7d6'],
-    [520, '#2fbf4a'],
-    [570, '#c9cf1f'],
-    [600, '#f29a1a'],
-    [650, '#e8341c'],
-    [750, '#8f1a12'],
-  ];
-  if (nm < stops[0][0] || nm > stops[stops.length - 1][0]) return '#8b9199';
-  let k = 1;
-  while (stops[k][0] < nm) k++;
-  return Math.abs(stops[k][0] - nm) < Math.abs(nm - stops[k - 1][0]) ? stops[k][1] : stops[k - 1][1];
-}

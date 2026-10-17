@@ -9,9 +9,8 @@
  * Signs as Optiland's: light travels +z; a radius is + when its centre of
  * curvature lies at +z. A concave mirror facing the light has R < 0, f = −R/2.
  */
-import { holderPart, type SchematicSymbol, type SymbolKind } from '../model';
+import { CATEGORY_OF, holderPart, type SchematicSymbol, type SymbolKind } from '../model';
 import { GLASS_ND, opticFacts, paraxialEfl, sag, type CatalogRecord, type FragmentSurface } from './optic';
-import { CATEGORY_OF } from './snap';
 
 export type LensForm = 'biconvex' | 'plano-convex' | 'meniscus' | 'biconcave' | 'plano-concave' | 'achromat';
 export type MirrorForm = 'flat' | 'concave' | 'convex';

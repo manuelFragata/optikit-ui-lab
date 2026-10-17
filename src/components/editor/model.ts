@@ -5,7 +5,20 @@
 
 import type { FragmentSurface } from './holders/optic';
 
-export type SymbolKind = 'laser' | 'mirror' | 'dichroic' | 'lens' | 'objective' | 'camera';
+export type SymbolKind = 'laser' | 'mirror' | 'dichroic' | 'lens' | 'objective' | 'camera' | 'filter' | 'beamsplitter' | 'aperture';
+
+/** The library record category a part of each kind is (the design file's `category`). */
+export const CATEGORY_OF: Record<SymbolKind, string> = {
+  lens: 'lens',
+  mirror: 'mirror',
+  dichroic: 'dichroic',
+  objective: 'objective',
+  laser: 'source',
+  camera: 'detector',
+  filter: 'filter',
+  beamsplitter: 'beamsplitter',
+  aperture: 'aperture',
+};
 
 /** Quarter turns of a part in its cube: 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°. */
 export type Seat = 0 | 1 | 2 | 3;
@@ -22,12 +35,18 @@ export type Seat = 0 | 1 | 2 | 3;
  * realize, freeze and unbind work as before.
  */
 export type Placement =
-  /** Sketched: a specification at a place, no part chosen yet. */
-  | { state: 'ideal' }
+  /** Sketched: a specification at a place, no part chosen yet. `seat`: how it is turned, as in a cube. */
+  | { state: 'ideal'; seat?: Seat }
   /** Housed in a cube on the grid: an existing module, or a holder frozen for it (`holder`: how it was generated). */
   | { state: 'in-cube'; module: string; source: string; version?: string; seat: Seat; frozen?: boolean; holder?: HolderSpec }
   /** An optic placed freely, with no holder yet. */
-  | { state: 'unmounted'; part: string; source: string };
+  | { state: 'unmounted'; part: string; source: string; seat?: Seat };
+
+/** How a part is turned, a quarter at a time: in its cube, or where it sits on its own. */
+export const seatOf = (p: Placement): Seat => p.seat ?? 0;
+
+/** The seat carried over to another placement: kept when the part is turned. */
+const keepSeat = (p: Placement) => (p.seat ? { seat: p.seat } : {});
 
 /**
  * How a frozen holder was generated: the generator and its parameters, as
@@ -50,6 +69,8 @@ export interface ModuleOption {
   version?: string;
   /** Inputs the module fixes, by label: a lens holder's focal length. */
   fixes?: Readonly<Record<string, number>>;
+  /** The optics record it holds in its cube, `<record id>@<range>` (the library index's `component.ref`): the part and its cube come together. */
+  component?: string;
 }
 
 /** The name the part has in the catalogue: its module, or the optic on its own; an ideal part has none. */
@@ -60,12 +81,15 @@ export const catalogueName = (p: Placement) => (p.state === 'in-cube' ? p.module
  * The part takes the inputs the module fixes, and its name and type follow the module unless they were changed.
  */
 export function realize(s: Pick<SchematicSymbol, 'label' | 'type' | 'placement' | 'inputs'>, option: ModuleOption): Partial<SchematicSymbol> {
-  const { fixes, ...module } = option;
+  const { fixes } = option;
+  const module = { module: option.module, source: option.source, ...(option.version && { version: option.version }) };
   const old = catalogueName(s.placement);
-  const seat = s.placement.state === 'in-cube' ? s.placement.seat : 0;
+  const seat = seatOf(s.placement);
+  // A sketched part is still called as the sketch named it ("Ideal lens"): now it has a name of its own.
+  const named = s.label === old || (s.placement.state === 'ideal' && s.label.startsWith('Ideal '));
   return {
     placement: { state: 'in-cube', ...module, seat },
-    ...(s.label === old && { label: option.module }),
+    ...(named && { label: option.module }),
     ...(s.type === old && { type: option.module }),
     ...(fixes && s.inputs && { inputs: s.inputs.map((i) => (i.label in fixes ? { ...i, value: fixes[i.label] } : i)) }),
   };
@@ -86,7 +110,7 @@ export function holderMismatch(s: Pick<SchematicSymbol, 'placement' | 'inputs'>,
 /** Freeze: generate a holder for an unmounted optic, here; `holder`: as designed in the close-up. A frozen holder takes a new design. */
 export const frozen = (p: Placement, holder?: HolderSpec): Placement =>
   p.state === 'unmounted'
-    ? { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: 0, frozen: true, ...(holder && { holder }) }
+    ? { state: 'in-cube', module: `Holder for ${p.part}`, source: 'Generated here', seat: seatOf(p), frozen: true, ...(holder && { holder }) }
     : p.state === 'in-cube' && p.frozen && holder
       ? { ...p, holder }
       : p;
@@ -103,7 +127,7 @@ export const holderPart = (p: Placement): string | undefined =>
 export function snapped(s: Pick<SchematicSymbol, 'placement' | 'inputs'> & { label?: string }, part: string, source: string, values: Readonly<Record<string, number>> = {}): Partial<SchematicSymbol> {
   if (s.placement.state !== 'ideal') return {};
   return {
-    placement: { state: 'unmounted', part, source },
+    placement: { state: 'unmounted', part, source, ...keepSeat(s.placement) },
     prescription: undefined,
     // Still called as the sketch named it ("Ideal lens"): now it has a name of its own.
     ...(s.label?.startsWith('Ideal ') && { label: part }),
@@ -112,7 +136,17 @@ export function snapped(s: Pick<SchematicSymbol, 'placement' | 'inputs'> & { lab
 }
 
 /** Short names for the inputs that specify an ideal part. */
-const SPEC_NAMES: Readonly<Record<string, string>> = { 'Focal length': 'f =', Diameter: 'Ø', Wavelength: 'λ =', 'Numerical aperture': 'NA', Magnification: '' };
+const SPEC_NAMES: Readonly<Record<string, string>> = {
+  'Focal length': 'f =',
+  Diameter: 'Ø',
+  Wavelength: 'λ =',
+  'Numerical aperture': 'NA',
+  Magnification: '',
+  'Centre wavelength': 'λ =',
+  Bandwidth: 'Δλ',
+  'Cut-on wavelength': 'cut-on',
+  Reflectance: 'R =',
+};
 
 /** What an ideal part is, in a line: "f = 50 mm · Ø 25 mm". */
 export const specLine = (s: Pick<SchematicSymbol, 'inputs'>) =>
@@ -131,22 +165,22 @@ export const DESIGNED_HERE = 'Designed here';
 export function designed(s: Pick<SchematicSymbol, 'placement' | 'inputs' | 'kind'>, prescription: FragmentSurface[], values: Readonly<Record<string, number>>): Partial<SchematicSymbol> {
   if (s.placement.state === 'in-cube') return {};
   return {
-    placement: { state: 'unmounted', part: s.kind === 'mirror' ? 'Designed mirror' : 'Designed lens', source: DESIGNED_HERE },
+    placement: { state: 'unmounted', part: s.kind === 'mirror' ? 'Designed mirror' : 'Designed lens', source: DESIGNED_HERE, ...keepSeat(s.placement) },
     prescription,
     ...(s.inputs && { inputs: s.inputs.map((i) => (i.label in values ? { ...i, value: values[i.label] } : i)) }),
   };
 }
 
 /** Back to the sketch: a catalogue part no holder holds yet goes back to its specification. */
-export const sketched = (p: Placement): Placement => (p.state === 'unmounted' ? { state: 'ideal' } : p);
+export const sketched = (p: Placement): Placement => (p.state === 'unmounted' ? { state: 'ideal', ...keepSeat(p) } : p);
 
 /** Unbind: take the optic out of its cube; a frozen holder goes away. */
 export const unbound = (s: { label: string; placement: Placement }): Placement => {
   const p = s.placement;
   if (p.state !== 'in-cube') return p;
   return p.frozen
-    ? { state: 'unmounted', part: p.module.replace(/^Holder for /, ''), source: 'Holder removed' }
-    : { state: 'unmounted', part: s.label, source: `Taken out of ${p.module}` };
+    ? { state: 'unmounted', part: p.module.replace(/^Holder for /, ''), source: 'Holder removed', ...keepSeat(p) }
+    : { state: 'unmounted', part: s.label, source: `Taken out of ${p.module}`, ...keepSeat(p) };
 };
 
 /** One numeric, kind-specific input of a part, shown as a slider (e.g. cut-on wavelength). */
@@ -260,6 +294,9 @@ export const GLYPH_BOUNDS: Record<SymbolKind, { x: number; y: number; w: number;
   lens: { x: -0.45, y: -1.25, w: 0.9, h: 2.5 },
   objective: { x: -0.45, y: -1.25, w: 0.9, h: 2.5 },
   camera: { x: -2.35, y: -0.95, w: 2.45, h: 1.9 },
+  filter: { x: -0.3, y: -0.95, w: 0.6, h: 1.9 },
+  beamsplitter: { x: -0.75, y: -0.75, w: 1.5, h: 1.5 },
+  aperture: { x: -0.3, y: -1.25, w: 0.6, h: 2.5 },
 };
 
 /** The sample sits this far (grid units) in front of the objective. */
@@ -267,7 +304,7 @@ export const SAMPLE_OFFSET = 4.5;
 
 /** The way a part faces (a source shines, an objective looks): +x turned by its seat, a quarter turn clockwise each, seen from above. */
 export function facing(s: SchematicSymbol): { x: number; y: number } {
-  const seat = s.placement.state === 'in-cube' ? s.placement.seat : 0;
+  const seat = seatOf(s.placement);
   return [
     { x: 1, y: 0 },
     { x: 0, y: -1 },

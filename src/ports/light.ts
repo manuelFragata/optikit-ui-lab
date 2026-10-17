@@ -2,13 +2,13 @@
  * The light, as the views draw it. The views never work out where light
  * goes: they ask the light source the app provides (`LightProvider`) for the
  * design they show, and draw what it returns. Today that source is a demo
- * stand-in (src/demo/demoLight.ts); later it is the optics engine (oc-wasm),
+ * stand-in (src/standins/kernel/light.ts); later it is the optics engine (oc-wasm),
  * swapped in at the app root and nowhere else.
  *
  * Grid units, y up.
  */
 import { createContext, useContext } from 'react';
-import type { Schematic, SchematicRay } from './model';
+import type { Schematic, SchematicRay } from '../components/editor/model';
 
 export type Point = { x: number; y: number };
 

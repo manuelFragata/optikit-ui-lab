@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { catalogParts } from '../../../demo/catalogParts';
-import { designedRecord, designLens, designMirror } from '../holders/designs';
+import { catalogParts } from '../library/catalog';
+import { designedRecord, designLens, designMirror } from '../../components/editor/holders/designs';
 import { coatingChecks, reflectance, surfaceInfo, throughput, vendorCoating, withCoating } from './coatings';
 
 describe('coatings', () => {

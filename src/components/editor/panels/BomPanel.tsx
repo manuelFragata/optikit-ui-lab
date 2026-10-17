@@ -6,7 +6,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { TagChip } from '../../primitives/TagChip';
 import { formatEur as eur } from '../../primitives/format';
-import type { Bom, BomLine } from '../bom';
+import type { Bom, BomLine } from '../../../ports/service';
 
 export interface BomPanelProps {
   bom: Bom;
