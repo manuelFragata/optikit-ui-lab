@@ -7,3 +7,4 @@ storybook-static
 
 # Reference material, not part of the repo
 *.pdf
+.claude/
