@@ -3,6 +3,7 @@
  * (1 unit = 1 cube), x to the right, y up, z = layer.
  */
 
+import type { Wiring } from '../control/wiring';
 import type { FragmentSurface } from './holders/optic';
 
 export type SymbolKind = 'laser' | 'mirror' | 'dichroic' | 'lens' | 'objective' | 'camera' | 'filter' | 'beamsplitter' | 'aperture';
@@ -323,6 +324,8 @@ export interface Schematic {
   groups: SchematicGroup[];
   /** Grid pitch: one unit in mm. */
   unitMm: number;
+  /** The electronics: controllers, which device is on which socket, which input each motor moves (the Control tab). */
+  wiring?: Wiring;
 }
 
 /** Local bounding box of each glyph around its anchor (x, y down, in grid units). */

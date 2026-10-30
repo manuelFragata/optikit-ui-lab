@@ -103,6 +103,33 @@ export const demoSchematic: Schematic = {
       notes: '',
     },
   ],
+  // Ethan's stage-demo (openUC2/optikit, examples/designs/microscopes), half wired as a design is on its way to the bench:
+  // the sample stage's z motor moves no input yet, and the camera has no connection.
+  wiring: {
+    parts: [
+      { id: 'C1', label: 'Standalone board 1', module: 'Standalone board v4', source: 'openUC2 Electronics Box' },
+      { id: 'C2', label: 'Standalone board 2', module: 'Standalone board v4', source: 'openUC2 Electronics Box' },
+      { id: 'C3', label: 'Optics stage', module: 'XYZ stage', source: 'openUC2 FRAME' },
+      { id: 'C4', label: 'Sample stage', module: 'XYZ stage', source: 'openUC2 FRAME' },
+    ],
+    inputs: ['optics-x', 'optics-y', 'optics-z', 'sample-x', 'sample-y', 'sample-z'].map((name) => ({ name, unit: 'mm' })),
+    bindings: {
+      S1: { deviceId: 'laser' },
+      C3: { inputs: { x: 'optics-x', y: 'optics-y', z: 'optics-z' } },
+      C4: { inputs: { x: 'sample-x', y: 'sample-y' } },
+    },
+    connections: [
+      { kind: 'uc2-rest-serial', controller: 'root', part: 'C1', device: null, settings: { 'port-pattern': '/dev/ttyUSB*', baudrate: 115200 } },
+      { kind: 'uc2-rest-serial', controller: 'root', part: 'C2', device: null, settings: { 'port-pattern': '/dev/ttyUSB*', baudrate: 115200 } },
+      { kind: 'direct', controller: 'C1', part: 'S1', device: 'drivers', settings: { id: 0, subid: 0 } },
+      { kind: 'direct', controller: 'C1', part: 'C3', device: 'x-axis-driver', settings: { id: 1, subid: 0 } },
+      { kind: 'direct', controller: 'C1', part: 'C3', device: 'y-axis-driver', settings: { id: 2, subid: 0 } },
+      { kind: 'direct', controller: 'C1', part: 'C3', device: 'z-axis-driver', settings: { id: 3, subid: 0 } },
+      { kind: 'direct', controller: 'C2', part: 'C4', device: 'x-axis-driver', settings: { id: 1, subid: 0 } },
+      { kind: 'direct', controller: 'C2', part: 'C4', device: 'y-axis-driver', settings: { id: 2, subid: 0 } },
+      { kind: 'direct', controller: 'C2', part: 'C4', device: 'z-axis-driver', settings: { id: 3, subid: 0 } },
+    ],
+  },
 };
 
 export const demoHistory: VersionEntryData[] = [

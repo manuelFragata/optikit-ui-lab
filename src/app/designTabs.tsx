@@ -1,5 +1,5 @@
 /**
- * The File and Commercial tabs for the open design: the views wired to the
+ * The File, Control and Commercial tabs for the open design: the views wired to the
  * lab's demo data. In the product these are where the services come in
  * (accounts, versions, the shop); the views themselves stay as they are.
  * A project made in this visit has no demo history: it shows its own.
@@ -19,6 +19,7 @@ import type { Schematic } from '../components/editor/model';
 import { download } from '../components/primitives/download';
 import { formatEur } from '../components/primitives/format';
 import { CommercialView } from '../components/views/CommercialView';
+import { ControlView } from '../components/views/ControlView';
 import { FileView } from '../components/views/FileView';
 
 interface DesignTabProps {
@@ -95,6 +96,10 @@ export function FileTab({ id, name, version, schematic, project, onNotice, onAdd
       onNotice={onNotice}
     />
   );
+}
+
+export function ControlTab({ name, version, schematic, onNotice, onDesignChange }: DesignTabProps & { onDesignChange: (design: Schematic) => void }) {
+  return <ControlView designName={name} version={version} design={schematic} onDesignChange={onDesignChange} onNotice={onNotice} />;
 }
 
 export function CommercialTab({ name, version, schematic, project, onNotice }: DesignTabProps) {

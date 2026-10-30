@@ -15,7 +15,7 @@ export function readDesignFile(text: string): Schematic | null {
     const d = JSON.parse(text) as Partial<Schematic> | null;
     if (!d || !Array.isArray(d.symbols)) return null;
     // Only the design's own fields: older files also name light paths (`rays`), but the light comes from the parts now.
-    return { symbols: d.symbols, groups: d.groups ?? [], unitMm: d.unitMm ?? 50 };
+    return { symbols: d.symbols, groups: d.groups ?? [], unitMm: d.unitMm ?? 50, ...(d.wiring && { wiring: d.wiring }) };
   } catch {
     return null;
   }

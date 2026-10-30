@@ -12,7 +12,7 @@ This file tells which lab code is UI, which code is a stand-in, and what replace
 | `src/ports/` | The interfaces that the views use to get light, analysis, coatings, holders, parts and service answers | Keep the shape. Give real implementations. |
 | `src/standins/kernel/` | Stand-ins for oc-wasm: light, traces, optimizer, coatings | Replace with oc-wasm, in the page. |
 | `src/standins/service/` | Stand-ins for optikit-core: part matching, holder generators, dry runs, BOM | Replace with the service endpoints. |
-| `src/standins/library/` | Stand-ins for optikit-library: records, modules, prices, meshes | Replace with the library index and the catalogue. |
+| `src/standins/library/` | Stand-ins for optikit-library: records, modules, prices, meshes, electronics (and NewSwitch's answers) | Replace with the library index and the catalogue; NewSwitch's config and inventory with optikit-core and NewSwitch. |
 | `src/demo/` | Page content only: projects, users, landing, history | Not ported. |
 
 The views and the app (`src/components/`, `src/app/`) get the stand-ins only through `src/ports/`, with no exceptions. ESLint enforces this rule (`no-restricted-imports` in `eslint.config.js`). Stories and tests can import stand-ins as data.
@@ -75,6 +75,30 @@ The numbers are geometric, on axis, at one wavelength. The pane says so in its h
 | `plan({params, record, beamMm})`: the dry run and its checks | `standins/service/cartridge.ts` | `POST /v1/generate/plan` |
 | `mesh({params, record})`: the holder with its optic, as mesh components | `standins/service/cartridgeMesh.ts` draws the V4 cartridge from its parameters | `POST /v1/generate` (the GLB, loaded like a module mesh). optikit-app-v1 already uses the real calls (`useHolderDesign.ts`). |
 
+### Electronics (`src/ports/electronics.ts`) — library and NewSwitch
+
+The Control tab: the device tree from the computer to each device, and which design input each motor moves (optikit-v2 WP-378). The model follows Ethan's connections (openUC2/optikit #37, `839b79a`), which are newer than optikit-v2's `feat/newswitch-config` (WP-401, `controller-mapping`) and NewSwitch's loader (`mapping`).
+
+| Field | Lab stand-in | App |
+| --- | --- | --- |
+| `modelOf(module)`: a module's devices (key, type, device file, the axis and the part input a motor drives), or a board's protocols and outputs | `standins/library/electronics.ts` (`ELECTRONICS`) | The library index: a module's `design.devices`, and a board's `outputs` (optikit-v2 WP-401a) |
+| `catalogue`: boards, and motion and light with no optic, to add in Control | `CONTROL_CATALOGUE` | `GET /v1/library/index`, the modules with a controller or device child |
+| `config(design)`: the NewSwitch config | `newswitchConfig`: Ethan's `config.py`, with his device files. Its output for his `stage-demo` equals his file (`wiring.test.ts`) | `POST /v1/export/newswitch-config` (WP-401c) |
+| `inventory(design)`: what the instrument has | `benchInventory`: everything reached is ready but one Motor Z driver, plus an LED ring the design does not name | NewSwitch's inventory (WP-317) |
+
+The wiring is in the design (`Schematic.wiring`). The app writes it to the design file like this:
+
+| Lab | `optikit-design.yml` |
+| --- | --- |
+| `root` (every design has it) | a component `root-controller` placing `primitives/controllers/root.dsn` |
+| `parts` (boards, stages) | ordinary components of the design, with no optical role |
+| `bindings[part].deviceId` | the part's `instantiation.inputs.newswitch-device-id` (a stage also `newswitch-device-id-<axis>` = `<id>/<axis>`) |
+| `bindings[part].inputs[axis]` | `instantiation.inputs.newswitch-input-variable-<axis>`, and the part's own `position-<axis>` set to `~ inputs['<name>'].value` |
+| `inputs` | the top-level design's `inputs`, tagged `adjustment/electronic` |
+| `connections[]` | one component placing `primitives/connections/<kind>.dsn`, with `newswitch-controller-id`, `newswitch-peripheral-id` (device ids, which the lab works out from its part ids) and `settings` as its other inputs |
+| The tree | the `wiring` assembly: each part `{assembly: wiring}`, each connection under its controller's node |
+| `positions` (where each card was left) | The node poses of the `wiring` assembly, where optikit-v2's backlog plans the 2D layout. Not in the examples yet |
+
 ### Build notes (`src/ports/build.ts`)
 
 What the stand-ins do differently from the app, in words: the light, the catalogue and prices, the holder previews, sign-in, the network. Settings shows them once, under "This build", so the screens themselves use product wording. The app gives no notes, and the section does not show.
@@ -131,3 +155,7 @@ The lab shows these features, but the service does not support them yet. They ar
 3. **Matching by band or ratio.** `POST /v1/fit/existing` matches by part number, prescription, or focal length and diameter. It does not compare a filter's band or a splitter's ratio.
 4. **The fit for the canvas.** `POST /v1/fit` reads only an imported Optiland or Zemax file, not the parts on the canvas.
 5. **"In a cube, holder later".** The design format has no state for a part in a cube with no holder.
+6. **Three shapes for one thing.** Ethan's connections (`839b79a`), `controller-mapping` on optikit-v2's `feat/newswitch-config`, and `mapping` in NewSwitch's loader. The lab follows Ethan's, and is the only one of the three that does so far.
+7. **A board's outputs.** Ethan's connections have only `id` and `subid`; `outputs` (a name for each) is optikit-v2's. The lab's follow the Standalone v4 and the firmware's table (D-N1). The HAT+ has no output list in the library yet.
+8. **CAN boards.** WP-378 names computer → board (USB) → CAN bus. Root → board is here, with a CAN or serial connection. Satellite boards on the CAN bus exist only as `id` and `subid` values (D-N1), so the canvas does not draw them as cards.
+9. **The camera's connection.** Ethan's examples connect it from root over `usb3-vision`; the lab does too. optikit-v2's D-N3 keeps this open with Christian. The lab's camera uses the HIK device file, because the library has none for the IMX477.

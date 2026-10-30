@@ -30,10 +30,10 @@ import type { ProjectSummary } from '../api/types';
 import { scrollToSection } from '../components/pages/landingSections';
 import { ColorSchemeToggle } from '../components/primitives/ColorSchemeToggle';
 import { SettingsButton } from '../settings/SettingsDialog';
-import { CommercialTab, FileTab } from './designTabs';
+import { CommercialTab, ControlTab, FileTab } from './designTabs';
 import { useHashRoute, useSession, type Route } from './routing';
 
-const emptySchematic: Schematic = { ...demoSchematic, symbols: [], groups: [] };
+const emptySchematic: Schematic = { ...demoSchematic, symbols: [], groups: [], wiring: undefined };
 
 /** Gallery designs that have a matching example drawing; the rest show the demo schematic. */
 const GALLERY_DRAWINGS: Record<string, string> = { g1: 'ex-brightfield', g2: 'ex-fluor', g4: 'ex-brightfield', g7: 'ex-fluor' };
@@ -125,6 +125,7 @@ const UPCOMING: Record<WorkspaceTab, string> = {
   file: 'Save, version history, import, export and share.',
   view: 'The canvas: schematic per layer or 3D, add parts, and the inspector.',
   optimize: 'The canvas with the optimizer: free numbers, targets, runs.',
+  control: 'The electronics: controllers, devices, and the inputs the motors move.',
   commercial: 'The quote: prices, margins, lead time and the checks.',
 };
 
@@ -376,6 +377,19 @@ export function PrototypeApp() {
           onNewProject={newProject}
           onOpenProjects={() => navigate({ name: 'workspace', tab: 'projects' })}
           onAddProject={addProject}
+        />
+      );
+    } else if (tab === 'control' && design && openId) {
+      view = (
+        <ControlTab
+          key={openId}
+          id={openId}
+          name={design.name}
+          version={design.version}
+          schematic={changed[openId] ?? design.schematic}
+          project={design.project}
+          onNotice={setToast}
+          onDesignChange={(schematic) => setChanged((all) => ({ ...all, [openId]: schematic }))}
         />
       );
     } else if (tab === 'commercial' && design && openId) {
